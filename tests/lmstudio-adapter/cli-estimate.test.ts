@@ -84,8 +84,11 @@ describe('parseLmsEstimateValues', () => {
 });
 
 describe('estimateArgs', () => {
-  it('estimates the model without flags by default', () => {
-    expect(estimateArgs(makeProfile(QWEN_KEY))).toEqual(['load', QWEN_KEY, '--estimate-only']);
+  it('estimates the model by default with autoprobe, non-interactively', () => {
+    // `--yes` is mandatory for scripting: without it (real host 2026-09-05)
+    // `lms load --estimate-only` opens the interactive model selector TUI and
+    // a non-TTY CLI hangs until the estimate timeout.
+    expect(estimateArgs(makeProfile(QWEN_KEY))).toEqual(['load', QWEN_KEY, '--estimate-only', '--yes']);
   });
 
   it('passes the profile context length so the estimate matches the load config', () => {
@@ -93,6 +96,7 @@ describe('estimateArgs', () => {
       'load',
       QWEN_KEY,
       '--estimate-only',
+      '--yes',
       '--context-length',
       '8192',
     ]);
@@ -121,6 +125,29 @@ describe('createCliAdapter estimate', () => {
       estimatedAt: NOW,
       warnings: [],
     });
+  });
+
+  it('reads the estimate even when lms writes it to stderr (real host 2026-09-05)', async () => {
+    // Live host: `lms load --estimate-only --yes` prints the human-readable
+    // estimate to stderr with stdout empty; the port must not degrade to rough.
+    const env = makeFakeEnv({
+      runLmsHandler: () => ({
+        exitCode: 0,
+        stdout: '',
+        stderr: [
+          'Model: qwen/qwen3.5-9b',
+          'Context Length: 8,192',
+          'Estimated GPU Memory:   6.10 GiB',
+          'Estimated Total Memory: 6.10 GiB',
+          'Confidence: LOW',
+        ].join('\n'),
+        timedOut: false,
+      }),
+    });
+    const estimate = await createCliAdapter(env).estimate(makeProfile('qwen/qwen3.5-9b', { contextLength: 8192 }));
+    expect(estimate.provider).toBe('exact');
+    expect(estimate.vramTotalBytes).toBe(Math.round(6.1 * 1024 ** 3));
+    expect(estimate.systemRamBytes).toBe(Math.round(6.1 * 1024 ** 3));
   });
 
   it('classifies a spawn timeout as a timeout error', async () => {

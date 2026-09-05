@@ -105,7 +105,10 @@ export function createCliAdapter(env: LmStudioEnv): CliLms {
         kind: 'process',
       });
     }
-    const values = parseLmsEstimateValues(result.stdout);
+    // Real host evidence (2026-09-05): `lms load --estimate-only` writes its
+    // human-readable estimate to stderr with stdout empty. Scan both streams so
+    // a channel move across versions cannot silently degrade to rough.
+    const values = parseLmsEstimateValues(`${result.stdout}\n${result.stderr}`);
     if (values === null) {
       throw new LmStudioError('lms load --estimate-only returned unrecognizable output', {
         subsystem: 'cli',
@@ -138,9 +141,12 @@ export function createCliAdapter(env: LmStudioEnv): CliLms {
  * estimate answers the same configuration that `apply` would load; `--json` is
  * deliberately not used — `lms status --json` drift (2026-09-05) showed the
  * binary only documents `ls --json`, and the parser accepts human output.
+ * `--yes` is required for scripting: without it `lms load --estimate-only`
+ * starts the interactive "Select a model to estimate" TUI (observed on the live
+ * host 2026-09-05), which hangs a non-TTY CLI until the estimate timeout.
  */
 export function estimateArgs(profile: CompositeProfile): string[] {
-  const args = ['load', profile.model.modelKey, '--estimate-only'];
+  const args = ['load', profile.model.modelKey, '--estimate-only', '--yes'];
   const contextLength = profile.runtime.contextLength;
   if (typeof contextLength === 'number' && contextLength > 0) {
     args.push('--context-length', String(contextLength));
