@@ -293,7 +293,7 @@ function buildCliMatrix(probedAt: string, ttlSeconds: number, lmsAvailable: bool
     ...OPERATION_CAPABILITY_FIELDS.filter((field) => field !== 'ops.discoverModels').map((field): CapabilityEntry => ({
       field,
       support: 'unavailable',
-      note: 'write/estimate paths live in the REST or SDK adapter (M1-006)',
+      note: 'write paths live in the REST adapter; estimate lands in the CLI adapter (M1-006)',
     })),
     ...runtimeEntries('unavailable', 'unavailable', 'CLI adapter applies no runtime fields'),
   ];

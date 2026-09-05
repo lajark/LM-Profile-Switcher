@@ -1,0 +1,28 @@
+/**
+ * EstimatePort for the LM Studio host (M1-006). Tries the official
+ * `lms load --estimate-only` path first; any failure to reach the engine or to
+ * parse its answer degrades to an explicitly-labeled `rough` estimate
+ * (see `rough-estimate.ts`). `internal` errors and unexpected exceptions
+ * rethrow — a bug must not be papered over as a rough estimate.
+ */
+import type { EstimatePort } from '@lmps/core';
+
+import { createCliAdapter } from '../cli/cli-adapter.js';
+import type { LmStudioEnv } from '../env.js';
+import { isLmStudioError } from '../errors.js';
+import { roughEstimateFor } from './rough-estimate.js';
+
+export function createCliEstimatePort(env: LmStudioEnv): EstimatePort {
+  const cli = createCliAdapter(env);
+  return {
+    async estimate(profile) {
+      try {
+        return await cli.estimate(profile);
+      } catch (error) {
+        if (isLmStudioError(error) && error.kind === 'internal') throw error;
+        if (!isLmStudioError(error)) throw error;
+        return roughEstimateFor(profile, env.now());
+      }
+    },
+  };
+}

@@ -13,6 +13,8 @@ export * from './model-names.js';
 export * from './rest/v1.js';
 export * from './rest/rest-v1-adapter.js';
 export * from './cli/cli-adapter.js';
+export * from './estimate/rough-estimate.js';
+export * from './estimate/estimate-port.js';
 export * from './sdk/sdk-adapter.js';
 export * from './mock/mock-adapter.js';
 export * from './capability.js';
