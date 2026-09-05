@@ -1,6 +1,6 @@
 # CLI Specification / CLI 规范
 
-> 状态：M1-004 已实现（2026-08-22）。`profile/hardware/lang/doctor` 为完整契约；`models/current/snapshot` 的数据源是注入 seam，未接线时诚实返回 `CAPABILITY_UNSUPPORTED`（exit 6），由 M1-003/005 接线。`apply/estimate/optimize/benchmark/server/backup` 与 `--version` 尚未实现。
+> 状态：M1-004/M1-005 已实现（`apply` 于 M1-005 落地，生产接线待 M1-003）。`profile/hardware/lang/doctor` 为完整契约；`apply <id> [--yes]` 为完整命令（生产 `activation` 端口未接线前恒 `CAPABILITY_UNSUPPORTED` exit 6）；`models/current/snapshot` 的数据源是注入 seam，未接线时诚实返回 `CAPABILITY_UNSUPPORTED`（exit 6），由 M1-003/006 接线。`estimate/optimize/benchmark/server/backup` 与 `--version` 尚未实现。
 
 Command: `lmps`（`corepack pnpm run lmps -- <args>`，先 `build`；或 `node apps/cli/dist/index.js <args>`）
 
@@ -16,7 +16,7 @@ Command: `lmps`（`corepack pnpm run lmps -- <args>`，先 `build`；或 `node a
 - `--lang <zh-CN|en>`：覆盖语言（可出现在任意位置，含 `--lang=zh-CN` 形式）。
 - `--verbose`：仅人类模式向 stderr 追加一条 `lmps: <command> · <locale> · <ms>ms` 诊断；机器模式忽略。
 - `--no-color`：接受并忽略——输出本身无 ANSI 颜色。
-- `--timeout <ms>`：解析并接受、暂不施加（M1-003 discovery 接线后生效并记录于本规范）。
+- `--timeout <ms>`：解析接受；对 `apply` 已作为激活状态机每阶段超时实际施加（M1-005）；`models/current/snapshot` 等其他命令在 M1-003 接线后按需生效。
 
 ## Machine envelope （`--json`）
 
@@ -79,16 +79,24 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 
 数据源为注入 seam（`discovery`/`state`/`snapshot` 端口）。未接线 → 人类 `error.capabilityUnsupported`、机器 `CAPABILITY_UNSUPPORTED`、exit **6**。接线后由 M1-003/005 补充数据形状（`models`: `{models:[{key,family,quantization,parametersB}]}`；`current`: `{active:{profileId,modelKey,since}}`；`snapshot`: `{snapshot:{profileId,at,captured}}`）。
 
+### apply（M1-005）
+
+`lmps apply <id> [--yes]`：对已存储 Profile 执行激活事务（跨入口全局锁、验证、估算、卸载冲突、加载、健康检查、回滚/恢复）。目标与当前激活不同（或无激活）时必须显式 `--yes`（无提示不切换模型）；同目标走幂等路径无需确认。`--timeout` 作为每阶段超时实际施加。
+
+机器 `data`：`{ transaction: <redacted> }`；人类输出为双语结果文案（active/idempotent/canceled/recovered/failed）。退出码 0=active、2=canceled、3=failed-but-recovered、5=failed；lock busy/激活前置失败 → 4（preflight）。
+
+生产 `activation` 端口在 M1-003 接线前为注入 seam，未接线 → `CAPABILITY_UNSUPPORTED` exit 6。
+
 ## Exit codes
 
 | Code | Meaning | 使用 |
 |---:|---|---|
 | 0 | success | 全部成功路径；doctor 检查完成（含 `summary.ok=false`） |
-| 2 | user cancelled | 预留（M1-005 取消路径） |
-| 3 | activation in progress | 预留（M1-005 并发锁） |
-| 4 | validation or preflight failed | 参数/校验/Profile 不存在/文档校验失败/delete 无 `--yes`/未知命令 |
-| 5 | activation and rollback both failed | 预留（M1-005） |
-| 6 | requested capability unsupported | `models/current/snapshot` 未接线；非法 locale 之外的能力缺失 |
+| 2 | user cancelled | `apply` 取消路径（`ACTIVATION_CANCELED`；M1-005 生效） |
+| 3 | activation in progress | `apply` 事务在恢复路径上完成（failed-but-recovered；M1-005 生效） |
+| 4 | validation or preflight failed | 参数/校验/Profile 不存在/文档校验失败/delete 无 `--yes`/未知命令/lock busy/激活前置失败 |
+| 5 | activation and rollback both failed | `apply` 事务失败且回滚也失败（M1-005 生效） |
+| 6 | requested capability unsupported | `models/current/snapshot`/`apply` 生产端口未接线（M1-003 接线后消除） |
 | 10 | internal error | store 损坏/IO 失败/未捕获异常/资源错误 |
 
 ## Output stream isolation
@@ -100,4 +108,4 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 
 ## 未实现 / 预留
 
-`apply/estimate/optimize/benchmark/server/backup`、`--version`、Shell completion、交互向导均未实现；`apply/estimate/optimize/benchmark/server/backup` 与 exit 2/3/5 在 M1-005 及后续接线。
+`estimate/optimize/benchmark/server/backup`、`--version`、Shell completion、交互向导均未实现；`apply` 命令本身已随 M1-005 实现（生产接线待 M1-003），`estimate` 等命令在 M1-006 及后续接线。
