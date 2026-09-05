@@ -21,6 +21,8 @@
     "domain:generate": "node scripts/generate-domain-schemas.mjs",
     "domain:schema:check": "node scripts/check-domain-schemas.mjs",
     "hardware:probe": "node scripts/probe-hardware.mjs",
+    "probe:real": "node scripts/probe-real.mjs",
+    "smoke:real": "node scripts/smoke-real.mjs",
     "lmps": "node apps/cli/dist/index.js",
     "license:check": "node scripts/license-report.mjs --check",
     "license:report": "node scripts/license-report.mjs --write",

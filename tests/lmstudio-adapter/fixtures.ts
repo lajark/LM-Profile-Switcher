@@ -1,0 +1,76 @@
+/**
+ * Fake `LmStudioEnv` for the adapter tests (M0-005): an in-memory HTTP handler
+ * and an in-memory `lms` runner, so every adapter test exercises the real
+ * adapter code against a scripted host without sockets or child processes.
+ */
+import type { LmRequestInit, LmSpawnResult, LmStudioEnv } from '@lmps/lmstudio-adapter';
+
+export const NOW = '2026-08-22T01:02:03.000Z';
+
+export interface FakeHttpResult {
+  status: number;
+  body?: unknown;
+  rawText?: string;
+}
+
+export interface FakeLmStudioEnvOptions {
+  baseUrl?: string;
+  token?: string | null;
+  lmsBin?: string;
+  httpHandler?: (path: string, init: LmRequestInit) => FakeHttpResult | Promise<FakeHttpResult>;
+  runLmsHandler?: (args: readonly string[], timeoutMs?: number) => LmSpawnResult | Promise<LmSpawnResult>;
+  now?: string;
+}
+
+export function makeFakeEnv(options: FakeLmStudioEnvOptions = {}): LmStudioEnv {
+  const baseUrl = options.baseUrl ?? 'http://127.0.0.1:1234';
+  return {
+    baseUrl,
+    token: options.token ?? null,
+    lmsBin: options.lmsBin ?? 'lms',
+    now: () => options.now ?? NOW,
+    nowMs: () => 0,
+    async http(path, init = {}) {
+      // Handlers match the bare path (e.g. `/api/v1/models`), not the
+      // absolute URL the adapter builds.
+      const requestPath = path.startsWith(baseUrl) ? path.slice(baseUrl.length) : path;
+      const result =
+        options.httpHandler === undefined
+          ? { status: 404, rawText: '{"error":"no handler"}' }
+          : await options.httpHandler(requestPath, init);
+      return {
+        ok: result.status >= 200 && result.status < 300,
+        status: result.status,
+        async text() {
+          if (result.rawText !== undefined) return result.rawText;
+          return result.body === undefined ? '' : JSON.stringify(result.body);
+        },
+      };
+    },
+    async runLms(args, timeoutMs) {
+      return (
+        options.runLmsHandler === undefined
+          ? { exitCode: 127, stdout: '', stderr: 'no handler', timedOut: false }
+          : await options.runLmsHandler(args, timeoutMs)
+      );
+    },
+  };
+}
+
+/** Routes REST requests by path: `target` gets the handler, everything else 404. */
+export function routeHttp(
+  target: string,
+  handler: (init: LmRequestInit) => FakeHttpResult,
+): (path: string, init: LmRequestInit) => FakeHttpResult {
+  return (path, init) => (path === target ? handler(init) : { status: 404, rawText: '{"error":"not found"}' });
+}
+
+export function restModelsBody(models: unknown[]): unknown {
+  return { data: models };
+}
+
+export function loadedModel(id: string, loadConfig: Record<string, unknown> | null = {}): unknown {
+  return { id, loaded: loadConfig !== null, load_config: loadConfig };
+}
+
+export const SPAWN_OK: LmSpawnResult = { exitCode: 0, stdout: '', stderr: '', timedOut: false };
