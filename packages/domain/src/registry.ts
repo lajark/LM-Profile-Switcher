@@ -20,6 +20,7 @@ import {
   RuntimeProfileSchema,
   TaskProfileSchema,
 } from './profile.js';
+import { CandidateSchema, RecommendationSchema } from './recommendation.js';
 import { RulesDocumentSchema } from './rules.js';
 import { ActivationTransactionSchema } from './transaction.js';
 
@@ -63,4 +64,11 @@ export const DOMAIN_SCHEMAS: readonly DomainSchemaEntry[] = [
     RulesDocumentSchema,
   ),
   entry('CapabilityMatrix', 'Capability Matrix', 'Per-adapter capability probing result.', CapabilityMatrixSchema),
+  entry('Candidate', 'Candidate', 'One safe, scored candidate configuration for a baseline profile.', CandidateSchema),
+  entry(
+    'Recommendation',
+    'Recommendation',
+    'Scored candidate set for a baseline profile under one task rule (PRD FR-07).',
+    RecommendationSchema,
+  ),
 ];

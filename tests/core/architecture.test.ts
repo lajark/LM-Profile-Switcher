@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 const WORKSPACE = fileURLToPath(new URL('../../', import.meta.url));
 const SRC_DIR = join(WORKSPACE, 'packages', 'core', 'src');
 
-const ALLOWED_PACKAGES = ['@lmps/domain'];
+const ALLOWED_PACKAGES = ['@lmps/domain', '@lmps/optimizer'];
 const BANNED_TOKENS = [
   'node:',
   'process.',
@@ -38,12 +38,12 @@ function srcFiles(): string[] {
   return out;
 }
 
-describe('core architecture guard (M1-005)', () => {
-  it('ships at least 8 source modules', () => {
-    expect(srcFiles().length).toBeGreaterThanOrEqual(8);
+describe('core architecture guard (M1-005 → M2-002)', () => {
+  it('ships at least 9 source modules', () => {
+    expect(srcFiles().length).toBeGreaterThanOrEqual(9);
   });
 
-  it('imports only the domain package', () => {
+  it('imports only the domain and optimizer packages', () => {
     const imported = new Set<string>();
     for (const path of srcFiles()) {
       const source = readFileSync(path, 'utf8');
@@ -51,10 +51,10 @@ describe('core architecture guard (M1-005)', () => {
         imported.add(match[1]);
       }
     }
-    expect([...imported]).toEqual(ALLOWED_PACKAGES);
+    expect(imported).toEqual(new Set(ALLOWED_PACKAGES));
   });
 
-  it('declares exactly the domain workspace dependency', () => {
+  it('declares exactly the domain and optimizer workspace dependencies', () => {
     const packageJson = JSON.parse(
       readFileSync(join(WORKSPACE, 'packages', 'core', 'package.json'), 'utf8'),
     ) as { dependencies: Record<string, string> };
@@ -82,9 +82,9 @@ describe('core architecture guard (M1-005)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('exports the activation surface from index', () => {
+  it('exports the activation and recommendation surface from index', () => {
     const index = readFileSync(join(SRC_DIR, 'index.ts'), 'utf8');
-    for (const module of ['errors', 'lock', 'ports', 'redact', 'runner', 'snapshot', 'transaction']) {
+    for (const module of ['errors', 'lock', 'ports', 'recommendation', 'redact', 'runner', 'snapshot', 'transaction']) {
       expect(index).toContain(`./${module}.js`);
     }
   });

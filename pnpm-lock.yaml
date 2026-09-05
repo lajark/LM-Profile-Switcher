@@ -59,6 +59,9 @@ importers:
       '@lmps/domain':
         specifier: workspace:*
         version: link:../domain
+      '@lmps/optimizer':
+        specifier: workspace:*
+        version: link:../optimizer
 
   packages/domain:
     dependencies:

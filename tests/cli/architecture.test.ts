@@ -42,9 +42,9 @@ function srcFiles(): string[] {
   return out;
 }
 
-describe('CLI architecture guard (M1-004 → M1-005)', () => {
-  it('ships at least 18 source modules', () => {
-    expect(srcFiles().length).toBeGreaterThanOrEqual(18);
+describe('CLI architecture guard (M1-004 → M2-002)', () => {
+  it('ships at least 19 source modules', () => {
+    expect(srcFiles().length).toBeGreaterThanOrEqual(19);
   });
 
   it('exposes index.ts and deps.ts as the only wiring modules', () => {

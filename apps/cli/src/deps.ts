@@ -13,12 +13,16 @@ import {
   createActivationRunner,
   captureSnapshot,
   createFileLock,
+  createRecommendationService,
   type ActivationLock,
   type ActivationRuntime,
+  type CapabilityPort,
+  type HardwarePort,
   type RunnerContext,
   type TransactionLogSink,
 } from '@lmps/core';
-import { createDefaultProbeEnv } from '@lmps/hardware';
+import type { CapabilityMatrix } from '@lmps/domain';
+import { createDefaultProbeEnv, probeHardware, type ProbeEnv } from '@lmps/hardware';
 import { createI18n, loadResourceFiles, normalizeLocale, type Locale } from '@lmps/i18n';
 import {
   createCliEstimatePort,
@@ -29,6 +33,7 @@ import {
   resolveBaseUrl,
   type AdapterBundle,
   type AdapterSelection,
+  type CapabilityProbeResult,
   type LmStudioEnv,
 } from '@lmps/lmstudio-adapter';
 import { createDefaultFsys, createDefaultProfileStore, type Fsys, type ProfileStore } from '@lmps/profile-store';
@@ -36,7 +41,7 @@ import { join } from 'node:path';
 
 import { createFileLanguageStore } from './config.js';
 import { CliError, lmUnreachable } from './errors.js';
-import type { ActivationSeam, CliDeps } from './seams.js';
+import type { ActivationSeam, CliDeps, RecommendationSeam } from './seams.js';
 
 export interface DefaultDepsOptions {
   rootDir?: string;
@@ -85,6 +90,8 @@ export function createDefaultDeps(options: DefaultDepsOptions = {}): CliDeps {
   const selection: AdapterSelection = env.LMPS_ADAPTER === 'mock' ? 'mock' : 'auto';
 
   const lmPorts = createLmStudioCliPorts(store, { lmEnv, selection });
+  const probeEnv = createDefaultProbeEnv();
+  const recommendation = createRecommendationSeam(fs, { lmEnv, selection, probeEnv, rootDir });
 
   return {
     store,
@@ -104,11 +111,12 @@ export function createDefaultDeps(options: DefaultDepsOptions = {}): CliDeps {
     readTextFile: (path) => fs.readFileUtf8(path),
     writeTextFile: (path, data) => fs.writeFileUtf8(path, data),
     now: () => new Date().toISOString(),
-    probeEnv: createDefaultProbeEnv(),
+    probeEnv,
     discovery: lmPorts.discovery,
     state: lmPorts.state,
     snapshot: lmPorts.snapshot,
     activation: createActivationSeam(fs, { lmEnv, selection, rootDir }),
+    recommendation,
     nodeVersion: process.versions.node ?? null,
   };
 }
@@ -309,6 +317,73 @@ export function createActivationSeam(fs: Fsys, options: ActivationSeamOptions): 
   const estimate = createCliEstimatePort(options.lmEnv);
   const ports = { runtime, lock, estimate, log };
   return { runtime, lock, estimate, log, context: runnerContext, runner: createActivationRunner(runnerContext, ports) };
+}
+
+export interface RecommendationSeamOptions {
+  /** Pre-built adapter env; tests inject an in-memory fake here. */
+  lmEnv: LmStudioEnv;
+  /** Adapter selection; only `mock` overrides the router. */
+  selection?: AdapterSelection;
+  /** Hardware probe env; the same `lmps hardware` uses. */
+  probeEnv: ProbeEnv;
+  rootDir: string;
+  now?: () => string;
+}
+
+/**
+ * M2-002 production wiring: the `lmps optimize` seam. The capability port picks
+ * the most operational matrix from the probe result (first with a reachable
+ * `ops.load`, falling back to the REST matrix); the estimate port is the same
+ * official estimator `apply` uses (whose unreachable path degrades to a labeled
+ * `rough` estimate — the safety margin then fails closed); the hardware port
+ * reuses `probeHardware`, so `lmps optimize` and `lmps hardware` agree on VRAM.
+ * The audit sink appends each confirmed save to `<rootDir>/logs/optimizations.ndjson`.
+ */
+export function createRecommendationSeam(fs: Fsys, options: RecommendationSeamOptions): RecommendationSeam {
+  const logPath = join(options.rootDir, 'logs', 'optimizations.ndjson');
+
+  function pickActiveMatrix(result: CapabilityProbeResult): CapabilityMatrix {
+    const active = result.matrices.find((matrix) =>
+      matrix.capabilities.some((entry) => entry.field === 'ops.load' && (entry.support === 'exact' || entry.support === 'degraded')),
+    );
+    const fallback = result.matrices[0];
+    if (fallback === undefined) {
+      throw new Error('capability probe returned no matrices');
+    }
+    return active ?? fallback;
+  }
+
+  const capability: CapabilityPort = {
+    probe: async () => {
+      try {
+        return pickActiveMatrix(await probeCapabilities(options.lmEnv));
+      } catch (error) {
+        const mapped = mapLmStudioReachability(error);
+        if (mapped !== error) throw mapped;
+        throw error;
+      }
+    },
+  };
+
+  const hardware: HardwarePort = {
+    profile: async () => probeHardware(options.probeEnv),
+  };
+
+  const service = createRecommendationService(runnerContext, {
+    estimate: createCliEstimatePort(options.lmEnv),
+    capability,
+    hardware,
+  });
+
+  return {
+    service,
+    audit: (entry) => {
+      fs.mkdirRecursive(join(options.rootDir, 'logs'));
+      const prior = fs.exists(logPath) ? fs.readFileUtf8(logPath) : '';
+      const line = JSON.stringify(entry);
+      fs.writeFileUtf8(logPath, prior === '' ? line : `${prior}\n${line}`);
+    },
+  };
 }
 
 /**

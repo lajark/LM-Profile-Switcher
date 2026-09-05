@@ -10,6 +10,7 @@ import type {
   ActivationRuntime,
   ActivationRunner,
   EstimatePort,
+  RecommendationService,
   RunnerContext,
   TransactionLogSink,
 } from '@lmps/core';
@@ -66,6 +67,17 @@ export interface ActivationSeam {
   runner?: ActivationRunner;
 }
 
+/**
+ * Candidate optimizer seam (M2-002): the core `RecommendationService` plus the
+ * audit sink that records every `optimize --yes` save. Production `deps.ts`
+ * wires it; a null seam makes `optimize` honestly report capability unsupported.
+ */
+export interface RecommendationSeam {
+  service: RecommendationService;
+  /** Appends one redacted optimization-application record (ndjson line). */
+  audit(entry: Record<string, unknown>): void;
+}
+
 /** What one command produces. `literal` bypasses the machine envelope for both modes. */
 export interface CommandOutput {
   text: string;
@@ -95,5 +107,6 @@ export interface CliDeps {
   state: StatePort | null;
   snapshot: SnapshotPort | null;
   activation: ActivationSeam | null;
+  recommendation: RecommendationSeam | null;
   nodeVersion: string | null;
 }

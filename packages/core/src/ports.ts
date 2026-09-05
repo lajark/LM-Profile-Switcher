@@ -5,7 +5,7 @@
  * in-memory fakes in every environment (tests, the CLI, the future sidecar and
  * the desktop WebView).
  */
-import type { CompositeProfile, LoadEstimate, ActivationTransaction } from '@lmps/domain';
+import type { CapabilityMatrix, CompositeProfile, HardwareProfile, LoadEstimate, ActivationTransaction } from '@lmps/domain';
 
 /** What the host currently has loaded; null fields mean "nothing active". */
 export interface ActiveState {
@@ -54,6 +54,16 @@ export interface EstimatePort {
 /** Audit sink for the redacted transaction record (M1-005 deliverable). */
 export interface TransactionLogSink {
   write(transaction: ActivationTransaction): Promise<void>;
+}
+
+/** Capability probing for the candidate optimizer (M2-002, PRD FR-03). */
+export interface CapabilityPort {
+  probe(): Promise<CapabilityMatrix>;
+}
+
+/** Hardware probing for the candidate optimizer (M2-002, PRD FR-02). */
+export interface HardwarePort {
+  profile(): Promise<HardwareProfile>;
 }
 
 /**

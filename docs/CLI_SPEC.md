@@ -1,6 +1,6 @@
 # CLI Specification / CLI 规范
 
-> 状态：M1-004/M1-005 已实现；M1-003 读路径已接线。`profile/hardware/lang/doctor` 为完整契约；`models/current/snapshot` 已接线到 LM Studio adapter（REST v1 主路径，`lms` 读回退），离线/认证/超时 → `LM_UNREACHABLE` exit 4；`apply <id> [--yes]` 为完整命令，生产 `activation` 端口已随 M1-005 生产接线接通（默认 `auto`，离线 exit 4，`LMPS_ADAPTER=mock` 显式演示）。`estimate/optimize/benchmark/server/backup` 与 `--version` 尚未实现。
+> 状态：M1-004/M1-005 已实现；M1-003 读路径已接线。`profile/hardware/lang/doctor` 为完整契约；`models/current/snapshot` 已接线到 LM Studio adapter（REST v1 主路径，`lms` 读回退），离线/认证/超时 → `LM_UNREACHABLE` exit 4；`apply <id> [--yes]` 为完整命令，生产 `activation` 端口已随 M1-005 生产接线接通（默认 `auto`，离线 exit 4，`LMPS_ADAPTER=mock` 显式演示）；`optimize <id> [--yes]` 已随 M2-002 实现并完成生产接线。`estimate/benchmark/server/backup` 与 `--version` 尚未实现。
 
 Command: `lmps`（`corepack pnpm run lmps -- <args>`，先 `build`；或 `node apps/cli/dist/index.js <args>`）
 
@@ -94,6 +94,18 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 
 生产 `activation` 端口已随 M1-005 生产接线接通（2026-09-05）：`apply` 走真实激活状态机；适配器因惰性解析并按 seam 生命周期缓存，确保 preflight 与各阶段看到同一宿主视图；互斥经 `<LMPS_HOME>/locks/activation.lock` 文件租约锁（owner=`process.pid`、30 分钟租约，运行结束释放）；事务日志（runner 已脱敏）落盘 `<LMPS_HOME>/logs/transactions.ndjson`。默认 `auto`——未显式设置 `LMPS_ADAPTER=mock` 时绝不静默使用演示适配器；离线/认证/超时 → `LM_UNREACHABLE` exit 4（中文 `无法连接到 LM Studio`）。
 
+### optimize（M2-002）
+
+`lmps optimize <id> [--yes]`：对已存储基线 Profile 运行候选优化（PRD FR-07）——按 `task.kind` 匹配规则（种子目录缺省），硬约束过滤 → 3–6 候选 → 官方 estimate → VRAM 安全余量（exact 且余量 ≥ 0 才 safe）→ 静态评分排序 → 字段级 diff 与双语理由。**不加载模型**（激活走 `apply`），**不自动激活**。
+
+- 无 `--yes`：仅展示候选（分数/置信度/显存余量/字段 diff）与 warnings；`selectedIndex === null` 时输出 `noSafeCandidate`（人类）或空 `candidates`（机器），**exit 0**——读到空推荐同样是成功读取。
+- `--yes`：保存头号候选为新 Profile（`validation.source = 'rule-recommended'`、`testedAt = now`；id = `<基线id>-<规则包版本>`）并追加审计到 `<LMPS_HOME>/logs/optimizations.ndjson`；**不激活**。拒绝条件（均 exit 4）：
+  - `selectedIndex` 为 null（无安全候选）；
+  - 头号候选 `score.confidence !== 'high'`（估算非实测——rough/service 降级或能力未证实均拒）。
+- 可信度：`confidence='high'` 仅当 estimate `exact` + 安全余量 safe + 无 `unknown` 能力降级；`rough` 估算永不安全（`unsafe-drop:rough-estimate`），保证「低置信永不静默保存」。
+- 机器 `data`：默认 `{ recommendation }`；`--yes` 保存后为 `{ recommendation, savedProfileId }`，`recommendation` 即 domain `Recommendation` 契约（`Candidate`/`Recommendation` JSON Schema 见 `schemas/`）。
+- 接线（M2-002）：capability 经 adapter 探针选操作能力最完整的 matrix（回退 REST），estimate 复用 `apply` 的官方估算端口（不可达降级 `rough` → 安全余量自然拒绝），hardware 复用 `lmps hardware` 同源探针。
+
 ## Exit codes
 
 | Code | Meaning | 使用 |
@@ -103,7 +115,7 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 | 3 | activation in progress | `apply` 事务在恢复路径上完成（failed-but-recovered；M1-005 生效） |
 | 4 | validation or preflight failed | 参数/校验/Profile 不存在/文档校验失败/delete 无 `--yes`/未知命令/lock busy/激活前置失败/LM Studio 不可达（`LM_UNREACHABLE`） |
 | 5 | activation and rollback both failed | `apply` 事务失败且回滚也失败（M1-005 生效） |
-| 6 | requested capability unsupported | 尚未实现的能力（`estimate/optimize/benchmark/server` 等）；`apply` 与 `models/current/snapshot` 已接线，不再返回 6 |
+| 6 | requested capability unsupported | 尚未实现的能力（`estimate/benchmark/server` 等）；`apply`/`models`/`current`/`snapshot`/`optimize` 已接线，不再返回 6 |
 | 10 | internal error | store 损坏/IO 失败/未捕获异常/资源错误 |
 
 ## Output stream isolation
@@ -115,4 +127,4 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 
 ## 未实现 / 预留
 
-`estimate/optimize/benchmark/server/backup`、`--version`、Shell completion、交互向导均未实现；`apply` 已随 M1-005 实现并完成生产接线（2026-09-05，离线态已实测）；`estimate` 等命令在后续任务接线。
+`estimate/benchmark/server/backup`、`--version`、Shell completion、交互向导均未实现；`apply` 已随 M1-005 实现并完成生产接线（2026-09-05，离线态已实测），`optimize` 已随 M2-002 实现并完成生产接线；`estimate` 等命令在后续任务接线。

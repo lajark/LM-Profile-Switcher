@@ -17,6 +17,7 @@ export * from './hardware.js';
 export * from './capability.js';
 export * from './estimate.js';
 export * from './benchmark.js';
+export * from './recommendation.js';
 export * from './transaction.js';
 
 export * from './serialize.js';

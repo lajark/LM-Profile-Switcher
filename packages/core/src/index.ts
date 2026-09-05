@@ -11,6 +11,7 @@
 export * from './errors.js';
 export * from './lock.js';
 export * from './ports.js';
+export * from './recommendation.js';
 export * from './redact.js';
 export * from './runner.js';
 export * from './snapshot.js';

@@ -13,7 +13,7 @@ const SRC_DIR = join(WORKSPACE, 'packages', 'optimizer', 'src');
 
 const ALLOWED_PACKAGES = ['@lmps/domain'];
 /** Source modules that deliberately carry user-facing data (bilingual rationale). */
-const DATA_MODULES = new Set(['presets.ts']);
+const DATA_MODULES = new Set(['notes.ts', 'presets.ts']);
 const BANNED_TOKENS = [
   'node:',
   'process.',
@@ -40,10 +40,19 @@ function srcFiles(): string[] {
   return out;
 }
 
-describe('optimizer architecture guard (M2-001)', () => {
-  it('ships the three expected source modules', () => {
+describe('optimizer architecture guard (M2-001 → M2-002)', () => {
+  it('ships exactly the expected source modules', () => {
     const names = srcFiles().map((p) => relative(SRC_DIR, p)).sort();
-    expect(names).toEqual(['catalog.ts', 'index.ts', 'presets.ts']);
+    expect(names).toEqual([
+      'candidate.ts',
+      'catalog.ts',
+      'index.ts',
+      'notes.ts',
+      'presets.ts',
+      'recommendation.ts',
+      'safe-margin.ts',
+      'scoring.ts',
+    ]);
   });
 
   it('imports only the domain package', () => {
@@ -93,7 +102,7 @@ describe('optimizer architecture guard (M2-001)', () => {
     expect(presets).toContain('throw new Error');
   });
 
-  it('exports the catalog layer from index', () => {
+  it('exports the catalog and candidate pipeline from index', () => {
     const index = readFileSync(join(SRC_DIR, 'index.ts'), 'utf8');
     for (const symbol of [
       'loadRuleCatalog',
@@ -101,10 +110,23 @@ describe('optimizer architecture guard (M2-001)', () => {
       'RuleCatalog',
       'RuleCatalogValidation',
       'SEED_RULE_CATALOG',
+      'generateCandidateDrafts',
+      'filterByHardConstraints',
+      'toCapabilityPath',
+      'CandidateDraft',
+      'CandidateRejection',
+      'HardConstraintFilter',
+      'computeSafetyMargin',
+      'SafetyMargin',
+      'scoreCandidate',
+      'diffAgainst',
+      'buildRationale',
+      'generateRecommendation',
+      'RATIONALE_NOTE',
     ]) {
       expect(index).toContain(symbol);
     }
-    for (const module of ['catalog', 'presets']) {
+    for (const module of ['catalog', 'presets', 'candidate', 'safe-margin', 'scoring', 'recommendation', 'notes']) {
       expect(index).toContain(`./${module}.js`);
     }
   });

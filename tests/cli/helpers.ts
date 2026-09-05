@@ -53,6 +53,7 @@ export function makeCliHarness(overrides: Partial<CliDeps> = {}): CliHarness {
     state: null,
     snapshot: null,
     activation: null,
+    recommendation: null,
     nodeVersion: '24.13.1',
   };
 

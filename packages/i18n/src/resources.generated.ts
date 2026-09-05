@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit manually.
 // Source of truth: locales/zh-CN/common.json, locales/en/common.json.
 // Regenerate with `corepack pnpm run i18n:generate`.
-// __CHECKSUM__: a22122e9f53f1c8537226d95cd08cf19742d42c0f92034952a81ddb9c1736618
+// __CHECKSUM__: 78c17fcc373f3e225fba3b5172668d71aefaef41ee2255eea3130f6bac4ad291
 
 export const DEFAULT_NAMESPACE = 'common';
 
@@ -72,6 +72,20 @@ export const resourceKeys = [
   'apply.recovered',
   'apply.failed',
   'apply.requiresYes',
+  'optimize.title',
+  'optimize.ruleVersion',
+  'optimize.noSafeCandidate',
+  'optimize.noSafeCandidateYes',
+  'optimize.lowConfidence',
+  'optimize.savedButNotActivated',
+  'optimize.confidenceHigh',
+  'optimize.confidenceLow',
+  'optimize.headroom',
+  'candidate.head',
+  'candidate.score',
+  'candidate.unsafe',
+  'diff.field',
+  'error.optimizeEstimateFailed',
   'models.none',
   'models.line',
   'current.none',
@@ -172,6 +186,20 @@ export interface CommonResources {
   'apply.recovered': string;
   'apply.failed': string;
   'apply.requiresYes': string;
+  'optimize.title': string;
+  'optimize.ruleVersion': string;
+  'optimize.noSafeCandidate': string;
+  'optimize.noSafeCandidateYes': string;
+  'optimize.lowConfidence': string;
+  'optimize.savedButNotActivated': string;
+  'optimize.confidenceHigh': string;
+  'optimize.confidenceLow': string;
+  'optimize.headroom': string;
+  'candidate.head': string;
+  'candidate.score': string;
+  'candidate.unsafe': string;
+  'diff.field': string;
+  'error.optimizeEstimateFailed': string;
   'models.none': string;
   'models.line': string;
   'current.none': string;

@@ -99,5 +99,5 @@
   "additionalProperties": {},
   "title": "Capability Matrix",
   "description": "Per-adapter capability probing result.",
-  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: d8e2553c95fcd5eaa2ab5c8622c902ae405c41d375b7eb53eb2e1966d113c271"
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 7e562c3e5e6e6be6775d83b5efbce593cb2d188fee51372296153335158a7f61"
 }

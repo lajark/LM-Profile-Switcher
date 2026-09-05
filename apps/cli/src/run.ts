@@ -19,6 +19,7 @@ import { runHardwareCommand } from './commands/hardware.js';
 import { runHelpCommand } from './commands/help.js';
 import { runLangCommand } from './commands/lang.js';
 import { runModelsCommand } from './commands/models.js';
+import { runOptimizeCommand } from './commands/optimize.js';
 import { runProfileCommand } from './commands/profile.js';
 import { runSnapshotCommand } from './commands/snapshot.js';
 import { isCliError } from './errors.js';
@@ -34,7 +35,7 @@ export interface RunCliResult {
   exitCode: ExitCode;
 }
 
-const KNOWN_COMMANDS = new Set(['profile', 'apply', 'models', 'current', 'snapshot', 'hardware', 'lang', 'doctor']);
+const KNOWN_COMMANDS = new Set(['profile', 'apply', 'models', 'current', 'snapshot', 'hardware', 'lang', 'doctor', 'optimize']);
 
 export async function runCli(argv: readonly string[], deps: CliDeps, signal?: AbortSignal): Promise<RunCliResult> {
   const startedAtMs = Date.now();
@@ -144,6 +145,8 @@ async function dispatchCommand(
       return runLangCommand(deps, args);
     case 'doctor':
       return runDoctorCommand(deps, args);
+    case 'optimize':
+      return runOptimizeCommand(deps, args, context);
   }
   // Unreachable: dispatch is only reached for KNOWN_COMMANDS.
   throw new Error(`no handler for command: ${command}`);
