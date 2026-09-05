@@ -1,0 +1,19 @@
+# Requirements Traceability Matrix / 需求追踪矩阵
+
+| Requirement | Primary tasks | Main tests |
+|---|---|---|
+| FR-01 Profile management | M0-004, M1-002, M1-004 | domain contract validation, JSON/YAML round trip, unknown-field policy, schema round trip, CRUD, import/export; M1-002 CRUD + update backup/updatedAt stamp, path-traversal id rejection, JSON/YAML import round trip + strict/allowRename/oversize/hostile-id, export sanitize (token/secret keys → null, absolute private path → `<private>`), uncorrupted-path error leak guard; M1-004 CLI list summary + --model/--task filter, show sanitized doc, create from stdin(-)/YAML-file with --name id-match + duplicate-id fast-fail + rollback on mismatch, edit deep-merge patch + id-immutable + template mode, clone fresh metadata, delete --yes, import extension routing + --allow-rename, export literal document + -o (not wrapped by --json) |
+| FR-02 Hardware discovery | M0-004, M1-001 | HardwareProfile contract (probe-failure tolerance, bounds), platform fixtures, partial failure; M1-001 probe fragments (os/cpu/memory/gpu/volumes/power), nvidia-smi + WMI/registry fallback fixtures, exec runner timeout/ENOENT/maxBuffer, redaction guard, fingerprint determinism/order-insensitivity |
+| FR-03 Capability matrix | M0-004, M0-005, M1-003 | CapabilityMatrix contract enums/TTL, SDK/REST/CLI probes, unsupported field |
+| FR-04 Activation | M0-004, M1-005 | ActivationTransaction contract/stages, state failure injection, idempotency, rollback |
+| FR-05 Storage | M0-004, M1-002 | migration forward + reject-future (pure, rollback-safe), crash simulation, backup restore; M1-002 temp+fsync+atomic rename fault-injection (write/fsync/rename → STORE_IO_FAILED, original preserved, no temp residue), backup rotation (default 20, 1–200 RangeError), recover() main-corrupt/backup / main-missing resurrection / temp cleanup, migration rollback leaves file+backups untouched, import size limit (STORE_LIMIT_EXCEEDED), config-vs-runtime error split |
+| FR-06 CLI | M1-004 | seven commands (profile/hardware/lang/doctor/models/current/snapshot), machine envelope shape `{product,api,ok,locale,command,data|error}` + stable error codes, exit-code mapping table (0/4/6/10; 2/3/5 reserved for M1-005), global flags any position (--json/--lang/--verbose/--no-color/--timeout), stream isolation (human success/envelope → stdout, human errors+verbose → stderr, JSON stderr empty), export/edit-template literal-document exception, unwired seams → CAPABILITY_UNSUPPORTED exit 6, doctor checks complete → exit 0 with summary.ok, locale runtime resolution + persistence, LMPS_HOME, usage/help |
+| FR-07 Optimizer | M0-004, M2-001, M2-002 | LoadEstimate contract bounds, deterministic rules, unsafe filtering |
+| FR-08 Benchmark | M0-004, M2-003 | BenchmarkResult contract bounds, cancel, fingerprint invalidation |
+| FR-09 Desktop Web GUI and tray | M0-006, M3-001, M3-002, M3-003 | Web GUI IPC, bilingual E2E, scaling, layout/interaction review, tray |
+| FR-10 Hook and rules | M4-001, M4-002 | auth, lock, session stability |
+| FR-11 i18n | M0-003 and every UI task | key parity, generated-key freshness, hard-coded string scan, normalization/detection, fallback, live switch, persistence, CLI bilingual output, unlocalized machine JSON; M1-004 84 keys × 2 locales, full CLI usage/error/profile/hardware/doctor text through keys, per-key fallback on missing key, byte-identical machine data across locales |
+| FR-12 independent reuse | M0-002 and every port | provenance, license, no live repo dependency |
+| Distribution and visibility governance | M0-002 follow-up, M3-004 | file classification review, policy/secret scan before first push, release allowlist, manifest and checksums |
+| Release packages (Windows + macOS) | M3-004 | platform artifact matrix, clean-machine install/uninstall/update/rollback, signing and notarization evidence |
+| Security | all; M3-004 release gate | import fuzz, redaction, loopback, SBOM |

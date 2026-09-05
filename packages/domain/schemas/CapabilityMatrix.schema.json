@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "adapter": {
+      "type": "string",
+      "enum": [
+        "sdk",
+        "rest",
+        "cli"
+      ]
+    },
+    "apiVersion": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lmStudioVersion": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "engineVersion": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "probedAt": {
+      "type": "string"
+    },
+    "cacheTtlSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "minLength": 1
+          },
+          "support": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "degraded",
+              "unavailable",
+              "unknown"
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "field",
+          "support"
+        ],
+        "additionalProperties": {}
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "adapter",
+    "probedAt",
+    "cacheTtlSeconds",
+    "capabilities"
+  ],
+  "additionalProperties": {},
+  "title": "Capability Matrix",
+  "description": "Per-adapter capability probing result.",
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 11fe5af448cd2d75c74927f06096dab5b969cd0a5cdf3fca99903e7ea3d247ab"
+}

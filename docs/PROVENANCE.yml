@@ -1,0 +1,7 @@
+schemaVersion: 1
+status: implementation-no-community-ports
+components: []
+notes:
+  - "No community application code is incorporated in the repository."
+  - "CC Switch is a verified MIT design reference only; no source, assets, or repository dependency is incorporated."
+  - "Add an entry before or in the same change as every selective port."

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lm-profile-switcher.local/schemas/config.schema.json",
+  "title": "LM Profile Switcher User Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "language",
+    "backupRetention",
+    "network"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "language": {
+      "enum": [
+        "system",
+        "zh-CN",
+        "en"
+      ]
+    },
+    "backupRetention": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200
+    },
+    "autoStartLmStudioServer": {
+      "type": "boolean"
+    },
+    "resourceGuardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimumFreeVramPercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "minimumFreeRamGb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "disableHeavyBenchmarkOnBattery": {
+          "type": "boolean"
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bindAddress"
+      ],
+      "properties": {
+        "bindAddress": {
+          "const": "127.0.0.1"
+        },
+        "hookEnabled": {
+          "type": "boolean"
+        },
+        "port": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1024,
+          "maximum": 65535
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+- id: "<stable-component-id>"
+  upstream:
+    repository: "<owner/repo>"
+    commit: "<full-sha>"
+    paths:
+      - "<path>"
+    license: "<SPDX-ID>"
+    copyright:
+      - "<verbatim notice>"
+  local:
+    paths:
+      - "<path>"
+    reuseType: "selective-port"
+    modifications: "<summary>"
+  governance:
+    taskId: "<task-id>"
+    verifiedAt: "<YYYY-MM-DD>"
+    verifiedBy: "<reviewer>"
+    tests:
+      - "<test>"

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Provenance Registry",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "components"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "upstream",
+          "local",
+          "governance"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "upstream": {
+            "type": "object"
+          },
+          "local": {
+            "type": "object"
+          },
+          "governance": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

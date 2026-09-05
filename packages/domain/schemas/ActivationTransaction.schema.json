@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "targetProfileId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "previousProfileId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "active",
+        "failed",
+        "failed-but-recovered",
+        "canceled"
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "exclusive",
+            "coexist"
+          ]
+        },
+        "rollback": {
+          "type": "string",
+          "enum": [
+            "always",
+            "best-effort",
+            "disabled"
+          ]
+        }
+      },
+      "required": [
+        "mode",
+        "rollback"
+      ],
+      "additionalProperties": false
+    },
+    "stages": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "validating",
+              "estimating",
+              "locking",
+              "unloading-conflicts",
+              "loading",
+              "health-checking",
+              "collecting-diagnostics",
+              "cleaning-failed-instance",
+              "restoring-previous-profile"
+            ]
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "completed",
+                  "failed",
+                  "timeout",
+                  "canceled"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "startedAt"
+        ],
+        "additionalProperties": {}
+      }
+    },
+    "errors": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "at": {
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "at"
+        ],
+        "additionalProperties": {}
+      }
+    },
+    "startedAt": {
+      "type": "string"
+    },
+    "finishedAt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "targetProfileId",
+    "status",
+    "policy",
+    "stages",
+    "errors",
+    "startedAt"
+  ],
+  "additionalProperties": {},
+  "title": "Activation Transaction",
+  "description": "Auditable record of one activation attempt.",
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 11fe5af448cd2d75c74927f06096dab5b969cd0a5cdf3fca99903e7ea3d247ab"
+}

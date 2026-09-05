@@ -1,0 +1,40 @@
+{
+  "name": "lm-profile-switcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Independent local profile management for LM Studio.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b --pretty false",
+    "provenance:check": "node scripts/check-provenance.mjs",
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "i18n:generate": "node scripts/regenerate-i18n-keys.mjs",
+    "domain:generate": "node scripts/generate-domain-schemas.mjs",
+    "domain:schema:check": "node scripts/check-domain-schemas.mjs",
+    "hardware:probe": "node scripts/probe-hardware.mjs",
+    "lmps": "node apps/cli/dist/index.js",
+    "license:check": "node scripts/license-report.mjs --check",
+    "license:report": "node scripts/license-report.mjs --write",
+    "sbom": "node scripts/sbom.mjs",
+    "notices": "node scripts/notices.mjs",
+    "compliance": "node scripts/compliance.mjs",
+    "check": "corepack pnpm run lint && corepack pnpm run typecheck && corepack pnpm run i18n:check && corepack pnpm run build && corepack pnpm run domain:generate && corepack pnpm run domain:schema:check && corepack pnpm run test && corepack pnpm run compliance"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "^26.2.0",
+    "eslint": "10.0.1",
+    "typescript": "5.7.3",
+    "typescript-eslint": "8.67.0",
+    "vitest": "4.1.11"
+  }
+}

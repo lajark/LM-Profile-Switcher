@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "typicalInputTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "expectedOutputTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "structuredOutput": {
+      "type": "boolean"
+    },
+    "toolUse": {
+      "type": "boolean"
+    },
+    "concurrency": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "additionalProperties": {},
+  "title": "Task Profile",
+  "description": "Task shape the profile is optimized for.",
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 11fe5af448cd2d75c74927f06096dab5b969cd0a5cdf3fca99903e7ea3d247ab"
+}

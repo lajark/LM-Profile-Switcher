@@ -1,0 +1,438 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lm-profile-switcher.local/schemas/profile.schema.json",
+  "title": "LM Profile Switcher Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "displayName",
+    "model",
+    "task",
+    "runtime",
+    "generation",
+    "behavior",
+    "metadata"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,63}$"
+    },
+    "displayName": {
+      "type": "object",
+      "required": [
+        "zh-CN",
+        "en"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      },
+      "properties": {
+        "zh-CN": {
+          "type": "string"
+        },
+        "en": {
+          "type": "string"
+        }
+      }
+    },
+    "description": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "modelKey"
+      ],
+      "properties": {
+        "modelKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fileHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "family": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "architecture": {
+          "enum": [
+            "dense",
+            "moe",
+            "embedding",
+            "vision",
+            "unknown"
+          ]
+        },
+        "quantization": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "typicalInputTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expectedOutputTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "structuredOutput": {
+          "type": "boolean"
+        },
+        "toolUse": {
+          "type": "boolean"
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contextLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "gpuOffload": {
+          "oneOf": [
+            {
+              "enum": [
+                "auto",
+                "max",
+                "off"
+              ]
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "evalBatchSize": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "flashAttention": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "offloadKvCacheToGpu": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "kCacheQuantization": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "vCacheQuantization": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "ropeFrequencyBase": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        },
+        "ropeFrequencyScale": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        },
+        "tryMmap": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "keepModelInMemory": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "numExperts": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "parallelSlots": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      }
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "temperature": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "topP": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "topK": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "minP": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "repeatPenalty": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        },
+        "frequencyPenalty": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "presencePenalty": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxTokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "reasoning": {
+          "type": [
+            "string",
+            "object",
+            "null"
+          ]
+        },
+        "structuredOutputSchema": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "systemPrompt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "presetReference": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "identifier": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ttlSeconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "mode": {
+          "enum": [
+            "exclusive",
+            "coexist"
+          ]
+        },
+        "autoStartServer": {
+          "type": "boolean"
+        },
+        "healthCheck": {
+          "enum": [
+            "model-status",
+            "minimal-prompt",
+            "both"
+          ]
+        },
+        "rollback": {
+          "enum": [
+            "always",
+            "best-effort",
+            "disabled"
+          ]
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "source": {
+          "enum": [
+            "manual",
+            "snapshot",
+            "rule-recommended",
+            "benchmarked",
+            "imported"
+          ]
+        },
+        "hardwareFingerprint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lmStudioVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runtimeVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "adapterCapabilityVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "testedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "benchmarkId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,94 @@
+# Dependencies and generated output
+node_modules/
+.pnpm-store/
+dist/
+coverage/
+reports/
+artifacts/
+*.tsbuildinfo
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+secrets/
+
+# Native and platform build output
+target/
+src-tauri/target/
+
+# Local tooling
+.claude/settings.local.json
+CLAUDE.local.md
+data/raw/
+runtime/
+logs/
+diagnostics/
+
+# Signing and certificate material
+*.key
+*.pem
+*.p8
+*.p12
+*.pfx
+
+# Harness workspace: private by default, with explicit governance exceptions
+!.workspace/
+.workspace/*
+!.workspace/TODO.md
+!.workspace/HANDOFF.md
+!.workspace/README.md
+!.workspace/decisions/
+!.workspace/decisions/**
+!.workspace/v4-migration/
+!.workspace/v4-migration/**
+.workspace/tmp/
+.workspace/logs/
+.workspace/cache/
+.workspace/research/private/
+
+# Harness workspace: private by default, with explicit governance exceptions
+!.workspace/
+.workspace/*
+!.workspace/TODO.md
+!.workspace/HANDOFF.md
+!.workspace/README.md
+!.workspace/decisions/
+!.workspace/decisions/**
+!.workspace/v4-migration/
+!.workspace/v4-migration/**
+.workspace/tmp/
+.workspace/logs/
+.workspace/cache/
+.workspace/research/private/
+
+# Harness workspace: private by default, with explicit governance exceptions
+!.workspace/
+.workspace/*
+!.workspace/TODO.md
+!.workspace/HANDOFF.md
+!.workspace/README.md
+!.workspace/decisions/
+!.workspace/decisions/**
+!.workspace/v4-migration/
+!.workspace/v4-migration/**
+.workspace/tmp/
+.workspace/logs/
+.workspace/cache/
+.workspace/research/private/
+
+# Harness workspace: private by default, with explicit governance exceptions
+.workspace/
+!.workspace/
+.workspace/*
+!.workspace/TODO.md
+!.workspace/HANDOFF.md
+!.workspace/README.md
+!.workspace/decisions/
+!.workspace/decisions/**
+!.workspace/v4-migration/
+!.workspace/v4-migration/**
+.workspace/tmp/
+.workspace/logs/
+.workspace/cache/
+.workspace/research/private/

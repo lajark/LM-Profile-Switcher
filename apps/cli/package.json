@@ -1,0 +1,22 @@
+{
+  "name": "@lmps/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "lmps": "dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@lmps/core": "workspace:*",
+    "@lmps/domain": "workspace:*",
+    "@lmps/hardware": "workspace:*",
+    "@lmps/i18n": "workspace:*",
+    "@lmps/profile-store": "workspace:*"
+  }
+}

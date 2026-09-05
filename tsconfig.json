@@ -1,0 +1,17 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./apps/cli" },
+    { "path": "./apps/core-service" },
+    { "path": "./apps/desktop" },
+    { "path": "./packages/benchmark" },
+    { "path": "./packages/core" },
+    { "path": "./packages/domain" },
+    { "path": "./packages/hardware" },
+    { "path": "./packages/i18n" },
+    { "path": "./packages/lmstudio-adapter" },
+    { "path": "./packages/logging" },
+    { "path": "./packages/optimizer" },
+    { "path": "./packages/profile-store" }
+  ]
+}
