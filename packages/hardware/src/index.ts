@@ -30,12 +30,23 @@ export { probeOsInfo, probePhysicalCores } from './os-info.js';
 export type { OsSection } from './os-info.js';
 export {
   describeOs,
+  joinVolumeDetails,
   parseBatteryStatus,
   parseCimJson,
   parseNvidiaSmiCsv,
   parseRegistryNames,
   parseStatfs,
+  parseWmiRef,
+  toDiskDriveFromCim,
   toVolumeFromCim,
+  toWmiRefPair,
+} from './parse.js';
+export type {
+  DiskDriveRecord,
+  VolumeEnrichmentSource,
+  VolumeRecord,
+  WmiRefPair,
+  WmiRefTarget,
 } from './parse.js';
 export { probePower } from './power.js';
 export { probeVolumes } from './volumes.js';

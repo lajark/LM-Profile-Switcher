@@ -7,6 +7,7 @@
 import {
   ACTIVATION_STAGES,
   ACTIVATION_STATUS,
+  SCHEMA_VERSION,
   StrictActivationTransactionSchema,
   type ActivationTransaction,
   type CompositeProfile,
@@ -50,7 +51,7 @@ export function previousProfileIdOf(active: ActiveState | null): string | null {
 
 export function beginTransaction(input: TransitionInput): ActivationTransaction {
   return {
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     id: input.id,
     targetProfileId: input.targetProfileId,
     previousProfileId: input.previousProfileId,

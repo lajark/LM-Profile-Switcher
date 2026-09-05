@@ -13,23 +13,23 @@ import {
   stringifyYamlDocument,
 } from '@lmps/domain';
 import {
+  currentSampleComposite,
   minimalLoadEstimate,
-  v1SampleComposite,
 } from './fixtures.js';
 
 /** A deep document carrying tricky values: unicode, quotes, newlines, null. */
 const trickyComposite = {
-  ...v1SampleComposite,
+  ...currentSampleComposite,
   displayName: { 'zh-CN': '代码\n对话"引号"★', en: 'Code "Chat"\n★' },
-  runtime: { ...v1SampleComposite.runtime, kCacheQuantization: null, gpuOffload: 'max' },
-  metadata: { ...v1SampleComposite.metadata, tags: ['code', 'moe'] },
+  runtime: { ...currentSampleComposite.runtime, kCacheQuantization: null, gpuOffload: 'max' },
+  metadata: { ...currentSampleComposite.metadata, tags: ['code', 'moe'] },
 };
 
 describe('JSON round trip', () => {
-  it('round-trips the v1 composite unchanged', () => {
-    const text = stringifyJsonDocument(v1SampleComposite);
+  it('round-trips the current composite unchanged', () => {
+    const text = stringifyJsonDocument(currentSampleComposite);
     const parsed = parseJsonDocument(text, CompositeProfileSchema);
-    expect(parsed).toEqual(v1SampleComposite);
+    expect(parsed).toEqual(currentSampleComposite);
   });
 
   it('round-trips tricky values (unicode, quotes, newline, null, enum)', () => {
@@ -47,10 +47,10 @@ describe('JSON round trip', () => {
 });
 
 describe('YAML round trip', () => {
-  it('round-trips the v1 composite unchanged', () => {
-    const text = stringifyYamlDocument(v1SampleComposite);
+  it('round-trips the current composite unchanged', () => {
+    const text = stringifyYamlDocument(currentSampleComposite);
     const parsed = parseYamlDocument(text, CompositeProfileSchema);
-    expect(parsed).toEqual(v1SampleComposite);
+    expect(parsed).toEqual(currentSampleComposite);
   });
 
   it('round-trips tricky values from YAML', () => {
@@ -60,19 +60,19 @@ describe('YAML round trip', () => {
   });
 
   it('is byte-stable for a given object on repeated stringify', () => {
-    expect(stringifyYamlDocument(v1SampleComposite)).toBe(stringifyYamlDocument(v1SampleComposite));
+    expect(stringifyYamlDocument(currentSampleComposite)).toBe(stringifyYamlDocument(currentSampleComposite));
   });
 });
 
 describe('unknown-field policy', () => {
   it('preserves unknown fields through JSON and YAML by default', () => {
-    const extended = { ...v1SampleComposite, futureField: { nested: [1, 2] }, another: 'kept' };
+    const extended = { ...currentSampleComposite, futureField: { nested: [1, 2] }, another: 'kept' };
     expect(parseJsonDocument(stringifyJsonDocument(extended), CompositeProfileSchema)).toEqual(extended);
     expect(parseYamlDocument(stringifyYamlDocument(extended), CompositeProfileSchema)).toEqual(extended);
   });
 
   it('rejects unknown fields in strict mode with a structured code', () => {
-    const extended = { ...v1SampleComposite, futureField: true };
+    const extended = { ...currentSampleComposite, futureField: true };
     for (const parse of [
       () => parseJsonDocument(stringifyJsonDocument(extended), CompositeProfileSchema, { strict: true }),
       () => parseYamlDocument(stringifyYamlDocument(extended), CompositeProfileSchema, { strict: true }),
@@ -107,7 +107,7 @@ describe('malformed input and versions', () => {
   });
 
   it('rejects unsupported schemaVersion instead of reshaping', () => {
-    const future = { ...v1SampleComposite, schemaVersion: 2 };
+    const future = { ...currentSampleComposite, schemaVersion: 3 };
     for (const parse of [
       () => parseJsonDocument(stringifyJsonDocument(future), CompositeProfileSchema),
       () => parseYamlDocument(stringifyYamlDocument(future), CompositeProfileSchema),
@@ -122,7 +122,7 @@ describe('malformed input and versions', () => {
   });
 
   it('classifies a missing required field as a validation error, not parse error', () => {
-    const broken = { ...v1SampleComposite, metadata: { createdAt: '2026-08-21T10:00:00Z' } };
+    const broken = { ...currentSampleComposite, metadata: { createdAt: '2026-08-21T10:00:00Z' } };
     try {
       parseJsonDocument(stringifyJsonDocument(broken), CompositeProfileSchema);
       throw new Error('expected throw');

@@ -16,12 +16,12 @@ import {
   BehaviorProfileSchema,
 } from '@lmps/domain';
 import {
+  currentSampleComposite,
   minimalActivationTransaction,
   minimalBenchmarkResult,
   minimalCapabilityMatrix,
   minimalHardwareProfile,
   minimalLoadEstimate,
-  v1SampleComposite,
 } from './fixtures.js';
 
 describe('ModelProfile', () => {
@@ -108,29 +108,29 @@ describe('BehaviorProfile', () => {
 });
 
 describe('CompositeProfile', () => {
-  it('accepts the v1 sample shape', () => {
-    expect(CompositeProfileSchema.safeParse(v1SampleComposite).success).toBe(true);
+  it('accepts the current sample shape', () => {
+    expect(CompositeProfileSchema.safeParse(currentSampleComposite).success).toBe(true);
   });
 
   it('requires metadata and bilingual displayName', () => {
-    const withoutMetadata = { ...v1SampleComposite, metadata: undefined } as typeof v1SampleComposite;
+    const withoutMetadata = { ...currentSampleComposite, metadata: undefined } as typeof currentSampleComposite;
     expect(CompositeProfileSchema.safeParse(withoutMetadata).success).toBe(false);
     expect(
-      CompositeProfileSchema.safeParse({ ...v1SampleComposite, displayName: { 'zh-CN': '代码' } }).success,
+      CompositeProfileSchema.safeParse({ ...currentSampleComposite, displayName: { 'zh-CN': '代码' } }).success,
     ).toBe(false);
   });
 
   it('enforces the profile id pattern', () => {
-    expect(CompositeProfileSchema.safeParse({ ...v1SampleComposite, id: 'Bad ID!' }).success).toBe(false);
-    expect(CompositeProfileSchema.safeParse({ ...v1SampleComposite, id: 'abc_123' }).success).toBe(true);
+    expect(CompositeProfileSchema.safeParse({ ...currentSampleComposite, id: 'Bad ID!' }).success).toBe(false);
+    expect(CompositeProfileSchema.safeParse({ ...currentSampleComposite, id: 'abc_123' }).success).toBe(true);
   });
 
   it('rejects a future schemaVersion put through the schema', () => {
-    expect(CompositeProfileSchema.safeParse({ ...v1SampleComposite, schemaVersion: 2 }).success).toBe(false);
+    expect(CompositeProfileSchema.safeParse({ ...currentSampleComposite, schemaVersion: 3 }).success).toBe(false);
   });
 
   it('preserves unknown fields by default and rejects them in strict mode', () => {
-    const extended = { ...v1SampleComposite, futureField: { nested: 1 } };
+    const extended = { ...currentSampleComposite, futureField: { nested: 1 } };
     const preserved = CompositeProfileSchema.parse(extended);
     expect(preserved.futureField).toEqual({ nested: 1 });
 
@@ -144,7 +144,7 @@ describe('HardwareProfile', () => {
     expect(HardwareProfileSchema.safeParse(minimalHardwareProfile).success).toBe(true);
     expect(
       HardwareProfileSchema.safeParse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         gpus: null,
         power: null,
         probedAt: '2026-08-21T14:00:00Z',
@@ -202,7 +202,7 @@ describe('ActivationTransaction', () => {
       expect(result.data.stages).toHaveLength(2);
     }
     const bare = ActivationTransactionSchema.safeParse({
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: 't1',
       targetProfileId: 'p1',
       status: 'idle',

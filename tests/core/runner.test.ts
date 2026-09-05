@@ -21,7 +21,7 @@ function harness(overrides: {
 
 /** Every produced transaction must satisfy the locked domain contract. */
 function expectValidTransaction(tx: ActivationTransaction): ActivationTransaction {
-  expect(tx.schemaVersion).toBe(1);
+  expect(tx.schemaVersion).toBe(2);
   expect(tx.targetProfileId).toBeTruthy();
   expect(tx.startedAt).toBe(NOW);
   expect(tx.stages[0]?.name).toBe('idle');

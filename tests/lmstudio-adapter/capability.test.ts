@@ -110,7 +110,7 @@ describe('probeCapabilities', () => {
     const env = makeFakeEnv();
     const result = await probeCapabilities(env, { force: true, ttlSeconds: 42 });
     for (const matrix of result.matrices) {
-      expect(matrix.schemaVersion).toBe(1);
+      expect(matrix.schemaVersion).toBe(2);
       expect(matrix.cacheTtlSeconds).toBe(42);
       expect(['rest', 'cli', 'sdk']).toContain(matrix.adapter);
       expect(matrix.probedAt).toBe('2026-08-22T01:02:03.000Z');

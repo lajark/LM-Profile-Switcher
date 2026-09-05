@@ -57,5 +57,5 @@
   "additionalProperties": {},
   "title": "Behavior Profile",
   "description": "Activation policy and failure handling.",
-  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 11fe5af448cd2d75c74927f06096dab5b969cd0a5cdf3fca99903e7ea3d247ab"
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: d6af92a1ac67019e82b8978cca5e3fd91e1a5b92404073018f243bdc08055325"
 }

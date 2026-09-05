@@ -15,7 +15,7 @@ export const FAKE_NOW = '2026-08-22T01:02:03.000Z';
 
 export function validProfile(id: string, overrides: Partial<CompositeProfile> = {}): CompositeProfile {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id,
     displayName: { 'zh-CN': `中文名 ${id}`, en: `Profile ${id}` },
     description: { en: `synthetic profile ${id}` },

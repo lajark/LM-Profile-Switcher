@@ -40,6 +40,55 @@ export const volumeJsonArray =
 
 export const volumeJsonSingle = '{"DeviceID":"Z:","Size":536870912000,"FreeSpace":268435456000}';
 
+// --- External-disk classification tables (four WMI queries joined in parse.ts) ---
+//
+// X: is a fixed drive (DriveType 3) on a built-in NVMe disk → external:false.
+// Y: is a removable drive (DriveType 2) on a USB disk → external:true regardless
+// of the drive table.
+
+const DISK0 = '\\\\.\\PHYSICALDRIVE0';
+const DISK1 = '\\\\.\\PHYSICALDRIVE1';
+const X_PARTITION = 'Disk #0, Partition #2';
+const Y_PARTITION = 'Disk #1, Partition #1';
+
+const wmiRef = (className: string, deviceId: string): string => `${className}.DeviceID="${deviceId}"`;
+
+export const logicalDisksJson = JSON.stringify([
+  { DeviceID: 'X:', DriveType: 3, Size: 1099511627776, FreeSpace: 549755813888 },
+  { DeviceID: 'Y:', DriveType: 2, Size: 2199023255552, FreeSpace: 1099511627776 },
+]);
+
+export const diskDrivesJson = JSON.stringify([
+  {
+    DeviceID: DISK0,
+    Model: 'Synthetic NVMe',
+    InterfaceType: 'NVMe',
+    PNPDeviceID: 'SCSI\\DISK&VEN_NVMESSD',
+    MediaType: 'Fixed hard disk media',
+  },
+  {
+    DeviceID: DISK1,
+    Model: 'Synthetic USB SSD',
+    InterfaceType: 'USB',
+    PNPDeviceID: 'USBSTOR\\DISK&VEN_SYNTH',
+    MediaType: 'External hard disk media',
+  },
+]);
+
+export const diskToPartitionJson = JSON.stringify([
+  { Antecedent: wmiRef('Win32_DiskDrive', DISK0), Dependent: wmiRef('Win32_DiskPartition', X_PARTITION) },
+  { Antecedent: wmiRef('Win32_DiskDrive', DISK1), Dependent: wmiRef('Win32_DiskPartition', Y_PARTITION) },
+]);
+
+// Real-machine orientation of Win32_LogicalDiskToPartition: the partition is
+// the Antecedent, the logical disk the Dependent. The join resolves endpoint
+// roles by class, so this shape (unlike the letter-first guess) is what the
+// probe actually sees.
+export const logicalToPartitionJson = JSON.stringify([
+  { Antecedent: wmiRef('Win32_DiskPartition', X_PARTITION), Dependent: wmiRef('Win32_LogicalDisk', 'X:') },
+  { Antecedent: wmiRef('Win32_DiskPartition', Y_PARTITION), Dependent: wmiRef('Win32_LogicalDisk', 'Y:') },
+]);
+
 export const volumeJsonMalformed = '{not json';
 
 export const registryNamesJson =
@@ -72,9 +121,14 @@ export const FAKE_FREE_MEM = 17_179_869_184;
 export interface FakeProbeOptions {
   nvidiaSmi?: RunResult | null;
   cores?: RunResult | null;
+  /** Win32_LogicalDisk rows (the volume list itself). */
   volumes?: RunResult | null;
   battery?: RunResult | null;
   registry?: RunResult | null;
+  /** Enrichment tables for external-disk classification (Win32_DiskDrive etc.). */
+  diskDrives?: RunResult | null;
+  diskToPartition?: RunResult | null;
+  logicalToPartition?: RunResult | null;
   volumeFallback?: { blocks: number; bavail: number; bsize: number } | null;
   digest?: (data: string) => string;
 }
@@ -100,8 +154,13 @@ export function makeFakeProbeEnv(options: FakeProbeOptions = {}): ProbeEnv {
       if (cmd === 'powershell.exe') {
         const encoded = args[args.length - 1] ?? '';
         const script = Buffer.from(encoded, 'base64').toString('utf16le');
-        if (script.includes('Win32_Processor')) return options.cores ?? null;
+        // `Win32_DiskDrive`/`Win32_LogicalDisk` are string prefixes of the two
+        // association queries, so the longer names must be matched first.
+        if (script.includes('Win32_LogicalDiskToPartition')) return options.logicalToPartition ?? null;
+        if (script.includes('Win32_DiskDriveToDiskPartition')) return options.diskToPartition ?? null;
         if (script.includes('Win32_LogicalDisk')) return options.volumes ?? null;
+        if (script.includes('Win32_DiskDrive')) return options.diskDrives ?? null;
+        if (script.includes('Win32_Processor')) return options.cores ?? null;
         if (script.includes('Win32_Battery')) return options.battery ?? null;
         if (script.includes('DriverDesc')) return options.registry ?? null;
         return null;

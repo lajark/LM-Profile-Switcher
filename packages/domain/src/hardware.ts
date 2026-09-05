@@ -22,6 +22,14 @@ export const VolumeInfoSchema = z
     mount: z.string().min(1),
     totalBytes: z.number().int().min(0),
     availableBytes: z.number().int().min(0),
+    /** Win32_LogicalDisk DriveType: 2 = removable, 3 = local fixed disk. */
+    driveType: z.number().int().min(2).max(3).nullable().optional(),
+    /** Physical disk interface (Win32_DiskDrive.InterfaceType, e.g. USB/SCSI). */
+    bus: z.string().nullable().optional(),
+    /** True when removable or USB-attached; false for evidenced built-ins; null when unknown. */
+    external: z.boolean().nullable().optional(),
+    /** Physical disk model (Win32_DiskDrive.Model). */
+    model: z.string().nullable().optional(),
   })
   .passthrough();
 

@@ -41,11 +41,15 @@ function readVersion(value: unknown, context: string): number {
 }
 
 /**
- * Migrates a v1-shaped document (as published in `schemas/profile.schema.json`)
- * into the domain contract. v1 documents are the current shape, so this is a
- * strict validation pass that records the version transition and never mutates
- * the source. Unknown fields follow the caller's policy option (preserve by
- * default, reject in strict mode).
+ * Forwards a v1-shaped composite document (as published in
+ * `schemas/profile.schema.json`) into the v2 contract. v1→v2 is a version
+ * stamp for composite profiles (the v2 shape change lives in
+ * `VolumeInfo`, part of `HardwareProfile` documents that are never migrated —
+ * they are produced fresh by each probe). The migration deep-copies the
+ * source, stamps `schemaVersion` 2, then validates the copy; on failure the
+ * source object is left byte-for-byte untouched, so a caller can roll back to
+ * the original + its backup. Unknown fields follow the caller's policy option
+ * (preserve by default, reject in strict mode).
  */
 export function migrateV1Profile(source: unknown, options: { strict?: boolean } = {}): MigrationRecord {
   const fromVersion = readVersion(source, 'migrateV1Profile');
@@ -53,6 +57,33 @@ export function migrateV1Profile(source: unknown, options: { strict?: boolean } 
     throw new DomainError(
       'DOMAIN_VERSION_UNSUPPORTED',
       `migrateV1Profile expects schemaVersion 1, received ${fromVersion}`,
+    );
+  }
+  if (source === null || typeof source !== 'object' || Array.isArray(source)) {
+    throw new DomainError('DOMAIN_PARSE_FAILED', 'migrateV1Profile: expected a profile object');
+  }
+  // Deep copy first so a failed validation can never leak mutated fields back
+  // into the caller's document (rollback = unchanged original).
+  const stamped = JSON.parse(JSON.stringify({ ...(source as Record<string, unknown>), schemaVersion: SCHEMA_VERSION }));
+  const schema = options.strict ? StrictCompositeProfileSchema : CompositeProfileSchema;
+  const result = schema.safeParse(stamped);
+  if (!result.success) {
+    throw zodErrorToDomainError(result.error);
+  }
+  return { fromVersion, toVersion: SCHEMA_VERSION, profile: result.data };
+}
+
+/**
+ * Validates a v2 document (the current shape). Records the version transition
+ * and never mutates the source. Unknown fields follow the caller's policy
+ * option (preserve by default, reject in strict mode).
+ */
+export function migrateV2Profile(source: unknown, options: { strict?: boolean } = {}): MigrationRecord {
+  const fromVersion = readVersion(source, 'migrateV2Profile');
+  if (fromVersion !== 2) {
+    throw new DomainError(
+      'DOMAIN_VERSION_UNSUPPORTED',
+      `migrateV2Profile expects schemaVersion 2, received ${fromVersion}`,
     );
   }
   const schema = options.strict ? StrictCompositeProfileSchema : CompositeProfileSchema;
@@ -69,10 +100,12 @@ export function migrateProfile(source: unknown, options: { strict?: boolean } = 
   switch (fromVersion) {
     case 1:
       return migrateV1Profile(source, options);
+    case 2:
+      return migrateV2Profile(source, options);
     default:
       throw new DomainError(
         'DOMAIN_VERSION_UNSUPPORTED',
-        `no migration path for schemaVersion ${fromVersion}; supported: 1`,
+        `no migration path for schemaVersion ${fromVersion}; supported: 1, 2`,
       );
   }
 }

@@ -13,6 +13,10 @@ import {
   batteryJsonAc,
   batteryJsonDischarging,
   coresJson,
+  diskDrivesJson,
+  diskToPartitionJson,
+  logicalDisksJson,
+  logicalToPartitionJson,
   makeFakeProbeEnv,
   nvidiaSmiPartialVram,
   nvidiaSmiTwoGpus,
@@ -46,7 +50,7 @@ describe('probeHardware happy path', () => {
     );
 
     expect(profile).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       os: 'Windows 11 Pro (x64)',
       cpu: { model: 'Physon X9 990', cores: 8, threads: 3 },
       memory: { totalBytes: FAKE_TOTAL_MEM, availableBytes: FAKE_FREE_MEM },
@@ -55,8 +59,8 @@ describe('probeHardware happy path', () => {
         { name: 'Synthetic RTX 9001', driverVersion: '610.11', vramTotalBytes: 4096 * MIB, vramAvailableBytes: 3000 * MIB },
       ],
       volumes: [
-        { mount: 'X:\\', totalBytes: 1099511627776, availableBytes: 549755813888 },
-        { mount: 'Y:\\', totalBytes: 2199023255552, availableBytes: 1099511627776 },
+        { mount: 'X:\\', totalBytes: 1099511627776, availableBytes: 549755813888, driveType: null, bus: null, external: null, model: null },
+        { mount: 'Y:\\', totalBytes: 2199023255552, availableBytes: 1099511627776, driveType: null, bus: null, external: null, model: null },
       ],
       power: { onBattery: false },
       versions: VERSIONS_NULL,
@@ -81,6 +85,62 @@ describe('probeHardware happy path', () => {
       makeFakeProbeEnv({ battery: okResult(batteryJsonDischarging) }),
     );
     expect(profile.power).toEqual({ onBattery: true });
+  });
+
+  it('classifies external disks from the four joined WMI tables', async () => {
+    const profile = await probeHardware(
+      makeFakeProbeEnv({
+        volumes: okResult(logicalDisksJson),
+        diskDrives: okResult(diskDrivesJson),
+        diskToPartition: okResult(diskToPartitionJson),
+        logicalToPartition: okResult(logicalToPartitionJson),
+      }),
+    );
+    expect(profile.volumes).toEqual([
+      {
+        mount: 'X:\\',
+        totalBytes: 1099511627776,
+        availableBytes: 549755813888,
+        driveType: 3,
+        bus: 'NVMe',
+        external: false,
+        model: 'Synthetic NVMe',
+      },
+      {
+        mount: 'Y:\\',
+        totalBytes: 2199023255552,
+        availableBytes: 1099511627776,
+        driveType: 2,
+        bus: 'USB',
+        external: true,
+        model: 'Synthetic USB SSD',
+      },
+    ]);
+  });
+
+  it('keeps volumes enumerated (columns null) when only the disk tables fail', async () => {
+    const profile = await probeHardware(makeFakeProbeEnv({ volumes: okResult(logicalDisksJson) }));
+    expect(profile.volumes).toEqual([
+      {
+        mount: 'X:\\',
+        totalBytes: 1099511627776,
+        availableBytes: 549755813888,
+        driveType: 3,
+        bus: null,
+        external: null,
+        model: null,
+      },
+      {
+        mount: 'Y:\\',
+        totalBytes: 2199023255552,
+        availableBytes: 1099511627776,
+        driveType: 2,
+        bus: null,
+        external: true,
+        model: null,
+      },
+    ]);
+    expect(HardwareProfileSchema.safeParse(profile).success).toBe(true);
   });
 });
 
@@ -136,7 +196,7 @@ describe('probeHardware partial failure', () => {
   it('keeps the volume list for a single-object ConvertTo-Json result', async () => {
     const profile = await probeHardware(makeFakeProbeEnv({ volumes: okResult(volumeJsonSingle) }));
     expect(profile.volumes).toEqual([
-      { mount: 'Z:\\', totalBytes: 536870912000, availableBytes: 268435456000 },
+      { mount: 'Z:\\', totalBytes: 536870912000, availableBytes: 268435456000, driveType: null, bus: null, external: null, model: null },
     ]);
   });
 });
@@ -144,7 +204,7 @@ describe('probeHardware partial failure', () => {
 describe('probeHardware total failure of external probes', () => {
   it('keeps node:os-backed sections and marks everything else Unknown', async () => {
     const profile = await probeHardware(makeFakeProbeEnv());
-    expect(profile.schemaVersion).toBe(1);
+    expect(profile.schemaVersion).toBe(2);
     expect(profile.probedAt).toBe(FAKE_NOW);
     expect(profile.versions).toEqual(VERSIONS_NULL);
     // os/cpu/memory come from node:os and remain present even if every external probe fails.

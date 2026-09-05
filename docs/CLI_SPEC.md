@@ -70,7 +70,7 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 
 ### hardware
 
-真机探测（复用 `@lmps/hardware` 的注入 `ProbeEnv`）；人类输出为双语摘要；`--json` 输出完整 `HardwareProfile`。永不 throw（各节降级为 `null`）。
+真机探测（复用 `@lmps/hardware` 的注入 `ProbeEnv`）；人类输出为双语摘要；`--json` 输出完整 `HardwareProfile`。永不 throw（各节降级为 `null`）。卷富化（M1-001 补测，schema v2）：外接盘追加 `（外接）/ (external)` 标记（`hardware.volumeExternal`）——`DriveType=2` 或配对到 USB/`USBSTOR`/`External hard disk media` 证据的 `DriveType=3` 卷；`--json` 中体现为 `volumes[*].external/bus/driveType/model`，富化缺失时这些列为 `null`。
 
 ### lang
 

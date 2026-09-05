@@ -13,7 +13,7 @@ import { makeFakeEnv, NOW, SPAWN_OK } from './fixtures.js';
 
 function makeProfile(modelKey: string, runtime: Record<string, unknown> = {}): CompositeProfile {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: `p-${modelKey.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`,
     displayName: { 'zh-CN': '测试', en: 'test' },
     model: { modelKey },
@@ -111,7 +111,7 @@ describe('createCliAdapter estimate', () => {
     });
     const estimate = await createCliAdapter(env).estimate(makeProfile(QWEN_KEY, { contextLength: 8192 }));
     expect(estimate).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       provider: 'exact',
       modelKey: QWEN_KEY,
       quantization: 'Q4_K_M',

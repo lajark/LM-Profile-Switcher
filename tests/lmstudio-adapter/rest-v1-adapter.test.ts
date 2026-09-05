@@ -5,7 +5,7 @@ import { makeFakeEnv, loadedModel, restModelsBody } from './fixtures.js';
 
 function makeProfile(modelKey: string, runtime: Record<string, unknown> = {}) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: `profile-${modelKey.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`,
     displayName: { 'zh-CN': '测试', en: 'test' },
     model: { modelKey },

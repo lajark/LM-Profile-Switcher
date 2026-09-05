@@ -1,11 +1,14 @@
 /**
  * Shared fixtures for the domain contract suite. The composite mirrors the
- * published v1 sample shape (`schemas/profile.schema.json`, unchanged) so the
- * migration tests validate against the real baseline.
+ * published v1 sample shape (`schemas/profile.schema.json`, unchanged), typed
+ * as the v1 document; migration tests validate against this real baseline.
  */
 import type { CompositeProfile } from '@lmps/domain';
 
-export const v1SampleComposite: CompositeProfile = {
+/** Structural v1 composite: every current field, but stamped schemaVersion 1. */
+export type V1CompositeProfile = Omit<CompositeProfile, 'schemaVersion'> & { schemaVersion: 1 };
+
+export const v1SampleComposite: V1CompositeProfile = {
   schemaVersion: 1,
   id: 'code-chat-moe',
   displayName: { 'zh-CN': '代码对话', en: 'Code Chat' },
@@ -80,11 +83,19 @@ export const v1SampleComposite: CompositeProfile = {
 };
 
 /**
+ * The current v2 composite for contract/round-trip tests: the v1 baseline
+ * stamped to the current `SCHEMA_VERSION`. Keeping the v1 document separate
+ * lets migration tests exercise the real forward path while contract tests use
+ * a genuine current-shape document.
+ */
+export const currentSampleComposite: CompositeProfile = { ...v1SampleComposite, schemaVersion: 2 };
+
+/**
  * Minimal but valid instances of the non-composite contracts, re-used by the
  * serialization round-trip tests.
  */
 export const minimalLoadEstimate = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   provider: 'exact',
   modelKey: 'qwen2.5-coder-32b-instruct',
   vramTotalBytes: 24576000,
@@ -93,7 +104,7 @@ export const minimalLoadEstimate = {
 } as const;
 
 export const minimalBenchmarkResult = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'bench-001',
   modelKey: 'qwen2.5-coder-32b-instruct',
   taskType: 'code-chat',
@@ -109,7 +120,7 @@ export const minimalBenchmarkResult = {
 } as const;
 
 export const minimalActivationTransaction = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: 'txn-001',
   targetProfileId: 'code-chat-moe',
   previousProfileId: 'general-chat',
@@ -124,7 +135,7 @@ export const minimalActivationTransaction = {
 } as const;
 
 export const minimalCapabilityMatrix = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   adapter: 'sdk',
   apiVersion: 'v1',
   lmStudioVersion: '0.3.0',
@@ -134,7 +145,7 @@ export const minimalCapabilityMatrix = {
 } as const;
 
 export const minimalHardwareProfile = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   os: 'Windows 11',
   cpu: { model: 'Ryzen 9', cores: 16, threads: 32 },
   memory: { totalBytes: 68720000000, availableBytes: 34360000000 },

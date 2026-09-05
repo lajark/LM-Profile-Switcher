@@ -14,9 +14,9 @@
  */
 import {
   CompositeProfileSchema,
+  deserializeJsonDocument,
+  deserializeYamlDocument,
   migrateProfile,
-  parseJsonDocument,
-  parseYamlDocument,
   stringifyJsonDocument,
   zodErrorToDomainError,
   type CompositeProfile,
@@ -169,12 +169,16 @@ export function createProfileStore(ctx: StoreContext): ProfileStore {
     return parseStored(fs.readFileUtf8(filePath(id)));
   };
 
-  const parseImport = (text: string, document: typeof parseJsonDocument, options: ImportOptions): CompositeProfile => {
+  const parseImport = (text: string, deserialize: (t: string) => unknown, options: ImportOptions): CompositeProfile => {
     if (text.length > maxImportBytes) {
       throw new ProfileStoreError('STORE_LIMIT_EXCEEDED', 'import document exceeds the size limit');
     }
     try {
-      return document(text, CompositeProfileSchema, { strict: options.strict ?? true });
+      // Older documents (schemaVersion 1) are forwarded through the domain
+      // migration before the current-contract validation; unsupported future
+      // versions are rejected by `migrateProfile` (never silently reshaped).
+      const record = migrateProfile(deserialize(text), { strict: options.strict ?? true });
+      return record.profile;
     } catch (cause) {
       throw new ProfileStoreError('STORE_IMPORT_FAILED', 'import document failed validation', { cause });
     }
@@ -320,7 +324,7 @@ export function createProfileStore(ctx: StoreContext): ProfileStore {
   };
 
   function importText(text: string, format: 'json' | 'yaml', options: ImportOptions): CompositeProfile {
-    const parsed = parseImport(text, format === 'json' ? parseJsonDocument : parseYamlDocument, options);
+    const parsed = parseImport(text, format === 'json' ? deserializeJsonDocument : deserializeYamlDocument, options);
     if (fs.exists(filePath(parsed.id))) {
       if (!options.allowRename) {
         throw new ProfileStoreError('STORE_ALREADY_EXISTS', 'a profile with this id already exists');

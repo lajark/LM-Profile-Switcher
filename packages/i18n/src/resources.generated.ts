@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit manually.
 // Source of truth: locales/zh-CN/common.json, locales/en/common.json.
 // Regenerate with `corepack pnpm run i18n:generate`.
-// __CHECKSUM__: 1382fec59ef819b218eccc4c4189af9a8bc42fc73a138bd43e00b08912677f8e
+// __CHECKSUM__: a22122e9f53f1c8537226d95cd08cf19742d42c0f92034952a81ddb9c1736618
 
 export const DEFAULT_NAMESPACE = 'common';
 
@@ -85,6 +85,7 @@ export const resourceKeys = [
   'hardware.gpuUnknown',
   'hardware.gpuNone',
   'hardware.volume',
+  'hardware.volumeExternal',
   'hardware.probedAt',
   'lang.show',
   'lang.set',
@@ -184,6 +185,7 @@ export interface CommonResources {
   'hardware.gpuUnknown': string;
   'hardware.gpuNone': string;
   'hardware.volume': string;
+  'hardware.volumeExternal': string;
   'hardware.probedAt': string;
   'lang.show': string;
   'lang.set': string;

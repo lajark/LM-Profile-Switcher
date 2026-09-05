@@ -6,7 +6,7 @@ import { envelopeOf, makeCliHarness } from './helpers';
 import { ALPHA, BETA, GAMMA, profileJson, validProfile } from '../profile-store/fixtures';
 
 const YAML_DOC = [
-  'schemaVersion: 1',
+  'schemaVersion: 2',
   'id: yamlp',
   'displayName:',
   "  zh-CN: 'Yaml Profile'",
@@ -102,7 +102,7 @@ describe('profile show', () => {
     expect(result.exitCode).toBe(0);
     const envelope = envelopeOf(result.text);
     const doc = (envelope.data as { profile: Record<string, unknown> }).profile;
-    expect(doc.schemaVersion).toBe(1);
+    expect(doc.schemaVersion).toBe(2);
     expect(doc.apiKey).toBeNull();
     expect(doc.apiKey).not.toBe('sk-lmps-test-not-a-real-secret');
   });
@@ -328,7 +328,7 @@ describe('profile clone/delete/import/export', () => {
     const { deps, fs, store } = makeCliHarness();
     store.create(ALPHA);
     const yaml = await runCli(['profile', 'export', 'alpha', '--format', 'yaml'], deps);
-    expect(yaml.text).toContain('schemaVersion: 1');
+    expect(yaml.text).toContain('schemaVersion: 2');
 
     const written = await runCli(['profile', 'export', 'alpha', '-o', '/out/alpha.json'], deps);
     expect(written.exitCode).toBe(0);

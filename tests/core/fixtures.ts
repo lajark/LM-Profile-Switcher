@@ -17,7 +17,7 @@ export const NOW = '2026-08-22T01:02:03.000Z';
 /** A document that passes StrictCompositeProfileSchema (runner validates it). */
 export function makeProfile(id: string, overrides: Partial<CompositeProfile> = {}): CompositeProfile {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id,
     displayName: { 'zh-CN': `Test ${id}`, en: `Test ${id}` },
     description: { en: `synthetic profile ${id}` },
@@ -36,7 +36,7 @@ export const BETA = makeProfile('beta', { runtime: { contextLength: 4096 } });
 
 export function makeEstimate(modelKey = 'synthetic/test-model', overrides: Partial<LoadEstimate> = {}): LoadEstimate {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     provider: 'rough',
     modelKey,
     vramTotalBytes: 4_000_000_000,

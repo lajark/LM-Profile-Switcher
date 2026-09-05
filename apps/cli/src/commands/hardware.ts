@@ -55,7 +55,12 @@ function humanSummary(deps: CliDeps, profile: HardwareProfile): string {
   if (profile.volumes != null) {
     for (const volume of profile.volumes) {
       if (volume.totalBytes != null) {
-        lines.push(deps.t('hardware.volume', { value: formatBytes(volume.totalBytes) }));
+        const value = formatBytes(volume.totalBytes);
+        if (volume.external === true) {
+          lines.push(deps.t('hardware.volumeExternal', { mount: volume.mount, value }));
+        } else {
+          lines.push(deps.t('hardware.volume', { mount: volume.mount, value }));
+        }
       }
     }
   }

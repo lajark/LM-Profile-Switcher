@@ -5,12 +5,12 @@ import { HardwareProfileSchema, StrictHardwareProfileSchema } from '@lmps/domain
 import { describe, expect, it } from 'vitest';
 
 const minimalProfile = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   probedAt: '2026-08-22T01:02:03.000Z',
 };
 
 const fullProfile = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   os: 'Windows 11 Pro (x64)',
   cpu: { model: 'Physon X9 990', cores: 8, threads: 8 },
   memory: { totalBytes: 34_359_738_368, availableBytes: 17_179_869_184 },

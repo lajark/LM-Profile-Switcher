@@ -24,7 +24,8 @@ describe('hardware command', () => {
     expect(result.exitCode).toBe(0);
     expect(result.text).toContain('Synthetic RTX 9000');
     expect(result.text).toContain('MEM:');
-    expect(result.text).toContain('DISK:');
+    expect(result.text).toContain('DISK X:\\: 1 TiB');
+    expect(result.text).toContain('DISK Y:\\: 2 TiB');
     expect(result.stderr).toBe('');
   });
 

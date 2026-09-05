@@ -5,7 +5,7 @@ import { NOW } from './fixtures.js';
 
 function makeProfile(modelKey: string) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: `p-${modelKey.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`,
     displayName: { 'zh-CN': '测试', en: 'test' },
     model: { modelKey },

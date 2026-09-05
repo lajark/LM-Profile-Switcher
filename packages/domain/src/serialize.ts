@@ -84,18 +84,34 @@ export function parseDocumentValue<T>(raw: unknown, schema: z.ZodType<T>, option
   return result.data;
 }
 
-/** Parses a JSON document, then validates it against a contract. */
-export function parseJsonDocument<T>(text: string, schema: z.ZodType<T>, options: ParseOptions = {}): T {
-  let raw: unknown;
+/**
+ * Deserializes JSON text to a plain value without the version gate or schema
+ * validation. Used by importers that must forward older documents through
+ * `migrateProfile` before validating against the current contract.
+ */
+export function deserializeJsonDocument(text: string): unknown {
   try {
-    raw = JSON.parse(text);
+    return JSON.parse(text);
   } catch (cause) {
     throw new DomainError('DOMAIN_PARSE_FAILED', 'invalid JSON document', {
       detail: 'JSON.parse failed before schema validation',
       cause,
     });
   }
-  return parseDocumentValue(raw, schema, options);
+}
+
+/** YAML counterpart of {@link deserializeJsonDocument}. */
+export function deserializeYamlDocument(text: string): unknown {
+  try {
+    return parseYaml(text);
+  } catch (cause) {
+    throw new DomainError('DOMAIN_PARSE_FAILED', 'invalid YAML document', { cause });
+  }
+}
+
+/** Parses a JSON document, then validates it against a contract. */
+export function parseJsonDocument<T>(text: string, schema: z.ZodType<T>, options: ParseOptions = {}): T {
+  return parseDocumentValue(deserializeJsonDocument(text), schema, options);
 }
 
 /** Parses a YAML document, then validates it against a contract. */

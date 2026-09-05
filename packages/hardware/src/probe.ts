@@ -4,7 +4,7 @@
  * testable. Each section is individually guarded: a failing or malformed probe
  * contributes `null` for that section and never aborts the overall probe.
  */
-import { HardwareProfileSchema } from '@lmps/domain';
+import { HardwareProfileSchema, SCHEMA_VERSION } from '@lmps/domain';
 import type { HardwareProfile, VolumeInfo } from '@lmps/domain';
 
 import { HardwareError } from './errors.js';
@@ -68,7 +68,7 @@ export async function probeHardware(env: ProbeEnv): Promise<HardwareProfile> {
 
   const totalMemoryBytes = env.os.totalmem();
   const profile: HardwareProfile = {
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     os: osInfo.os,
     cpu: {
       model: osInfo.cpuModel,

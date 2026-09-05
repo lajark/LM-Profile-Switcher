@@ -49,6 +49,15 @@ describe('import', () => {
     expect(fs.readFileUtf8(`${PROFILE_DIR}/alpha.json`)).toContain('"legacy"');
   });
 
+  it('migrates a v1 document through import (schemaVersion stamped to current)', () => {
+    const { store } = createMemStore();
+    const v1 = JSON.parse(JSON.stringify(ALPHA)) as Record<string, unknown>;
+    v1.schemaVersion = 1;
+    const imported = store.importFromJson(JSON.stringify(v1));
+    expect(imported).toEqual(ALPHA);
+    expect(store.get('alpha').schemaVersion).toBe(2);
+  });
+
   it('rejects an unsupported schemaVersion with STORE_IMPORT_FAILED', () => {
     const { store } = createMemStore();
     const future = { ...ALPHA, schemaVersion: 999 };

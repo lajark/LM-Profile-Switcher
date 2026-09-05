@@ -47,7 +47,7 @@ describe('recover: corruption and auto-restore', () => {
 
     const result = store.recover();
     expect(result.restored).toEqual(['alpha']);
-    expect(store.get('alpha').schemaVersion).toBe(1);
+    expect(store.get('alpha').schemaVersion).toBe(2);
   });
 
   it('leaves a corrupt main without any backup in place but excludes it from listing', () => {
