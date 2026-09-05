@@ -2,38 +2,53 @@
  * Production wiring for the CLI — with `index.ts` the only module allowed to
  * touch `node:` or `process.`. `createDefaultDeps()` builds the real ProfileStore,
  * the file language store, the i18n service over the shipped locale resources,
- * the default hardware probe env, and the three read ports (models / current /
- * snapshot) on the LM Studio adapter router (M1-003). The activation runtime for
- * `apply` stays null until M1-005 production wiring; it honestly reports
- * capability unsupported (6) meanwhile.
+ * the default hardware probe env, the three read ports (models / current /
+ * snapshot) on the LM Studio adapter router (M1-003), and the `apply` activation
+ * seam (M1-005 production wiring): a lazy adapter router runtime, a lease-bearing
+ * file lock owned by `process.pid`, the official estimator with rough fallback,
+ * a redacted transaction log under `<rootDir>/logs/transactions.ndjson` and the
+ * injected runner context.
  */
-import { captureSnapshot, type RunnerContext } from '@lmps/core';
+import {
+  createActivationRunner,
+  captureSnapshot,
+  createFileLock,
+  type ActivationLock,
+  type ActivationRuntime,
+  type RunnerContext,
+  type TransactionLogSink,
+} from '@lmps/core';
 import { createDefaultProbeEnv } from '@lmps/hardware';
 import { createI18n, loadResourceFiles, normalizeLocale, type Locale } from '@lmps/i18n';
 import {
+  createCliEstimatePort,
   createNodeLmStudioEnv,
   isLmStudioError,
   probeCapabilities,
   resolveAdapters,
   resolveBaseUrl,
   type AdapterBundle,
+  type AdapterSelection,
   type LmStudioEnv,
 } from '@lmps/lmstudio-adapter';
-import { createDefaultFsys, createDefaultProfileStore, type ProfileStore } from '@lmps/profile-store';
+import { createDefaultFsys, createDefaultProfileStore, type Fsys, type ProfileStore } from '@lmps/profile-store';
 import { join } from 'node:path';
 
 import { createFileLanguageStore } from './config.js';
 import { CliError, lmUnreachable } from './errors.js';
-import type { CliDeps } from './seams.js';
+import type { ActivationSeam, CliDeps } from './seams.js';
 
 export interface DefaultDepsOptions {
   rootDir?: string;
   env?: NodeJS.ProcessEnv;
   home?: string;
+  /** Pre-built adapter env; tests inject an in-memory fake here. */
+  lmEnv?: LmStudioEnv;
 }
 
-/** `LMPS_HOME` wins; otherwise `~/.lmps`. The root may hold passthrough secrets → LOCAL-ONLY. */
+/** Explicit `rootDir` wins; then `LMPS_HOME`; otherwise `~/.lmps`. The root may hold passthrough secrets → LOCAL-ONLY. */
 export function resolveRootDir(options: DefaultDepsOptions = {}): string {
+  if (options.rootDir !== undefined) return options.rootDir;
   const env = options.env ?? process.env;
   const home = options.home ?? env.USERPROFILE ?? env.HOME ?? '.';
   return env.LMPS_HOME || join(home, '.lmps');
@@ -57,7 +72,19 @@ export function createDefaultDeps(options: DefaultDepsOptions = {}): CliDeps {
     },
   });
 
-  const lmPorts = createLmStudioCliPorts(store, { env });
+  const lmEnv: LmStudioEnv =
+    options.lmEnv ??
+    createNodeLmStudioEnv({
+      baseUrl: resolveBaseUrl(env.LMPS_LM_URL),
+      // SECRET by classification; only ever sent as an Authorization header.
+      token: env.LMPS_LM_TOKEN ?? null,
+      lmsBin: env.LMPS_LMS_BIN ?? undefined,
+    });
+  // The explicit `LMPS_ADAPTER=mock` switch is the only way to select the demo
+  // adapter; production defaults to `auto` and never silently flips to mock.
+  const selection: AdapterSelection = env.LMPS_ADAPTER === 'mock' ? 'mock' : 'auto';
+
+  const lmPorts = createLmStudioCliPorts(store, { lmEnv, selection });
 
   return {
     store,
@@ -81,9 +108,7 @@ export function createDefaultDeps(options: DefaultDepsOptions = {}): CliDeps {
     discovery: lmPorts.discovery,
     state: lmPorts.state,
     snapshot: lmPorts.snapshot,
-    // The activation runtime needs the M1-005 production wiring (task f); it
-    // stays unwired, so `apply` honestly reports capability unsupported (6).
-    activation: null,
+    activation: createActivationSeam(fs, { lmEnv, selection, rootDir }),
     nodeVersion: process.versions.node ?? null,
   };
 }
@@ -113,6 +138,8 @@ export interface LmStudioCliPortOptions {
   env?: NodeJS.ProcessEnv;
   /** Pre-built adapter env; tests inject an in-memory fake here. */
   lmEnv?: LmStudioEnv;
+  /** Adapter selection; defaults to `auto`. Only `mock` overrides the router. */
+  selection?: AdapterSelection;
 }
 
 export interface LmStudioCliPorts {
@@ -137,10 +164,11 @@ export function createLmStudioCliPorts(store: ProfileStore, options: LmStudioCli
       token: options.env?.LMPS_LM_TOKEN ?? null,
       lmsBin: options.env?.LMPS_LMS_BIN ?? undefined,
     });
+  const selection = options.selection ?? 'auto';
 
   async function bundle(): Promise<AdapterBundle> {
     const probe = await probeCapabilities(lmEnv);
-    return resolveAdapters(lmEnv, probe);
+    return resolveAdapters(lmEnv, probe, { selection });
   }
 
   async function guarded<T>(work: () => Promise<T>): Promise<T> {
@@ -189,6 +217,98 @@ export function createLmStudioCliPorts(store: ProfileStore, options: LmStudioCli
         }),
     },
   };
+}
+
+/** A lease the run cannot outgrow in normal operation: 30 minutes. */
+const ACTIVATION_LEASE_MS = 30 * 60_000;
+
+export interface ActivationSeamOptions {
+  /** Pre-built adapter env; tests inject an in-memory fake here. */
+  lmEnv: LmStudioEnv;
+  /** Adapter selection; `mock` routes the whole activation to the demo adapter. */
+  selection?: AdapterSelection;
+  rootDir: string;
+  /** Lock owner label; defaults to `process.pid`. */
+  owner?: string;
+  now?: () => string;
+}
+
+/**
+ * M1-005 production wiring: the `apply` activation seam. The adapter runtime is
+ * resolved lazily through the capability router on the first call, so `lmps
+ * profile list` never pays for LM Studio probing; reachability failures map to
+ * `LM_UNREACHABLE` (exit 4) at the apply preflight. Mutual exclusion uses the
+ * lease-bearing file lock owned by this process; the official estimator (with
+ * the explicit rough fallback) feeds the estimating stage; every transaction is
+ * appended (already redacted by the runner) to `<rootDir>/logs/transactions.ndjson`.
+ * `LMPS_ADAPTER=mock` is the only way to select the in-memory demo adapter.
+ */
+export function createActivationSeam(fs: Fsys, options: ActivationSeamOptions): ActivationSeam {
+  const now = options.now ?? (() => new Date().toISOString());
+  const selection = options.selection ?? 'auto';
+  const lockDir = join(options.rootDir, 'locks');
+  const logPath = join(options.rootDir, 'logs', 'transactions.ndjson');
+
+  // One CLI process runs one command, so a single consistent host view across
+  // the apply preflight and the runner is what matters: the bundle is resolved
+  // on first use and cached for the seam's lifetime (probeCapabilities keeps its
+  // own TTL for the read ports). Re-resolving per call would split a run across
+  // two adapter instances — fatal for an in-memory mock, misleading for REST.
+  let cached: AdapterBundle | null = null;
+  async function bundle(): Promise<AdapterBundle> {
+    if (cached !== null) return cached;
+    const probe = await probeCapabilities(options.lmEnv);
+    cached = resolveAdapters(options.lmEnv, probe, { selection });
+    return cached;
+  }
+
+  async function guarded<T>(work: (runtime: ActivationRuntime) => Promise<T>): Promise<T> {
+    try {
+      return await work((await bundle()).runtime);
+    } catch (error) {
+      const mapped = mapLmStudioReachability(error);
+      if (mapped !== error) throw mapped;
+      throw error;
+    }
+  }
+
+  // A lazy delegate over the router bundle: `lmps apply` probes around first
+  // every call; the adapter shares its TTL cache with the read ports.
+  const runtime: ActivationRuntime = {
+    getActiveState: () => guarded((r) => r.getActiveState()),
+    unload: () => guarded((r) => r.unload()),
+    restore: () => guarded((r) => r.restore()),
+    load: (profile, estimate) => guarded((r) => r.load(profile, estimate)),
+    healthCheck: (profile) => guarded((r) => r.healthCheck(profile)),
+    readEffectiveConfig: (profile) => guarded((r) => r.readEffectiveConfig(profile)),
+  };
+
+  const fileLock = createFileLock(fs, {
+    path: join(lockDir, 'activation.lock'),
+    owner: options.owner ?? String(process.pid),
+    leaseMs: ACTIVATION_LEASE_MS,
+    now,
+  });
+  const lock: ActivationLock = {
+    acquire: async () => {
+      fs.mkdirRecursive(lockDir);
+      return fileLock.acquire();
+    },
+    release: () => fileLock.release(),
+  };
+
+  const log: TransactionLogSink = {
+    write: async (transaction) => {
+      fs.mkdirRecursive(join(options.rootDir, 'logs'));
+      const prior = fs.exists(logPath) ? fs.readFileUtf8(logPath) : '';
+      const line = JSON.stringify(transaction);
+      fs.writeFileUtf8(logPath, prior === '' ? line : `${prior}\n${line}`);
+    },
+  };
+
+  const estimate = createCliEstimatePort(options.lmEnv);
+  const ports = { runtime, lock, estimate, log };
+  return { runtime, lock, estimate, log, context: runnerContext, runner: createActivationRunner(runnerContext, ports) };
 }
 
 /**

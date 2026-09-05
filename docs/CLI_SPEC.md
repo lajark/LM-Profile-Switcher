@@ -1,6 +1,6 @@
 # CLI Specification / CLI 规范
 
-> 状态：M1-004/M1-005 已实现；M1-003 读路径已接线。`profile/hardware/lang/doctor` 为完整契约；`models/current/snapshot` 已接线到 LM Studio adapter（REST v1 主路径，`lms` 读回退），离线/认证/超时 → `LM_UNREACHABLE` exit 4；`apply <id> [--yes]` 为完整命令，但生产 `activation` 端口待 M1-005 生产接线，未接线前恒 `CAPABILITY_UNSUPPORTED` exit 6。`estimate/optimize/benchmark/server/backup` 与 `--version` 尚未实现。
+> 状态：M1-004/M1-005 已实现；M1-003 读路径已接线。`profile/hardware/lang/doctor` 为完整契约；`models/current/snapshot` 已接线到 LM Studio adapter（REST v1 主路径，`lms` 读回退），离线/认证/超时 → `LM_UNREACHABLE` exit 4；`apply <id> [--yes]` 为完整命令，生产 `activation` 端口已随 M1-005 生产接线接通（默认 `auto`，离线 exit 4，`LMPS_ADAPTER=mock` 显式演示）。`estimate/optimize/benchmark/server/backup` 与 `--version` 尚未实现。
 
 Command: `lmps`（`corepack pnpm run lmps -- <args>`，先 `build`；或 `node apps/cli/dist/index.js <args>`）
 
@@ -92,7 +92,7 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 
 机器 `data`：`{ transaction: <redacted> }`；人类输出为双语结果文案（active/idempotent/canceled/recovered/failed）。退出码 0=active、2=canceled、3=failed-but-recovered、5=failed；lock busy/激活前置失败 → 4（preflight）。
 
-生产 `activation` 端口待 M1-005 生产接线完成；未接线 → `CAPABILITY_UNSUPPORTED` exit 6。
+生产 `activation` 端口已随 M1-005 生产接线接通（2026-09-05）：`apply` 走真实激活状态机；适配器因惰性解析并按 seam 生命周期缓存，确保 preflight 与各阶段看到同一宿主视图；互斥经 `<LMPS_HOME>/locks/activation.lock` 文件租约锁（owner=`process.pid`、30 分钟租约，运行结束释放）；事务日志（runner 已脱敏）落盘 `<LMPS_HOME>/logs/transactions.ndjson`。默认 `auto`——未显式设置 `LMPS_ADAPTER=mock` 时绝不静默使用演示适配器；离线/认证/超时 → `LM_UNREACHABLE` exit 4（中文 `无法连接到 LM Studio`）。
 
 ## Exit codes
 
@@ -103,7 +103,7 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 | 3 | activation in progress | `apply` 事务在恢复路径上完成（failed-but-recovered；M1-005 生效） |
 | 4 | validation or preflight failed | 参数/校验/Profile 不存在/文档校验失败/delete 无 `--yes`/未知命令/lock busy/激活前置失败/LM Studio 不可达（`LM_UNREACHABLE`） |
 | 5 | activation and rollback both failed | `apply` 事务失败且回滚也失败（M1-005 生效） |
-| 6 | requested capability unsupported | `apply` 生产 `activation` 端口未接线（M1-005 生产接线后消除）；`models/current/snapshot` 已不再返回 6 |
+| 6 | requested capability unsupported | 尚未实现的能力（`estimate/optimize/benchmark/server` 等）；`apply` 与 `models/current/snapshot` 已接线，不再返回 6 |
 | 10 | internal error | store 损坏/IO 失败/未捕获异常/资源错误 |
 
 ## Output stream isolation
@@ -115,4 +115,4 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 
 ## 未实现 / 预留
 
-`estimate/optimize/benchmark/server/backup`、`--version`、Shell completion、交互向导均未实现；`apply` 命令本身已随 M1-005 实现（生产接线待 M1-003），`estimate` 等命令在 M1-006 及后续接线。
+`estimate/optimize/benchmark/server/backup`、`--version`、Shell completion、交互向导均未实现；`apply` 已随 M1-005 实现并完成生产接线（2026-09-05，离线态已实测）；`estimate` 等命令在后续任务接线。
