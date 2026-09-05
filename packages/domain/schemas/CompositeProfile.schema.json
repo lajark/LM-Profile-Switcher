@@ -97,6 +97,22 @@
           "type": "string",
           "minLength": 1
         },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "quick-chat",
+            "long-document",
+            "rag",
+            "investment-due-diligence",
+            "meeting-minutes",
+            "coding",
+            "structured-extraction",
+            "agent",
+            "creative-writing",
+            "vision",
+            "custom"
+          ]
+        },
         "typicalInputTokens": {
           "type": "integer",
           "minimum": 0,
@@ -619,5 +635,5 @@
   "additionalProperties": {},
   "title": "Composite Profile",
   "description": "One stored selection of model, task, runtime, generation and behavior.",
-  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: d6af92a1ac67019e82b8978cca5e3fd91e1a5b92404073018f243bdc08055325"
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: d8e2553c95fcd5eaa2ab5c8622c902ae405c41d375b7eb53eb2e1966d113c271"
 }

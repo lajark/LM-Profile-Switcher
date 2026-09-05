@@ -17,6 +17,7 @@ export default defineConfig({
       '@lmps/lmstudio-adapter': fileURLToPath(
         new URL('./packages/lmstudio-adapter/src/index.ts', import.meta.url),
       ),
+      '@lmps/optimizer': fileURLToPath(new URL('./packages/optimizer/src/index.ts', import.meta.url)),
       '@lmps/profile-store': fileURLToPath(
         new URL('./packages/profile-store/src/index.ts', import.meta.url),
       ),

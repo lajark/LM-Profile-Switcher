@@ -12,6 +12,7 @@ export * from './version.js';
 export * from './iso-date.js';
 
 export * from './profile.js';
+export * from './rules.js';
 export * from './hardware.js';
 export * from './capability.js';
 export * from './estimate.js';

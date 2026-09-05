@@ -18,7 +18,25 @@ const profileId = z
   .string()
   .regex(PROFILE_ID_RE, { message: 'profile id must match ^[a-z0-9][a-z0-9._-]{1,63}$' });
 
-const modelArchitecture = z.enum(['dense', 'moe', 'embedding', 'vision', 'unknown']);
+/** Model file architectures recognised by the domain (PRD §6). */
+export const MODEL_ARCHITECTURES = ['dense', 'moe', 'embedding', 'vision', 'unknown'] as const;
+const modelArchitecture = z.enum(MODEL_ARCHITECTURES);
+
+/** PRD FR-07 preset task kinds; `custom` covers user-defined task shapes. */
+export const TASK_KINDS = [
+  'quick-chat',
+  'long-document',
+  'rag',
+  'investment-due-diligence',
+  'meeting-minutes',
+  'coding',
+  'structured-extraction',
+  'agent',
+  'creative-writing',
+  'vision',
+  'custom',
+] as const;
+export type TaskKind = (typeof TASK_KINDS)[number];
 
 /** Identity and provenance of the underlying model file. */
 export const ModelProfileSchema = z
@@ -37,6 +55,8 @@ export const StrictModelProfileSchema = ModelProfileSchema.strict();
 export const TaskProfileSchema = z
   .object({
     type: z.string().min(1),
+    /** PRD FR-07 preset task kind; `custom` for shapes outside the taxonomy. */
+    kind: z.enum(TASK_KINDS).optional(),
     typicalInputTokens: z.number().int().min(0).optional(),
     expectedOutputTokens: z.number().int().min(0).optional(),
     structuredOutput: z.boolean().optional(),

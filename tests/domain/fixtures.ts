@@ -3,7 +3,7 @@
  * published v1 sample shape (`schemas/profile.schema.json`, unchanged), typed
  * as the v1 document; migration tests validate against this real baseline.
  */
-import type { CompositeProfile } from '@lmps/domain';
+import type { CompositeProfile, RulesDocument } from '@lmps/domain';
 
 /** Structural v1 composite: every current field, but stamped schemaVersion 1. */
 export type V1CompositeProfile = Omit<CompositeProfile, 'schemaVersion'> & { schemaVersion: 1 };
@@ -153,3 +153,15 @@ export const minimalHardwareProfile = {
   power: { onBattery: false },
   probedAt: '2026-08-21T14:00:00Z',
 } as const;
+
+/** Minimal valid rule pack: one rule, full rationale, no optional blocks. */
+export const minimalRulesDocument: RulesDocument = {
+  schemaVersion: 2,
+  version: '2026.09.test',
+  rules: [
+    {
+      taskKind: 'quick-chat',
+      rationale: { 'zh-CN': '测试最小规则', en: 'Minimal rule for tests.' },
+    },
+  ],
+};

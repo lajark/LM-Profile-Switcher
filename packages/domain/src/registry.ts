@@ -20,6 +20,7 @@ import {
   RuntimeProfileSchema,
   TaskProfileSchema,
 } from './profile.js';
+import { RulesDocumentSchema } from './rules.js';
 import { ActivationTransactionSchema } from './transaction.js';
 
 export interface DomainSchemaEntry {
@@ -55,5 +56,11 @@ export const DOMAIN_SCHEMAS: readonly DomainSchemaEntry[] = [
   entry('LoadEstimate', 'Load Estimate', 'Expected resource usage for one model configuration.', LoadEstimateSchema),
   entry('BenchmarkResult', 'Benchmark Result', 'Objective benchmark of one model configuration.', BenchmarkResultSchema),
   entry('ActivationTransaction', 'Activation Transaction', 'Auditable record of one activation attempt.', ActivationTransactionSchema),
+  entry(
+    'RulesDocument',
+    'Rules Document',
+    'Versioned task rules: constraints, parameter hints, scoring weights, rationale.',
+    RulesDocumentSchema,
+  ),
   entry('CapabilityMatrix', 'Capability Matrix', 'Per-adapter capability probing result.', CapabilityMatrixSchema),
 ];

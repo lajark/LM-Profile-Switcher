@@ -50,6 +50,30 @@ describe('TaskProfile', () => {
   it('accepts zero token counts (unknown volume) and a valid concurrency', () => {
     expect(TaskProfileSchema.safeParse({ type: 'chat', typicalInputTokens: 0, concurrency: 1 }).success).toBe(true);
   });
+
+  it('accepts every PRD FR-07 task kind as optional only', () => {
+    for (const kind of [
+      'quick-chat',
+      'long-document',
+      'rag',
+      'investment-due-diligence',
+      'meeting-minutes',
+      'coding',
+      'structured-extraction',
+      'agent',
+      'creative-writing',
+      'vision',
+      'custom',
+    ]) {
+      expect(TaskProfileSchema.safeParse({ type: 'chat', kind }).success).toBe(true);
+    }
+    // `kind` is optional: an existing v2 task profile without it stays valid.
+    expect(TaskProfileSchema.safeParse({ type: 'chat' }).success).toBe(true);
+  });
+
+  it('rejects an unknown task kind instead of guessing', () => {
+    expect(TaskProfileSchema.safeParse({ type: 'chat', kind: 'transcribe' }).success).toBe(false);
+  });
 });
 
 describe('RuntimeProfile', () => {

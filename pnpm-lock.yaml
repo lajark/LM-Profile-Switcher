@@ -92,7 +92,11 @@ importers:
 
   packages/logging: {}
 
-  packages/optimizer: {}
+  packages/optimizer:
+    dependencies:
+      '@lmps/domain':
+        specifier: workspace:*
+        version: link:../domain
 
   packages/profile-store:
     dependencies:
