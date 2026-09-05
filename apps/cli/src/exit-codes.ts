@@ -49,6 +49,7 @@ export function exitCodeForActivation(status: OutcomeStatus): ExitCode {
 export function exitCodeForError(error: unknown): ExitCode {
   if (isCliError(error)) {
     if (error.code === 'CAPABILITY_UNSUPPORTED') return EXIT.CAPABILITY_UNSUPPORTED;
+    if (error.code === 'LM_UNREACHABLE') return EXIT.VALIDATION_OR_PREFLIGHT;
     if (error.code === 'USAGE') return EXIT.VALIDATION_OR_PREFLIGHT;
     return EXIT.INTERNAL;
   }

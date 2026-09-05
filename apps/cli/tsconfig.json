@@ -10,6 +10,7 @@
     { "path": "../../packages/domain" },
     { "path": "../../packages/hardware" },
     { "path": "../../packages/i18n" },
+    { "path": "../../packages/lmstudio-adapter" },
     { "path": "../../packages/profile-store" }
   ]
 }

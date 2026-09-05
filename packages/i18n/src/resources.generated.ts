@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit manually.
 // Source of truth: locales/zh-CN/common.json, locales/en/common.json.
 // Regenerate with `corepack pnpm run i18n:generate`.
-// __CHECKSUM__: 50ed9534a7b238c665ff659cc5614401ab1c38e605fc99b720e303b2360a954d
+// __CHECKSUM__: 1382fec59ef819b218eccc4c4189af9a8bc42fc73a138bd43e00b08912677f8e
 
 export const DEFAULT_NAMESPACE = 'common';
 
@@ -27,9 +27,10 @@ export const resourceKeys = [
   'benchmark.cancelled',
   'error.modelNotFound',
   'error.capabilityUnsupported',
-  'error.serverOffline',
   'error.usage',
   'error.unknownCommand',
+  'error.serverOffline',
+  'error.lmUnreachable',
   'error.invalidLocale',
   'error.profileNotFound',
   'error.profileExists',
@@ -125,9 +126,10 @@ export interface CommonResources {
   'benchmark.cancelled': string;
   'error.modelNotFound': string;
   'error.capabilityUnsupported': string;
-  'error.serverOffline': string;
   'error.usage': string;
   'error.unknownCommand': string;
+  'error.serverOffline': string;
+  'error.lmUnreachable': string;
   'error.invalidLocale': string;
   'error.profileNotFound': string;
   'error.profileExists': string;

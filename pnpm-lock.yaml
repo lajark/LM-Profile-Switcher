@@ -41,6 +41,9 @@ importers:
       '@lmps/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@lmps/lmstudio-adapter':
+        specifier: workspace:*
+        version: link:../../packages/lmstudio-adapter
       '@lmps/profile-store':
         specifier: workspace:*
         version: link:../../packages/profile-store

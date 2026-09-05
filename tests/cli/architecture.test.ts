@@ -13,6 +13,7 @@ const ALLOWED_PACKAGES = [
   '@lmps/domain',
   '@lmps/hardware',
   '@lmps/i18n',
+  '@lmps/lmstudio-adapter',
   '@lmps/profile-store',
 ];
 const BANNED_TOKENS = [
@@ -57,7 +58,7 @@ describe('CLI architecture guard (M1-004 → M1-005)', () => {
     expect(nonWiringWithNode).toEqual([]);
   });
 
-  it('imports only the five workspace packages', () => {
+  it('imports only the six workspace packages', () => {
     const imported = new Set<string>();
     for (const path of srcFiles()) {
       const source = readFileSync(path, 'utf8');
@@ -97,7 +98,7 @@ describe('CLI architecture guard (M1-004 → M1-005)', () => {
     }
   });
 
-  it('declares exactly the five workspace dependencies in order', () => {
+  it('declares exactly the six workspace dependencies in order', () => {
     const packageJson = JSON.parse(
       readFileSync(join(WORKSPACE, 'apps', 'cli', 'package.json'), 'utf8'),
     ) as { dependencies: Record<string, string> };

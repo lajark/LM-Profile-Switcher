@@ -5,7 +5,7 @@
  */
 import type { ResourceKey } from '@lmps/i18n';
 
-export const CLI_ERROR_CODES = ['USAGE', 'CAPABILITY_UNSUPPORTED', 'INTERNAL'] as const;
+export const CLI_ERROR_CODES = ['USAGE', 'CAPABILITY_UNSUPPORTED', 'LM_UNREACHABLE', 'INTERNAL'] as const;
 
 export type CliErrorCode = (typeof CLI_ERROR_CODES)[number];
 
@@ -48,5 +48,18 @@ export function capabilityUnsupported(field: string): CliError {
   return new CliError('CAPABILITY_UNSUPPORTED', `capability not wired: ${field}`, {
     detail: field,
     params: { values: { field } },
+  });
+}
+
+/**
+ * LM Studio reachability failure (M1-003): the server is down, unresponsive or
+ * rejects the request. Exit 4, machine LM_UNREACHABLE; `detail` carries the
+ * stable adapter kind (unreachable|timeout|auth) so machine consumers can tell
+ * them apart without the human copy changing.
+ */
+export function lmUnreachable(kind: string): CliError {
+  return new CliError('LM_UNREACHABLE', `LM Studio unreachable (${kind})`, {
+    detail: kind,
+    params: { key: 'error.lmUnreachable' },
   });
 }

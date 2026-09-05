@@ -229,6 +229,8 @@ function humanErrorText(error: unknown, deps: CliDeps): string {
     switch (error.code) {
       case 'CAPABILITY_UNSUPPORTED':
         return deps.t('error.capabilityUnsupported', { field: error.detail ?? '' });
+      case 'LM_UNREACHABLE':
+        return deps.t('error.lmUnreachable');
       case 'INTERNAL':
         return deps.t('error.internal');
       default: {

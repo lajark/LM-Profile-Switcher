@@ -1,6 +1,6 @@
 # CLI Specification / CLI 规范
 
-> 状态：M1-004/M1-005 已实现（`apply` 于 M1-005 落地，生产接线待 M1-003）。`profile/hardware/lang/doctor` 为完整契约；`apply <id> [--yes]` 为完整命令（生产 `activation` 端口未接线前恒 `CAPABILITY_UNSUPPORTED` exit 6）；`models/current/snapshot` 的数据源是注入 seam，未接线时诚实返回 `CAPABILITY_UNSUPPORTED`（exit 6），由 M1-003/006 接线。`estimate/optimize/benchmark/server/backup` 与 `--version` 尚未实现。
+> 状态：M1-004/M1-005 已实现；M1-003 读路径已接线。`profile/hardware/lang/doctor` 为完整契约；`models/current/snapshot` 已接线到 LM Studio adapter（REST v1 主路径，`lms` 读回退），离线/认证/超时 → `LM_UNREACHABLE` exit 4；`apply <id> [--yes]` 为完整命令，但生产 `activation` 端口待 M1-005 生产接线，未接线前恒 `CAPABILITY_UNSUPPORTED` exit 6。`estimate/optimize/benchmark/server/backup` 与 `--version` 尚未实现。
 
 Command: `lmps`（`corepack pnpm run lmps -- <args>`，先 `build`；或 `node apps/cli/dist/index.js <args>`）
 
@@ -9,6 +9,11 @@ Command: `lmps`（`corepack pnpm run lmps -- <args>`，先 `build`；或 `node a
 - 数据根目录：`LMPS_HOME` 环境变量，缺省为 `<home>/.lmps`。含 profile 存储（`profiles/`、`backups/`）与语言配置 `config.json`。
 - `~/.lmps` 可能收纳 passthrough 机密，属 LOCAL-ONLY；`doctor --bundle` 对诊断对象先经脱敏。
 - 语言解析顺序：`--lang` → `config.json` 持久化值 → 系统环境（`LMPS_LANG`/`LC_ALL`/`LC_MESSAGES`/`LANG`/`LANGUAGE`）→ 默认 `en`。`zh` 归一化为 `zh-CN`，`en-*` 归一化为 `en`，不支持的语言回退英文。
+- LM Studio 适配环境（M1-003 读路径接线后生效）：
+  - `LMPS_LM_URL`：LM Studio REST 服务基址，缺省 `http://127.0.0.1:1234`。
+  - `LMPS_LM_TOKEN`：REST Bearer Token（可选；SECRET 分类，绝不落输出/日志）。
+  - `LMPS_LMS_BIN`：`lms` 可执行路径/命令名，缺省 `lms`。
+- 每个命令惰性探测一次能力并缓存（adapter TTL 300s）；REST 不可达但 `lms` 可用时，`models` 回退 CLI 读取，`current/snapshot` 诚实报 `LM_UNREACHABLE`（写路径仍要求 REST）。
 
 ## Global flags
 
@@ -16,7 +21,7 @@ Command: `lmps`（`corepack pnpm run lmps -- <args>`，先 `build`；或 `node a
 - `--lang <zh-CN|en>`：覆盖语言（可出现在任意位置，含 `--lang=zh-CN` 形式）。
 - `--verbose`：仅人类模式向 stderr 追加一条 `lmps: <command> · <locale> · <ms>ms` 诊断；机器模式忽略。
 - `--no-color`：接受并忽略——输出本身无 ANSI 颜色。
-- `--timeout <ms>`：解析接受；对 `apply` 已作为激活状态机每阶段超时实际施加（M1-005）；`models/current/snapshot` 等其他命令在 M1-003 接线后按需生效。
+- `--timeout <ms>`：对 `apply` 作为激活状态机每阶段超时实际施加（M1-005）；`models/current/snapshot` 由 adapter 内建超时约束（REST HTTP 超时、`lms status` 10s、`lms ls` 30s）。
 
 ## Machine envelope （`--json`）
 
@@ -29,12 +34,12 @@ Command: `lmps`（`corepack pnpm run lmps -- <args>`，先 `build`；或 `node a
 失败：
 
 ```json
-{ "product": "lmps", "api": 1, "ok": false, "locale": "en", "command": "models", "error": { "code": "CAPABILITY_UNSUPPORTED", "detail": "models" } }
+{ "product": "lmps", "api": 1, "ok": false, "locale": "en", "command": "models", "error": { "code": "LM_UNREACHABLE", "detail": "unreachable" } }
 ```
 
 - 字段名与 `error.code`/`data` 值稳定且不本地化；人类文案永不进入信封。
 - `command` 为命令名；`profile <sub>` 渲染为 `profile list` 这种完整标签。裸调用错误时 `command: null`。
-- `error.code` 透传底层稳定码：`USAGE`、`CAPABILITY_UNSUPPORTED`、`INTERNAL`、`LOCALE_*`、`STORE_*`、`DOMAIN_*`；未知错误折叠为 `INTERNAL`，detail 不泄露路径/Token。
+- `error.code` 透传底层稳定码：`USAGE`、`CAPABILITY_UNSUPPORTED`、`LM_UNREACHABLE`、`INTERNAL`、`LOCALE_*`、`STORE_*`、`DOMAIN_*`；未知错误折叠为 `INTERNAL`，detail 不泄露路径/Token。
 - 例外（不受 `--json` 影响）：`profile export` 与 `profile edit`（无 `--patch`）把文档字面量本身写在 stdout——编辑模板照常输出首行模板文本但 `literal` 分支保留文档原样。
 
 ## Commands（M1-004 已实现）
@@ -75,9 +80,11 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 
 检查：store 可用与 `recover()` 结果、config 可读写、locale 资源、Node 版本、discovery 接线状态（未接线 → warn）、hardware 探测快照。检查项执行完退出 **0**（fail 只体现在 `--json` 的 `summary.ok`）；仅「初始化和 i18n/store 不可创建」→ exit 10。`--bundle` 追加 `data.diagnostics`（经脱敏，LOCAL-ONLY）。
 
-### models / current / snapshot（seam）
+### models / current / snapshot（M1-003 接线）
 
-数据源为注入 seam（`discovery`/`state`/`snapshot` 端口）。未接线 → 人类 `error.capabilityUnsupported`、机器 `CAPABILITY_UNSUPPORTED`、exit **6**。接线后由 M1-003/005 补充数据形状（`models`: `{models:[{key,family,quantization,parametersB}]}`；`current`: `{active:{profileId,modelKey,since}}`；`snapshot`: `{snapshot:{profileId,at,captured}}`）。
+数据源为 adapter 路由（能力探针 → REST v1 优先；REST 不可达且 `lms` 可用时 `models` 回退 CLI 读取；SDK 未安装，不参与读路径）。REST/CLI 不可达、认证失败或超时 → 人类 `error.lmUnreachable`、机器 `LM_UNREACHABLE`、exit **4**；REST 报告的已加载模型通过 store 反查回填 profileId。
+
+数据形状：`models`: `{models:[{key,family,quantization,parametersB}]}`；`current`: `{active:{profileId,modelKey,since}}`；`snapshot`: `{snapshot:{profileId,at,captured}}`。`since` 仅在宿主编排提供时非空（REST v1 当前为 `null`）。
 
 ### apply（M1-005）
 
@@ -85,7 +92,7 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 
 机器 `data`：`{ transaction: <redacted> }`；人类输出为双语结果文案（active/idempotent/canceled/recovered/failed）。退出码 0=active、2=canceled、3=failed-but-recovered、5=failed；lock busy/激活前置失败 → 4（preflight）。
 
-生产 `activation` 端口在 M1-003 接线前为注入 seam，未接线 → `CAPABILITY_UNSUPPORTED` exit 6。
+生产 `activation` 端口待 M1-005 生产接线完成；未接线 → `CAPABILITY_UNSUPPORTED` exit 6。
 
 ## Exit codes
 
@@ -94,9 +101,9 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 | 0 | success | 全部成功路径；doctor 检查完成（含 `summary.ok=false`） |
 | 2 | user cancelled | `apply` 取消路径（`ACTIVATION_CANCELED`；M1-005 生效） |
 | 3 | activation in progress | `apply` 事务在恢复路径上完成（failed-but-recovered；M1-005 生效） |
-| 4 | validation or preflight failed | 参数/校验/Profile 不存在/文档校验失败/delete 无 `--yes`/未知命令/lock busy/激活前置失败 |
+| 4 | validation or preflight failed | 参数/校验/Profile 不存在/文档校验失败/delete 无 `--yes`/未知命令/lock busy/激活前置失败/LM Studio 不可达（`LM_UNREACHABLE`） |
 | 5 | activation and rollback both failed | `apply` 事务失败且回滚也失败（M1-005 生效） |
-| 6 | requested capability unsupported | `models/current/snapshot`/`apply` 生产端口未接线（M1-003 接线后消除） |
+| 6 | requested capability unsupported | `apply` 生产 `activation` 端口未接线（M1-005 生产接线后消除）；`models/current/snapshot` 已不再返回 6 |
 | 10 | internal error | store 损坏/IO 失败/未捕获异常/资源错误 |
 
 ## Output stream isolation

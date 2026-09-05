@@ -17,6 +17,7 @@
     "@lmps/domain": "workspace:*",
     "@lmps/hardware": "workspace:*",
     "@lmps/i18n": "workspace:*",
+    "@lmps/lmstudio-adapter": "workspace:*",
     "@lmps/profile-store": "workspace:*"
   }
 }
