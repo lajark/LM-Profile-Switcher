@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   verify:
@@ -29,9 +30,10 @@ jobs:
         shell: bash
       - name: Surface failure detail (diagnostic)
         if: failure() && steps.verify.outcome == 'failure'
-        run: |
-          TAIL=$(tail -120 /tmp/check.log | python3 -c "import sys,urllib.parse;print(urllib.parse.quote(sys.stdin.read()))")
-          echo "::error file=check.log,title=check-tail::$TAIL"
-        shell: bash
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-log
+          path: /tmp/check.log
+          if-no-files-found: error
       - name: Policy and secret scan
         run: corepack pnpm run policy:scan -- --strict
