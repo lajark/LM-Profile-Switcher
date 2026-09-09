@@ -1,0 +1,186 @@
+/**
+ * M3-002 view-facing types. These mirror the sidecar data-plane payloads
+ * (apps/core-service handlers) and are kept LOCAL so the presentation layer
+ * never imports @lmps/domain. Liberty-supplying `[k: string]: unknown` fields
+ * reflect passthrough contract fields the editor preview preserves verbatim.
+ */
+
+export interface LocalizedText {
+  'zh-CN'?: string | null;
+  en?: string | null;
+  [locale: string]: string | null | undefined;
+}
+
+/** `profiles.list` card projection (never carries secrets). */
+export interface ProfileCard {
+  id: string;
+  displayName: LocalizedText;
+  model: { modelKey: string; family: string | null; quantization: string | null };
+  task: { type: string; kind: string | null };
+  updatedAt: string;
+}
+
+export interface ProfilesList {
+  profiles: ProfileCard[];
+}
+
+export interface ProfilesMeta {
+  taskKinds: string[];
+}
+
+/** `activation.status` — the active profile as the transaction layer sees it. */
+export interface ActivationStatus {
+  active: {
+    profileId: string | null;
+    modelKey: string;
+    since: string;
+  } | null;
+}
+
+/** `activation.apply` result projection (outcome drives the banner text). */
+export interface ActivationApplyResult {
+  outcome: 'active' | 'canceled' | 'failed-but-recovered' | 'failed';
+  alreadyActive: boolean;
+  transaction: {
+    transactionId: string;
+    targetProfileId: string;
+    status: string;
+    [k: string]: unknown;
+  };
+}
+
+/** Sanitized full document from `profiles.show` (tokens nulled). */
+export interface ProfileDocument {
+  schemaVersion?: number;
+  id: string;
+  displayName: LocalizedText;
+  description?: LocalizedText;
+  model: {
+    modelKey: string;
+    family?: string | null;
+    quantization?: string | null;
+    [k: string]: unknown;
+  };
+  task: { type: string; kind?: string | null; [k: string]: unknown };
+  runtime?: {
+    contextLength?: number | null;
+    gpuOffload?: string | number | null;
+    [k: string]: unknown;
+  };
+  generation?: { temperature?: number | null; [k: string]: unknown };
+  behavior?: { mode?: string | null; [k: string]: unknown };
+  metadata?: { createdAt?: string; updatedAt?: string; [k: string]: unknown };
+  validation?: { source?: string; testedAt?: string | null; [k: string]: unknown };
+  [k: string]: unknown;
+}
+
+export interface DiffRow {
+  path: string;
+  baseline: unknown;
+  candidate: unknown;
+}
+
+export interface CandidateView {
+  id: string;
+  profile: ProfileDocument;
+  baselineProfileId: string;
+  safety: {
+    safe: boolean;
+    reason: string | null;
+    headroomBytes: number | null;
+  };
+  score: {
+    total: number;
+    breakdown?: Record<string, number>;
+    confidence: 'high' | 'low';
+    measured: boolean;
+  };
+  diff: DiffRow[] | null;
+  rationale: { 'zh-CN': string; en: string } | null;
+  [k: string]: unknown;
+}
+
+export interface RecommendationView {
+  schemaVersion?: number;
+  baselineProfileId: string;
+  taskKind: string | null;
+  ruleVersion: string;
+  candidates: CandidateView[];
+  selectedIndex: number | null;
+  generatedAt: string;
+  warnings: string[];
+}
+
+export interface BenchmarkMetrics {
+  tokensPerSecond?: number | null;
+  latencyP50Ms?: number | null;
+  memoryPeakBytes?: number | null;
+  samples?: number | null;
+  loadMs?: number | null;
+  ttftMs?: number | null;
+  prefillTokensPerSecond?: number | null;
+  decodeTokensPerSecond?: number | null;
+  [k: string]: unknown;
+}
+
+export interface BenchmarkResultView {
+  schemaVersion?: number;
+  id: string;
+  modelKey: string;
+  quantization?: string | null;
+  taskType: string;
+  status: 'completed' | 'failed' | 'canceled';
+  metrics: BenchmarkMetrics;
+  hardwareFingerprint?: string | null;
+  lmStudioVersion?: string | null;
+  runtimeVersion?: string | null;
+  errorCode?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  promptSuiteId?: string | null;
+  promptSuiteVersion?: string | null;
+  modelFileHash?: string | null;
+  [k: string]: unknown;
+}
+
+export interface BenchmarkBody {
+  result: BenchmarkResultView;
+  validated: boolean;
+}
+
+export interface GpuInfo {
+  name: string;
+  driverVersion?: string | null;
+  vramTotalBytes: number;
+  vramAvailableBytes: number;
+}
+
+export interface VolumeInfo {
+  mount: string;
+  totalBytes: number;
+  availableBytes: number;
+  driveType?: number | null;
+  bus?: string | null;
+  external?: boolean | null;
+  model?: string | null;
+}
+
+export interface HardwareView {
+  schemaVersion?: number;
+  os?: string | null;
+  cpu?: { model?: string | null; cores?: number | null; threads?: number | null } | null;
+  memory?: { totalBytes?: number | null; availableBytes?: number | null } | null;
+  gpus?: GpuInfo[] | null;
+  volumes?: VolumeInfo[] | null;
+  power?: { onBattery: boolean } | null;
+  versions?: Record<string, string | null> | null;
+  hardwareFingerprint?: string | null;
+  probedAt?: string;
+  [k: string]: unknown;
+}
+
+/** Stable error code + redacted context as parsed from the Rust "CODE: msg" string. */
+export interface RpcFailure {
+  code: string;
+  message: string;
+}

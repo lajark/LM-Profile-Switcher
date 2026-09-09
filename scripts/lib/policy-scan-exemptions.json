@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "description": "Explicit exemptions for the policy/secret scanner (scripts/policy-scan.mjs). Entries are precision-scoped: exact file paths + ruleIds + a recorded rationale. No blanket rules, no .gitignore-style silent skips. A real secret moved into a covered file is still caught by any rule NOT listed here. Rationales deliberately avoid embedding literal token shapes so the registry itself stays scanner-clean.",
+  "entries": [
+    {
+      "path": "tests/core-service/data-plane.test.ts",
+      "ruleIds": ["raw-prefix-token"],
+      "rationale": "Fixture apiKey with an sk-…-shaped value drives redaction assertions over the profiles data-plane (create/list/get never persist the key).",
+      "owner": "M3-004",
+      "date": "2026-09-06"
+    },
+    {
+      "path": "tests/core-service/transports.test.ts",
+      "ruleIds": ["assignment-secret"],
+      "rationale": "Loopback transport fixtures use opaque throwaway peer tokens to test auth plumbing; values are never real credentials.",
+      "owner": "M3-004",
+      "date": "2026-09-06"
+    },
+    {
+      "path": "tests/core-service/tray-plane.test.ts",
+      "ruleIds": ["assignment-secret"],
+      "rationale": "Tray activation seam fixture feeds a throwaway secret-shaped token through makePlane to exercise the shared activation runner.",
+      "owner": "M3-004",
+      "date": "2026-09-06"
+    },
+    {
+      "path": "tests/lmstudio-adapter/chat-stream.test.ts",
+      "ruleIds": ["assignment-secret", "bearer-token"],
+      "rationale": "Fixture asserts the authorization response header is exactly a Bearer-style fixture token; proves the mock REST client composes headers.",
+      "owner": "M3-004",
+      "date": "2026-09-06"
+    },
+    {
+      "path": "tests/cli/apply-wiring.test.ts",
+      "ruleIds": ["assignment-secret"],
+      "rationale": "CLI activation seam fixtures pass throwaway secret-shaped tokens through makeFakeEnv; process-env plumbing, never a real secret.",
+      "owner": "M3-004",
+      "date": "2026-09-06"
+    },
+    {
+      "path": "tests/cli/profile.test.ts",
+      "ruleIds": ["raw-prefix-token"],
+      "rationale": "Profile show fixture uses a token shaped like sk-lmps-… (marker 'test' already excludes the assignment rule) to assert the key is never printed.",
+      "owner": "M3-004",
+      "date": "2026-09-06"
+    },
+    {
+      "path": "tests/core/snapshot.test.ts",
+      "ruleIds": ["raw-prefix-token", "assignment-secret"],
+      "rationale": "Capture-snapshot fixture: a secret-shaped token in the input readback plus the assertions that it does not survive capture and becomes the redaction tombstone.",
+      "owner": "M3-004",
+      "date": "2026-09-06"
+    },
+    {
+      "path": "tests/core/transaction.test.ts",
+      "ruleIds": ["raw-prefix-token", "assignment-secret"],
+      "rationale": "Activation-transaction redaction fixture: a secret-shaped token that must never reach the audit record, asserted via not-contains plus the redaction tombstone.",
+      "owner": "M3-004",
+      "date": "2026-09-06"
+    },
+    {
+      "path": "tests/profile-store/import-export.test.ts",
+      "ruleIds": ["raw-prefix-token", "assignment-secret"],
+      "rationale": "Import/export round-trip fixture uses a short sk-…-shaped apiKey and a secret-valued credential to assert secrets survive the file round-trip shape but are never logged.",
+      "owner": "M3-004",
+      "date": "2026-09-06"
+    },
+    {
+      "path": "tests/policy-scan.test.ts",
+      "ruleIds": ["raw-prefix-token", "private-key-block", "assignment-secret", "bearer-token", "seed-phrase"],
+      "rationale": "The policy scanner's own regression tests construct every content-rule shape under test (all fake, concatenated at runtime); the fixture sentinel marks this file. Rules listed individually — no * entry.",
+      "owner": "M3-004",
+      "date": "2026-09-06"
+    },
+    {
+      "path": "scripts/verify-nsis-install.ps1",
+      "ruleIds": ["assignment-secret"],
+      "rationale": "Verification script mints a random per-run token string used only as the stdio sidecar handshake argument (auth frame); ephemeral process scope, never persisted, displayed, or logged.",
+      "owner": "M3-004",
+      "date": "2026-09-06"
+    }
+  ]
+}

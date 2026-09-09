@@ -8,5 +8,22 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "scripts": {
+    "sidecar:bundle": "node scripts/build-sidecar.mjs",
+    "sidecar:sea": "node scripts/build-sidecar.mjs && node scripts/build-sea.mjs"
+  },
+  "dependencies": {
+    "@lmps/core": "workspace:*",
+    "@lmps/domain": "workspace:*",
+    "@lmps/hardware": "workspace:*",
+    "@lmps/i18n": "workspace:*",
+    "@lmps/lmstudio-adapter": "workspace:*",
+    "@lmps/profile-store": "workspace:*",
+    "@lmstudio/sdk": "1.5.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.2",
+    "postject": "^1.0.0-alpha.6"
   }
 }

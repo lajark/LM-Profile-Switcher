@@ -40,10 +40,18 @@ export function createDefaultFsys(): Fsys {
     readFileUtf8: (path) => readFileSync(path, 'utf8'),
     writeFileUtf8: (path, data) => writeFileSync(path, data, 'utf8'),
     mkdirRecursive: (path) => mkdirSync(path, { recursive: true }),
-    readdirNames: (path) =>
-      readdirSync(path, { withFileTypes: true })
-        .filter((entry) => entry.isFile())
-        .map((entry) => entry.name),
+    readdirNames: (path) => {
+      try {
+        return readdirSync(path, { withFileTypes: true })
+          .filter((entry) => entry.isFile())
+          .map((entry) => entry.name);
+      } catch (error) {
+        // Documented contract: a missing directory reads as empty (first
+        // update of a fresh profile has no `backups/<id>/` yet).
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+        throw error;
+      }
+    },
     rename: (from, to) => renameSync(from, to),
     unlink: (path) => unlinkSync(path),
     fsyncFile: (path) => {

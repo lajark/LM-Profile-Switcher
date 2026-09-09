@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LM Profile Switcher",
+  "version": "0.1.0",
+  "identifier": "com.lmps.desktop",
+  "build": {
+    "beforeDevCommand": "corepack pnpm --filter @lmps/desktop run dev:frontend",
+    "beforeBuildCommand": "corepack pnpm --filter @lmps/desktop run build:frontend",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "LM Profile Switcher",
+        "width": 640,
+        "height": 480,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "LM Profile Switcher",
+    "copyright": "© 2026 LM Profile Switcher",
+    "shortDescription": "Independent local profile management for LM Studio",
+    "icon": ["icons/icon.ico"],
+    "externalBin": ["binaries/lmps-sidecar"],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": true,
+        "languages": ["English", "SimpChinese"]
+      }
+    }
+  }
+}

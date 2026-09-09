@@ -46,6 +46,10 @@ export function writeBackup(
   backupCount = DEFAULT_BACKUP_COUNT,
 ): string {
   const dir = backupDirFor(backupDir, id);
+  // First write for a profile creates `backups/<id>/` on the real fs (the
+  // documented readdirNames contract already tolerates a missing dir, and the
+  // atomic write below can't create its own parent).
+  fsys.mkdirRecursive(dir);
   const existing = new Set(readBackupNames(fsys, backupDir, id));
   let file = backupFileNameFor(now);
   for (let suffix = 1; existing.has(file); suffix += 1) {

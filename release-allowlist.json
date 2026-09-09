@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "product": "LM Profile Switcher",
+  "allowlistVersion": 1,
+  "description": "Explicit allowlist for M3-004 release assembly (PROJECT_DISTRIBUTION_POLICY.md §5.1). release-pack.mjs is the only write path into artifacts/releases/<version>/; it copies exclusively the sources below, then writes release-manifest.json + checksums.sha256 and post-scans the staging tree.",
+  "artifacts": [
+    {
+      "role": "windows-installer-nsis",
+      "source": "apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe",
+      "dest": "windows-x86_64/",
+      "note": "NSIS currentUser installer, unsigned development/pre-release build"
+    }
+  ],
+  "documents": [
+    { "role": "license", "source": "LICENSE", "dest": "LICENSE" },
+    {
+      "role": "third-party-notices",
+      "source": "reports/THIRD_PARTY_NOTICES.generated.md",
+      "dest": "THIRD_PARTY_NOTICES.generated.md"
+    },
+    { "role": "sbom", "source": "reports/sbom.cdx.json", "dest": "sbom.cdx.json" },
+    {
+      "role": "dependency-licenses",
+      "source": "reports/dependency-licenses.json",
+      "dest": "dependency-licenses.json"
+    },
+    {
+      "role": "release-notes",
+      "source": "docs/RELEASE_NOTES-0.1.0.md",
+      "dest": "RELEASE_NOTES-0.1.0.md"
+    }
+  ],
+  "excludedByDefault": [
+    ".workspace/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/target/**",
+    "reports/**",
+    "tests/**",
+    "docs/tasks/**",
+    "TODO.md",
+    "TASKS.md",
+    "scripts/**",
+    "packages/**",
+    "apps/**",
+    ".github/**",
+    "**/*.map",
+    "**/.env*",
+    "**/*.log",
+    "**/*.ndjson",
+    "**/*.p12",
+    "**/*.pfx",
+    "**/*.pem",
+    "**/*.key",
+    "**/*.ppk",
+    "**/*~",
+    "**/sea/**",
+    "**/*.blob"
+  ],
+  "targetMatrix": {
+    "windows": {
+      "job": "x86_64-pc-windows-msvc",
+      "arch": "x86_64",
+      "variant": "nsis",
+      "signed": false,
+      "notarized": false,
+      "note": "NO code-signing certificate available — artifacts are development/pre-release only (policy §5.3)."
+    },
+    "macos": {
+      "job": "blocked",
+      "arch": "blocked",
+      "variant": "blocked",
+      "signed": false,
+      "notarized": false,
+      "reason": "No build hardware and no Developer ID / Notarization credentials on this host (M3-004 record)."
+    }
+  }
+}

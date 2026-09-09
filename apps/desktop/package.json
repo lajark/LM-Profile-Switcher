@@ -8,5 +8,27 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "scripts": {
+    "dev": "corepack pnpm run tauri -- dev",
+    "build": "corepack pnpm run tauri -- build",
+    "dev:frontend": "vite --config frontend/vite.config.ts",
+    "build:frontend": "tsc --noEmit -p frontend/tsconfig.json && vite --config frontend/vite.config.ts build",
+    "tauri": "tauri",
+    "tauri:build": "tauri build",
+    "sidecar:sea": "corepack pnpm --filter @lmps/core-service run sidecar:sea"
+  },
+  "dependencies": {
+    "@lmps/i18n": "workspace:*",
+    "@tauri-apps/api": "2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.0"
   }
 }

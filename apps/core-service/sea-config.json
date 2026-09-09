@@ -1,0 +1,6 @@
+{
+  "main": "dist-bundle/sidecar.cjs",
+  "output": "sea/blob.blob",
+  "mainFormat": "commonjs",
+  "disableExperimentalSEAWarning": true
+}
