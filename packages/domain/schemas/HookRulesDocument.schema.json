@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 2
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "app": {
+            "type": "string",
+            "minLength": 1
+          },
+          "taskKind": {
+            "type": "string",
+            "enum": [
+              "quick-chat",
+              "long-document",
+              "rag",
+              "investment-due-diligence",
+              "meeting-minutes",
+              "coding",
+              "structured-extraction",
+              "agent",
+              "creative-writing",
+              "vision",
+              "custom"
+            ]
+          },
+          "profileId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "rationale": {
+            "type": "object",
+            "properties": {
+              "zh-CN": {
+                "type": "string",
+                "minLength": 1
+              },
+              "en": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "zh-CN",
+              "en"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "app",
+          "profileId"
+        ],
+        "additionalProperties": {}
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "version",
+    "enabled",
+    "rules"
+  ],
+  "additionalProperties": {},
+  "title": "Hook Rules Document",
+  "description": "Explicit app/task to profile mapping for the local hook API.",
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: b869856744f5bed2e3c4e1cad72e75505cd6dfc22362706f6de623666af96318"
+}
