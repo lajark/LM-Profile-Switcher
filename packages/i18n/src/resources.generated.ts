@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit manually.
 // Source of truth: locales/zh-CN/common.json, locales/en/common.json.
 // Regenerate with `corepack pnpm run i18n:generate`.
-// __CHECKSUM__: 001f1d75e7ff6d78239d03ac1600d3b6a37b728a90d2f9b139fab6f10a106ddf
+// __CHECKSUM__: 39331fed1fe3bdc35411db6ebc8bb414ebce426975bcc98eeab6bfc15b97df36
 
 export const DEFAULT_NAMESPACE = 'common';
 
