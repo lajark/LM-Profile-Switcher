@@ -15,6 +15,7 @@ import {
   type LmHttpResponse,
   type LmRequestInit,
   type LmSpawnResult,
+  type LmStreamResponse,
   type LmStudioEnv,
 } from './env.js';
 import { LmStudioError } from './errors.js';
@@ -50,14 +51,15 @@ export function createNodeLmStudioEnv(options: NodeLmStudioEnvOptions = {}): LmS
     nowMs: () => performance.now(),
 
     async http(path: string, init: LmRequestInit = {}): Promise<LmHttpResponse> {
+      const timeoutMs = init.timeoutMs ?? httpTimeoutMs;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), httpTimeoutMs);
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
         const response = await fetchImpl(path, {
           method: init.method ?? 'GET',
           headers: init.headers,
           body: init.body,
-          signal: controller.signal,
+          signal: combinedSignal(init.signal, controller.signal),
         });
         return {
           ok: response.ok,
@@ -66,10 +68,43 @@ export function createNodeLmStudioEnv(options: NodeLmStudioEnvOptions = {}): LmS
         } satisfies LmHttpResponse;
       } catch (error) {
         if (controller.signal.aborted) {
-          throw new LmStudioError(`REST ${path} timed out after ${httpTimeoutMs}ms`, {
+          throw new LmStudioError(`REST ${path} timed out after ${timeoutMs}ms`, {
             subsystem: 'rest',
             kind: 'timeout',
             detail: path,
+            cause: error,
+          });
+        }
+        throw error;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+
+    async httpStream(url: string, init: LmRequestInit = {}): Promise<LmStreamResponse> {
+      // The timeout covers connection + headers only; once the stream is open,
+      // the per-sample budget (core) and the caller's signal bound the body.
+      const timeoutMs = init.timeoutMs ?? httpTimeoutMs;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetchImpl(url, {
+          method: init.method ?? 'POST',
+          headers: init.headers,
+          body: init.body,
+          signal: combinedSignal(init.signal, controller.signal),
+        });
+        return {
+          ok: response.ok,
+          status: response.status,
+          body: streamBody(response.body, init.signal),
+        } satisfies LmStreamResponse;
+      } catch (error) {
+        if (controller.signal.aborted) {
+          throw new LmStudioError(`REST ${url} timed out after ${timeoutMs}ms`, {
+            subsystem: 'rest',
+            kind: 'timeout',
+            detail: url,
             cause: error,
           });
         }
@@ -120,5 +155,47 @@ export function createNodeLmStudioEnv(options: NodeLmStudioEnvOptions = {}): LmS
         });
       });
     },
+  };
+}
+
+/**
+ * Composes the external cancellation signal with the internal transport signal.
+ * Falls back to the internal one when `AbortSignal.any` is unavailable rather
+ * than coupling the two (an external abort then only ends the body iteration).
+ */
+function combinedSignal(external: AbortSignal | undefined, internal: AbortSignal): AbortSignal {
+  if (external === undefined) return internal;
+  const any = (AbortSignal as unknown as { any?: (signals: readonly AbortSignal[]) => AbortSignal }).any;
+  if (typeof any === 'function') return any([internal, external]);
+  return internal;
+}
+
+/**
+ * Iterates an SSE body, decoding web-stream chunks to text. Aborting the
+ * external signal ends the iteration (cooperative cancel) instead of throwing,
+ * so a timed-out stream reads as a truncated but settled body rather than a
+ * crash.
+ */
+function streamBody(body: ReadableStream<Uint8Array> | null, external: AbortSignal | undefined): () => AsyncIterable<string> {
+  const decoder = new TextDecoder();
+  return async function* (): AsyncIterable<string> {
+    if (body === null) return;
+    const reader = body.getReader();
+    try {
+      for (;;) {
+        if (external?.aborted === true) break;
+        let next;
+        try {
+          next = await reader.read();
+        } catch {
+          break; // transport aborted (timeout/cancel); end the stream quietly
+        }
+        if (next.done) break;
+        if (next.value !== undefined) yield decoder.decode(next.value, { stream: true });
+      }
+      yield decoder.decode();
+    } finally {
+      reader.releaseLock();
+    }
   };
 }

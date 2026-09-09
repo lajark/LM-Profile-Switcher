@@ -1,8 +1,8 @@
 // Architecture guard for packages/core (M1-005): the activation state machine is
 // a pure module — no Node built-ins, no process/console access, no LM Studio
-// coupling. Its only allowed dependency is @lmps/domain (types + validation), so
-// the whole transaction logic stays executable in tests and portable to the
-// future sidecar and desktop WebView.
+// coupling. Its only allowed dependencies are the pure domain/optimizer/
+// benchmark packages so the whole transaction logic stays executable in tests
+// and portable to the future sidecar and desktop WebView.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 const WORKSPACE = fileURLToPath(new URL('../../', import.meta.url));
 const SRC_DIR = join(WORKSPACE, 'packages', 'core', 'src');
 
-const ALLOWED_PACKAGES = ['@lmps/domain', '@lmps/optimizer'];
+const ALLOWED_PACKAGES = ['@lmps/benchmark', '@lmps/domain', '@lmps/optimizer'];
 const BANNED_TOKENS = [
   'node:',
   'process.',
@@ -43,7 +43,7 @@ describe('core architecture guard (M1-005 → M2-002)', () => {
     expect(srcFiles().length).toBeGreaterThanOrEqual(9);
   });
 
-  it('imports only the domain and optimizer packages', () => {
+  it('imports only the pure domain/optimizer/benchmark packages', () => {
     const imported = new Set<string>();
     for (const path of srcFiles()) {
       const source = readFileSync(path, 'utf8');
@@ -54,7 +54,7 @@ describe('core architecture guard (M1-005 → M2-002)', () => {
     expect(imported).toEqual(new Set(ALLOWED_PACKAGES));
   });
 
-  it('declares exactly the domain and optimizer workspace dependencies', () => {
+  it('declares exactly the domain/optimizer/benchmark workspace dependencies', () => {
     const packageJson = JSON.parse(
       readFileSync(join(WORKSPACE, 'packages', 'core', 'package.json'), 'utf8'),
     ) as { dependencies: Record<string, string> };
@@ -82,9 +82,9 @@ describe('core architecture guard (M1-005 → M2-002)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('exports the activation and recommendation surface from index', () => {
+  it('exports the activation and benchmark surface from index', () => {
     const index = readFileSync(join(SRC_DIR, 'index.ts'), 'utf8');
-    for (const module of ['errors', 'lock', 'ports', 'recommendation', 'redact', 'runner', 'snapshot', 'transaction']) {
+    for (const module of ['benchmark', 'errors', 'lock', 'ports', 'recommendation', 'redact', 'runner', 'snapshot', 'transaction']) {
       expect(index).toContain(`./${module}.js`);
     }
   });

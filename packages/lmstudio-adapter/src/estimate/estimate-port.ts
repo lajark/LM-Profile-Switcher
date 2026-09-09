@@ -26,3 +26,17 @@ export function createCliEstimatePort(env: LmStudioEnv): EstimatePort {
     },
   };
 }
+
+/**
+ * Deterministic estimate for the explicit mock path (LMPS_ADAPTER=mock). The
+ * official port spawns the host `lms` binary for zero benefit under mock, so
+ * this returns the honest rough estimate (provider 'rough', no measured
+ * figures) — the same labeled fallback the official port degrades to.
+ */
+export function createMockEstimatePort(now: () => string = () => new Date().toISOString()): EstimatePort {
+  return {
+    async estimate(profile) {
+      return roughEstimateFor(profile, now());
+    },
+  };
+}

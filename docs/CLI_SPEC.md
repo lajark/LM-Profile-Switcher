@@ -1,6 +1,6 @@
 # CLI Specification / CLI 规范
 
-> 状态：M1-004/M1-005 已实现；M1-003 读路径已接线。`profile/hardware/lang/doctor` 为完整契约；`models/current/snapshot` 已接线到 LM Studio adapter（REST v1 主路径，`lms` 读回退），离线/认证/超时 → `LM_UNREACHABLE` exit 4；`apply <id> [--yes]` 为完整命令，生产 `activation` 端口已随 M1-005 生产接线接通（默认 `auto`，离线 exit 4，`LMPS_ADAPTER=mock` 显式演示）；`optimize <id> [--yes]` 已随 M2-002 实现并完成生产接线。`estimate/benchmark/server/backup` 与 `--version` 尚未实现。
+> 状态：M1-004/M1-005 已实现；M1-003 读路径已接线。`profile/hardware/lang/doctor` 为完整契约；`models/current/snapshot` 已接线到 LM Studio adapter（REST v1 主路径，`lms` 读回退），离线/认证/超时 → `LM_UNREACHABLE` exit 4；`apply <id> [--yes]` 为完整命令，生产 `activation` 端口已随 M1-005 生产接线接通（默认 `auto`，离线 exit 4，`LMPS_ADAPTER=mock` 显式演示）；`optimize <id> [--yes]` 已随 M2-002 实现并完成生产接线；`benchmark <id> [--yes]` 已随 M2-003 实现并完成生产接线；`hook` 配置面（status/token/rules/enable|disable）已随 M4-001 实现——loopback 常驻宿主为 core-service，CLI 不做常驻 serve；`proxy` 配置面（status/aliases/enable|disable）已随 M4-002 实现，与 hook 一样只管理本地 `hooks/aliases.json`，真实转发宿主为 core-service（真实 LM Studio 转发待补测）。`estimate/backup` 与 `--version` 尚未实现。
 
 Command: `lmps`（`corepack pnpm run lmps -- <args>`，先 `build`；或 `node apps/cli/dist/index.js <args>`）
 
@@ -21,7 +21,7 @@ Command: `lmps`（`corepack pnpm run lmps -- <args>`，先 `build`；或 `node a
 - `--lang <zh-CN|en>`：覆盖语言（可出现在任意位置，含 `--lang=zh-CN` 形式）。
 - `--verbose`：仅人类模式向 stderr 追加一条 `lmps: <command> · <locale> · <ms>ms` 诊断；机器模式忽略。
 - `--no-color`：接受并忽略——输出本身无 ANSI 颜色。
-- `--timeout <ms>`：对 `apply` 作为激活状态机每阶段超时实际施加（M1-005）；`models/current/snapshot` 由 adapter 内建超时约束（REST HTTP 超时、`lms status` 10s、`lms ls` 30s）。
+- `--timeout <ms>`：对 `apply` 作为激活状态机每阶段超时实际施加（M1-005），对 `benchmark` 作为每样本时间预算实际施加（0 为不限；默认 60s）；`models/current/snapshot` 由 adapter 内建超时约束（REST HTTP 超时、`lms status` 10s、`lms ls` 30s）。
 
 ## Machine envelope （`--json`）
 
@@ -38,7 +38,7 @@ Command: `lmps`（`corepack pnpm run lmps -- <args>`，先 `build`；或 `node a
 ```
 
 - 字段名与 `error.code`/`data` 值稳定且不本地化；人类文案永不进入信封。
-- `command` 为命令名；`profile <sub>` 渲染为 `profile list` 这种完整标签。裸调用错误时 `command: null`。
+- `command` 为命令名；`profile <sub>`、`hook <sub>` 与 `proxy <sub>` 渲染为 `profile list`/`hook status`/`proxy status` 这种完整标签。裸调用错误时 `command: null`。
 - `error.code` 透传底层稳定码：`USAGE`、`CAPABILITY_UNSUPPORTED`、`LM_UNREACHABLE`、`INTERNAL`、`LOCALE_*`、`STORE_*`、`DOMAIN_*`；未知错误折叠为 `INTERNAL`，detail 不泄露路径/Token。
 - 例外（不受 `--json` 影响）：`profile export` 与 `profile edit`（无 `--patch`）把文档字面量本身写在 stdout——编辑模板照常输出首行模板文本但 `literal` 分支保留文档原样。
 
@@ -106,16 +106,73 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 - 机器 `data`：默认 `{ recommendation }`；`--yes` 保存后为 `{ recommendation, savedProfileId }`，`recommendation` 即 domain `Recommendation` 契约（`Candidate`/`Recommendation` JSON Schema 见 `schemas/`）。
 - 接线（M2-002）：capability 经 adapter 探针选操作能力最完整的 matrix（回退 REST），estimate 复用 `apply` 的官方估算端口（不可达降级 `rough` → 安全余量自然拒绝），hardware 复用 `lmps hardware` 同源探针。
 
+### benchmark（M2-003）
+
+`lmps benchmark <id> [--yes] [--samples N] [--max-tokens N] [--allow-battery]`：对单个 Profile 配置运行**有界、可取消、绑定指纹**的 Benchmark Lite（PRD FR-08）——加载时间 / TTFT / Prefill / Decode tokens·s⁻¹ / 峰值 VRAM。**不激活**（激活走 `apply`）：运行加载目标模型 → 流式推理（定长生成，`stream:true`）→ 卸载 → 构造结果记录。
+
+- 有界性：默认 `--samples 3`（硬上限 10）、`--max-tokens 64`（硬上限 512）、每样本受 `--timeout` 预算（默认 60s）；提示取自仓库内固定 seed suite（3 条），不保存用户原始输入。
+- 失败分类（结果内 `status`/`errorCode`）：`BENCHMARK_OOM` / `BENCHMARK_TIMEOUT` / `BENCHMARK_CRASH` → **`status:'failed'`、exit 0**——结果已产出并落盘，是非致命测量结论；`BENCHMARK_CANCELED`（Ctrl+C）→ exit 2。
+- 护栏（exit 4）：电池供电且未传 `--allow-battery` → `BENCHMARK_BATTERY_GUARD`；`activation.lock` 被持有 → `BENCHMARK_LOCK_BUSY`（与 `apply` 互斥）；host 不可达/认证失败 → `LM_UNREACHABLE`；seed suite 异常 → `BENCHMARK_PREFLIGHT`。
+- 测量规格：`loadMs` = 加载调用 wall-clock；`ttftMs` = 首块 content delta；`generatedTokens` 优先末块 `usage.completion_tokens`，否则 delta 块数；`decodeTokensPerSecond` = generated/(total−ttft)；`prefillTokensPerSecond` = approxPromptTokens/ttft（近似）；`memoryPeakBytes` = 2 点（装好后/推理后）VRAM used 峰值（非连续；非 NVIDIA 主机为 null）。
+- 结果绑定 `hardwareFingerprint` + `lmStudioVersion`/`runtimeVersion` + `modelFileHash`（可空）+ `quantization` + prompt suite id/version；每次运行追加 `logs/benchmarks.ndjson` 审计，**不写 Profile**。
+- `--yes`（默认不写）：运行完成后 `store.update(id, { validation: { source:'benchmarked', benchmarkId, testedAt, hardwareFingerprint, lmStudioVersion, runtimeVersion, adapterCapabilityVersion } })`，使后续 `optimize` 可据 `source='benchmarked'` 认领 `measured=true`。`status !== 'completed'` 永不标记。
+- 机器 `data`：`{ result, validated: boolean }`（`result` 即 domain `BenchmarkResult` 契约，Schema 见 `schemas/BenchmarkResult.schema.json`）。人类失败路径多用 i18n key；退出码见下表（6 行为 seam 未接线）。
+- 接线（M2-003）：互斥锁复用 `<LMPS_HOME>/locks/activation.lock`（与 `apply` 同 path）；硬件/指纹/版本经本机探针；推理路径始终走 REST（`POST /api/v0/chat/completions`，流式）；`LMPS_ADAPTER=mock` 时用确定性 mock runtime。
+
+### hook（M4-001）
+
+`lmps hook <status|token|rules|enable|disable>`：本地 Hook 的**配置管理面**。Hook 是 core-service 常驻 loopback API 的规则面——`app(可选 task) → profileId` 映射、持久化 Bearer token、总开关与审计日志。**CLI 不做常驻 serve**（宿主 = core-service，`hook.switch` 由服务端解析规则），本命令族只读写 `<LMPS_HOME>/hooks/` 下的 LOCAL-ONLY 文件。
+
+- 文件定位（均 LOCAL-ONLY，路径经 `LMPS_HOME` 派生）：
+  - `<LMPS_HOME>/hooks/rules.json`：`HookRulesDocument`（`{schemaVersion, version, enabled, rules:[{id, app, taskKind?, profileId, enabled?, rationale?}]}`；契约见 `packages/domain/schemas/HookRulesDocument.schema.json`）。
+  - `<LMPS_HOME>/hooks/token.json`：持久化 Bearer token（SECRET 分类——永不回显于 status/审计/错误消息；`token show` 是唯一展示入口；文件属 LOCAL-ONLY）。
+  - `<LMPS_HOME>/hooks/address.json`：core-service http 模式启动时写入的 loopback 地址（`{transport, address, pid, startedAt}`）。
+  - `<LMPS_HOME>/logs/hooks.ndjson`：core-service 每次 `hook.switch` 调用（含 denied/disabled/unconfigured）追加一行脱敏审计（不含 token）。
+- `status`：显示启用状态（`enabled`/`disabled`）、规则版本、规则数、token 是否已存储、loopback 地址（若 core-service 已启动）。未配置（无 rules.json）→ 两行提示；损坏文件 → USAGE exit 4。
+- `token [show|rotate]`（默认 `show`）：`show` 打印当前 token（未存储 → 提示文案，`data.token: null`）；`rotate` 生成新 48-hex 令牌并原子写回（`fsync`+rename）。**rotate 需重启 core-service 生效**；已生成文件保留（不覆盖）直到 rotate。
+- `rules [show|validate]`（默认 `show`）：`show` 逐条渲染 `app (taskKind) → profileId`（含禁用标记）；`validate` 校验 Schema（重复映射/歧义默认）+ 引用 profileId 逐条对 store 反查，缺失列入 `missingProfiles`。
+- `enable|disable`：翻转 `rules.json` 顶层 `enabled`（不改规则条目）；未配置 → USAGE exit 4（`hook.error.notConfigured`）。
+- 机器 `data`：
+  - `status`：`{configured, enabled, version, ruleCount, tokenStored, address}`
+  - `token`：`{token, rotated}`（`rotate` 后 `rotated:true`；`token` 为展示值，SECRET，避免在自动化中回显）
+  - `rules`（show）：`{configured, version, enabled, rules:[{id, app, taskKind|null, profileId, enabled}]}`
+  - `rules validate`：`{valid, issues:[...], missingProfiles:[...]}`
+  - `enable|disable`：`{enabled, version}`
+- 退出码：0 成功；4 USAGE（未知子命令/未知 action/多余位置参数/rules 文件损坏/未配置即 `enable|disable`）；6 能力未接线（null seam → `CAPABILITY_UNSUPPORTED`，仅测试 harness）。
+- 服务接线（M4-001）：core-service http 模式首次启动按 `argv[3]`/`LMPS_SIDECAR_TOKEN` → 持久化 token 链生成 Bearer token 并写 `address.json`；`LMPS_HOOK_PORT` 可选固定端口（默认随机 loopback）；`hook.switch` 复用激活事务全局锁（`<LMPS_HOME>/locks/activation.lock`，owner `sidecar`）——与 `apply`/托盘/Benchmark 同一把锁，并发切换遵守全局互斥。RPC 方法：`hook.status` / `hook.rules` / `hook.switch`（JSON-RPC `/rpc`，Bearer 常量时间校验）。
+
+### proxy（M4-002）
+
+`lmps proxy <status|aliases|enable|disable>`：虚拟模型→Profile 别名映射的**配置管理面**（PRD FR-10）。别名文档驱动 core-service 的 OpenAI 兼容代理（`/v1/models`、`/v1/chat/completions`）；CLI 只读写 `<LMPS_HOME>/hooks/aliases.json`，不做常驻 serve、不直接调用 LM Studio。
+
+- 文件定位：`<LMPS_HOME>/hooks/aliases.json`（LOCAL-ONLY）。契约 `VirtualAliasesDocument`：`{schemaVersion, version, enabled, sessionLock?（缺省 true）, sessionTtlMs?（缺省 30min）, aliases:[{id, virtualModel, profileId, modelKey?, enabled?, activate?（缺省 false）, generation?, lockSession?, rationale?}]}`（见 `packages/domain/schemas/VirtualAliasesDocument.schema.json`）。
+- `status`：显示启用状态（`enabled`/`disabled`）、别名包版本、别名数、会话锁状态（`locked`/`inherits document`）。未配置（无文件）→ `proxy.status.unconfigured` 文案，机器 `{configured:false, enabled:false, version:null, sessionLock:null, sessionTtlMs:null, aliasCount:0, aliases:[]}`；损坏文件 → USAGE exit 4。
+- `aliases [show|add|remove|validate]`（默认 `show`）：
+  - `show`：逐条渲染 `virtualModel → profileId`，附 `(activate)`/`(disabled)` 标记。
+  - `add <virtualModel> <profileId> [--params <json>] [--activate] [--no-lock-session]`：新增或按 `virtualModel` 覆盖（同模型重复添加 → `replaced:true`，保留原 `id`）。`--params` 为严格生成的 `AliasGenerationSchema` 子集 JSON（`temperature/topP/topK/minP/repeatPenalty/frequencyPenalty/presencePenalty/maxTokens/seed/systemPrompt`，均可为 `null`，camelCase；注入时转 snake_case）；坏 JSON 或未知/越界字段 → USAGE exit 4。
+  - `remove <virtualModel|id>`：精确移除；未匹配 → USAGE exit 4（`proxy.error.aliasMissing`）。
+  - `validate`：Schema + 映射级不变量校验（重复启用 `virtualModel`），并对 `profileId` 逐条反查 store，缺失列入 `missingProfiles`。
+  - `enable|disable`：翻转文档顶层 `enabled`（不改别名条目）；未配置 → USAGE exit 4。
+- 机器 `data`：
+  - `status`：`{configured, enabled, version, sessionLock, sessionTtlMs, aliasCount, aliases:[{id,virtualModel,profileId,enabled,activate}]}`
+  - `aliases`（show）：`{configured, version, aliases:[...]}`；`add`：`{added, replaced, alias}`；`remove`：`{removed, id}`；`validate`：`{valid, issues:[...], missingProfiles:[...]}`
+  - `enable|disable`：`{enabled, version}`
+- 退出码：0 成功；4 USAGE（未知子命令/未知 action/坏 JSON/多余位置参数/文件损坏/未配置即 `enable|disable`）；6 能力未接线（null seam → `CAPABILITY_UNSUPPORTED`，仅测试 harness）。
+- 代理 wire（宿主 = core-service，见 `docs/core-service.proxy.md` 或 `apps/core-service/src/proxy.ts`）：
+  - Bearer 必带（复用 M4-001 token 链）；`GET /v1/models` → enabled 别名的 `virtualModel`；`POST /v1/chat/completions` → 解析 → 精确匹配（deny-by-default，无置信度评分）→ Profile 解析（store）→ 会话锁（`X-Session-Id` header 主 + body `session_id` 回退；`X-Session-Release: true` 显式解锁；`sessionLock:false` 或逐别名 `lockSession:false` 关闭）→ `activate:true` 别名走共享激活 runner（`ACTIVATION_LOCK_BUSY`→503）；否则只读激活预检不符 → 502 `PROFILE_NOT_ACTIVE` → 上游 body = 客户端 override + 别名 generation 三态注入 → SSE（`data: {json}\n\n` + `data: [DONE]\n\n`）或 buffered JSON。
+  - 错误映射：`tools`/`tool_choice`/`response_format` → 400（诚实拒绝）；未知模型 → 404 `MODEL_NOT_FOUND`；文档缺失/禁用/损坏 → 503；上游 auth→502 / timeout→504 / unreachable→503 / 其它→500。审计 `logs/proxy.ndjson`（outcome ∈ unconfigured/disabled/denied/resolved/latched/released/profile-missing/profile-not-active/lock-busy/activation-failed/activated/forwarded/error），sessionId 掩码前 8 字符，不落 prompt/token/路径。
+  - **真实 LM Studio 转发已补测闭环**（2026-09-08/09；证据 `reports/m4-002/real-forward.md` LOCAL-ONLY）：R1–R10 19/19——含 `tools`→400 `UNSUPPORTED_CAPABILITY` 与 `max_tokens=8` 真实截断（`finish_reason:"length"`）；审计无 secret、sessionId 掩码核实；host 置净 `No Models Loaded`。mock-first 验证仍覆盖解析/会话锁/拒绝阶梯/三态注入/SSE 帧。
+
 ## Exit codes
 
 | Code | Meaning | 使用 |
 |---:|---|---|
-| 0 | success | 全部成功路径；doctor 检查完成（含 `summary.ok=false`） |
-| 2 | user cancelled | `apply` 取消路径（`ACTIVATION_CANCELED`；M1-005 生效） |
+| 0 | success | 全部成功路径；doctor 检查完成（含 `summary.ok=false`）；benchmark 测量失败（`status='failed'` + errorCode，结果已产出并落盘） |
+| 2 | user cancelled | `apply` 取消路径（`ACTIVATION_CANCELED`）；`benchmark` 取消路径（`BENCHMARK_CANCELED`） |
 | 3 | activation in progress | `apply` 事务在恢复路径上完成（failed-but-recovered；M1-005 生效） |
-| 4 | validation or preflight failed | 参数/校验/Profile 不存在/文档校验失败/delete 无 `--yes`/未知命令/lock busy/激活前置失败/LM Studio 不可达（`LM_UNREACHABLE`） |
+| 4 | validation or preflight failed | 参数/校验/Profile 不存在/文档校验失败/delete 无 `--yes`/未知命令/lock busy/激活前置失败/LM Studio 不可达（`LM_UNREACHABLE`）/benchmark 电池护栏与锁忙与 preflight（`BENCHMARK_BATTERY_GUARD`/`BENCHMARK_LOCK_BUSY`/`BENCHMARK_PREFLIGHT`）/benchmark 参数越界/config 语言值越界/hook 配置错误（rules 文件损坏、未配置即 `enable|disable`、未知 hook 子命令或 action、多余位置参数）/proxy 配置错误（aliases 文件损坏、`--params` 坏 JSON、未知 proxy 子命令或 action、未配置即 `enable|disable`） |
 | 5 | activation and rollback both failed | `apply` 事务失败且回滚也失败（M1-005 生效） |
-| 6 | requested capability unsupported | 尚未实现的能力（`estimate/benchmark/server` 等）；`apply`/`models`/`current`/`snapshot`/`optimize` 已接线，不再返回 6 |
+| 6 | requested capability unsupported | 尚未实现的能力（`estimate/backup` 等）与未接线 seam（`apply`/`models`/`current`/`snapshot`/`optimize`/`benchmark`/`hook`/`proxy` 的 null seam，仅测试 harness；已接线生产路径不再返回 6） |
 | 10 | internal error | store 损坏/IO 失败/未捕获异常/资源错误 |
 
 ## Output stream isolation
@@ -127,4 +184,4 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 
 ## 未实现 / 预留
 
-`estimate/benchmark/server/backup`、`--version`、Shell completion、交互向导均未实现；`apply` 已随 M1-005 实现并完成生产接线（2026-09-05，离线态已实测），`optimize` 已随 M2-002 实现并完成生产接线；`estimate` 等命令在后续任务接线。
+`estimate/backup`、`--version`、Shell completion、交互向导均未实现；loopback 常驻宿主已定为 core-service（M4-001），CLI 不提供 `server` 常驻命令——外部自动化 API 的后续（REST 包装、固定端口策略）留后续任务。`apply` 已随 M1-005 实现并完成生产接线（2026-09-05，离线态已实测），`optimize` 已随 M2-002 实现并完成生产接线，`benchmark` 已随 M2-003 实现并完成生产接线（真机推理冒烟取决于 `LMPS_LM_TOKEN`，见 M2-003 completion），`hook` 配置面已随 M4-001 实现（loopback 服务验证经 mock adapter，见 M4-001 completion），`proxy` 配置面已随 M4-002 实现（loopback 冒烟与真实 LM Studio 转发已补测闭环，见 M4-002 completion）；`estimate` 等命令在后续任务接线。

@@ -57,6 +57,7 @@ export const OPERATION_CAPABILITY_FIELDS = [
   'ops.unload',
   'ops.healthCheck',
   'ops.restore',
+  'ops.inference',
 ] as const;
 
 export const DEFAULT_PROBE_TTL_SECONDS = 300;
@@ -93,6 +94,30 @@ export interface CapabilityProbeResult {
   ops: ProbeOps;
   cached: boolean;
   expiresAt: string;
+}
+
+/**
+ * A synthetic probe for the explicit mock path (LMPS_ADAPTER=mock): every field
+ * reads as nobody-reachable so it never serializes into a matrix, and the
+ * adapter router ignores it entirely under `selection: 'mock'`. Its purpose is
+ * purely to satisfy the type without ever touching REST or `lms` on the host.
+ */
+export function mockProbeResult(baseUrl: string, nowIso: string): CapabilityProbeResult {
+  return {
+    matrices: [],
+    ops: {
+      restReachable: false,
+      lmsAvailable: false,
+      sdkAvailable: false,
+      restBaseUrl: baseUrl,
+      lmStudioVersion: null,
+      engineVersion: null,
+      observed: [],
+      probedAt: nowIso,
+    },
+    cached: false,
+    expiresAt: nowIso,
+  };
 }
 
 const probeCache = new Map<string, { expiresAt: string; result: CapabilityProbeResult }>();

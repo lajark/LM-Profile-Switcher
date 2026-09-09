@@ -3,7 +3,7 @@
  * published v1 sample shape (`schemas/profile.schema.json`, unchanged), typed
  * as the v1 document; migration tests validate against this real baseline.
  */
-import type { CompositeProfile, RulesDocument } from '@lmps/domain';
+import type { CompositeProfile, HookRulesDocument, RulesDocument, VirtualAliasesDocument } from '@lmps/domain';
 
 /** Structural v1 composite: every current field, but stamped schemaVersion 1. */
 export type V1CompositeProfile = Omit<CompositeProfile, 'schemaVersion'> & { schemaVersion: 1 };
@@ -162,6 +162,37 @@ export const minimalRulesDocument: RulesDocument = {
     {
       taskKind: 'quick-chat',
       rationale: { 'zh-CN': '测试最小规则', en: 'Minimal rule for tests.' },
+    },
+  ],
+};
+
+/** Minimal valid virtual aliases document: one alias, global switch on. */
+export const minimalVirtualAliasesDocument: VirtualAliasesDocument = {
+  schemaVersion: 2,
+  version: '2026.09.test',
+  enabled: true,
+  aliases: [
+    {
+      id: 'code-editor',
+      virtualModel: 'lmps://coder',
+      profileId: 'coding-9b',
+      rationale: { 'zh-CN': '测试最小别名', en: 'Minimal alias for tests.' },
+    },
+  ],
+};
+
+/** Minimal valid hook rules document: one mapping, global switch on. */
+export const minimalHookRulesDocument: HookRulesDocument = {
+  schemaVersion: 2,
+  version: '2026.09.test',
+  enabled: true,
+  rules: [
+    {
+      id: 'editor-code',
+      app: 'editor',
+      taskKind: 'coding',
+      profileId: 'coding-9b',
+      rationale: { 'zh-CN': '编辑器编码任务', en: 'Editor coding tasks.' },
     },
   ],
 };

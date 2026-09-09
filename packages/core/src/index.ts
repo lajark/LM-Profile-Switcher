@@ -8,11 +8,13 @@
  * executable in tests and embeddable in the CLI, the future sidecar and the
  * desktop WebView.
  */
+export * from './benchmark.js';
 export * from './errors.js';
 export * from './lock.js';
 export * from './ports.js';
 export * from './recommendation.js';
 export * from './redact.js';
 export * from './runner.js';
+export * from './session-lock.js';
 export * from './snapshot.js';
 export * from './transaction.js';

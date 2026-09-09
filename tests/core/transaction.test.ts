@@ -1,3 +1,4 @@
+// policy-scan:fixture — sk-live-secret redaction fixture (asserts not.toContain + '[redacted]' tombstone); exemption in scripts/lib/policy-scan-exemptions.json
 import { describe, expect, it } from 'vitest';
 import type { ActivationTransaction } from '@lmps/domain';
 import {

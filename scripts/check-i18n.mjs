@@ -27,7 +27,11 @@ function findTypescriptFiles(directory, output = []) {
     const entryPath = join(directory, entry.name);
     if (entry.isDirectory()) {
       findTypescriptFiles(entryPath, output);
-    } else if (entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) {
+    } else if (
+      entry.isFile() &&
+      /\.(ts|tsx)$/.test(entry.name) &&
+      !entry.name.endsWith('.d.ts')
+    ) {
       output.push(entryPath);
     }
   }
@@ -148,6 +152,18 @@ function isSentence(value) {
 function scanNode(node, lines, fileIssues, relativePath) {
   const lineAt = (n) => n.getSourceFile().getLineAndCharacterOfPosition(n.getStart()).line;
 
+  // JSX text children (e.g. <p>你好</p>) are not string literals; flag CJK so
+  // every displayed copy goes through t() in TSX components too.
+  if (ts.isJsxText(node)) {
+    const text = node.text;
+    if (text.trim().length > 0 && !isIgnoredLine(lines[lineAt(node)] ?? '', lines[lineAt(node) - 1])) {
+      if (CJK_RE.test(text)) {
+        fileIssues.push(`${relativePath}:${lineAt(node) + 1}: CJK-hardcoded-string "${preview(text)}"`);
+      }
+    }
+    return;
+  }
+
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
     const value = node.text;
     const line = lineAt(node);
@@ -181,7 +197,11 @@ function preview(value) {
   return trimmed.length > 24 ? `${trimmed.slice(0, 24)}…` : trimmed;
 }
 
-/** Resolves each component's `src` root directory (apps/<name>/src, e.g. apps/cli/src). */
+/**
+ * Resolves each component's `src` root directory (apps/<name>/src, e.g.
+ * apps/cli/src) plus a webview frontend root (apps/<name>/frontend/src) when
+ * the component hosts a bundled React/Web frontend, e.g. apps/desktop.
+ */
 function findComponentSourceRoots(workspaceRoot, componentDirectories) {
   const roots = [];
   for (const component of componentDirectories) {
@@ -190,8 +210,16 @@ function findComponentSourceRoots(workspaceRoot, componentDirectories) {
       continue;
     }
     for (const entry of readdirSync(componentRoot, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        roots.push(join(componentRoot, entry.name, 'src'));
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      const nodeRoot = join(componentRoot, entry.name, 'src');
+      if (existsSync(nodeRoot)) {
+        roots.push(nodeRoot);
+      }
+      const frontendRoot = join(componentRoot, entry.name, 'frontend', 'src');
+      if (existsSync(frontendRoot)) {
+        roots.push(frontendRoot);
       }
     }
   }
@@ -204,7 +232,8 @@ export function checkHardcodedStrings(workspaceRoot, targetComponents = TARGET_C
   for (const sourceRoot of findComponentSourceRoots(workspaceRoot, targetComponents)) {
     for (const filePath of findTypescriptFiles(sourceRoot)) {
       const source = readFileSync(filePath, 'utf8');
-      const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+      const scriptKind = filePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+      const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true, scriptKind);
       const lines = source.split(/\r?\n/);
       const fileIssues = [];
       const visit = (node) => {

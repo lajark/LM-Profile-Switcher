@@ -92,6 +92,7 @@ describe('lmstudio-adapter architecture guard (M0-005)', () => {
       'node-env',
       'errors',
       'model-names',
+      'rest/chat',
       'rest/v1',
       'rest/rest-v1-adapter',
       'cli/cli-adapter',

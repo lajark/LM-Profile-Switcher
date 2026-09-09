@@ -35,8 +35,8 @@
 - structured redaction;
 - signed releases when distribution begins;
 - dependency and SBOM scanning;
-- policy/secret scanning before the first remote push;
-- allowlist-based release assembly with manifest and checksums;
+- policy/secret scanning before the first remote push (implemented M3-004: `corepack pnpm run policy:scan`, CI gate `--strict`; remote run verifies on first push);
+- allowlist-based release assembly with manifest and checksums (implemented M3-004: `release-pack` is the only write path into `artifacts/releases/`);
 - user confirmation for destructive or network actions.
 
 ## Incident handling

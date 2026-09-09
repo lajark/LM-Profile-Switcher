@@ -17,6 +17,21 @@ export interface LmRequestInit {
   method?: 'GET' | 'POST';
   headers?: Readonly<Record<string, string>>;
   body?: string;
+  /** Cooperative cancellation; the transport aborts the request when signalled. */
+  signal?: AbortSignal;
+  /**
+   * Per-request transport timeout override (ms). Long-lived operations like
+   * model load legitimately exceed the default REST-latency budget, so the
+   * caller can widen just this one call instead of the whole env.
+   */
+  timeoutMs?: number;
+}
+
+/** Body of an SSE streaming response; chunks yield decoded text pieces. */
+export interface LmStreamResponse {
+  ok: boolean;
+  status: number;
+  body(): AsyncIterable<string>;
 }
 
 export interface LmSpawnResult {
@@ -37,6 +52,13 @@ export interface LmStudioEnv {
   /** Monotonic clock in ms, for latency measurement. */
   nowMs(): number;
   http(path: string, init?: LmRequestInit): Promise<LmHttpResponse>;
+  /**
+   * Streaming HTTP seam for SSE endpoints (M2-003). Optional so the interface
+   * stays compatible with existing fakes; only the benchmark path needs it.
+   * The timeout-to-first-byte/body semantics are the implementation's choice;
+   * cancellation via `init.signal` must abort the body iteration.
+   */
+  httpStream?(url: string, init?: LmRequestInit): Promise<LmStreamResponse>;
   runLms(args: readonly string[], timeoutMs?: number): Promise<LmSpawnResult>;
 }
 

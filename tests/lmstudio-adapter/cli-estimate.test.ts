@@ -4,6 +4,7 @@ import type { CompositeProfile } from '@lmps/domain';
 import {
   createCliAdapter,
   createCliEstimatePort,
+  createMockEstimatePort,
   estimateArgs,
   LmStudioError,
   parseLmsEstimateValues,
@@ -218,5 +219,21 @@ describe('createCliEstimatePort', () => {
       },
     });
     await expect(createCliEstimatePort(env).estimate(makeProfile(QWEN_KEY))).rejects.toThrow('unexpected blast');
+  });
+});
+
+describe('createMockEstimatePort', () => {
+  it('returns a deterministic rough estimate without touching any host', async () => {
+    const estimate = await createMockEstimatePort(() => NOW).estimate(makeProfile(QWEN_KEY, { contextLength: 2048 }));
+    expect(estimate).toMatchObject({
+      schemaVersion: 2,
+      provider: 'rough',
+      modelKey: QWEN_KEY,
+      contextLength: 2048,
+      vramTotalBytes: null,
+      systemRamBytes: null,
+      estimatedAt: NOW,
+      warnings: [ROUGH_ESTIMATE_WARNING],
+    });
   });
 });

@@ -14,6 +14,7 @@ export default defineConfig({
       '@lmps/i18n': fileURLToPath(new URL('./packages/i18n/src/index.ts', import.meta.url)),
       '@lmps/domain': fileURLToPath(new URL('./packages/domain/src/index.ts', import.meta.url)),
       '@lmps/hardware': fileURLToPath(new URL('./packages/hardware/src/index.ts', import.meta.url)),
+      '@lmps/benchmark': fileURLToPath(new URL('./packages/benchmark/src/index.ts', import.meta.url)),
       '@lmps/lmstudio-adapter': fileURLToPath(
         new URL('./packages/lmstudio-adapter/src/index.ts', import.meta.url),
       ),

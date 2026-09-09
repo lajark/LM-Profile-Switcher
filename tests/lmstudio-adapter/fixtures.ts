@@ -73,4 +73,30 @@ export function loadedModel(id: string, loadConfig: Record<string, unknown> | nu
   return { id, loaded: loadConfig !== null, load_config: loadConfig };
 }
 
+/**
+ * Live-host row shape for `GET /api/v1/models` (verified 2026-09-06): the model
+ * is named by `key` (snake_case) and loaded state by `loaded_instances`.
+ * `instanceIds` lets a test model several loaded instances of one key (live host
+ * 2026-09-07 spawns `key:2` when the same model is reloaded with another config).
+ */
+export function liveHostModel(key: string, loaded = false, instanceIds?: string[]): unknown {
+  const ids = instanceIds ?? (loaded ? [key] : []);
+  return {
+    type: 'llm',
+    publisher: key.split('/')[0],
+    key,
+    display_name: key.split('/')[1] ?? key,
+    architecture: 'qwen35',
+    quantization: { name: 'Q4_K_M', bits_per_weight: 4 },
+    size_bytes: 17_742_039_110,
+    params_string: '27B',
+    loaded_instances: ids.map((id) => ({ id, identifier: `default-${id}` })),
+    max_context_length: 262_144,
+    format: 'gguf',
+    capabilities: {},
+    variants: [`${key}@q4_k_m`],
+    selected_variant: `${key}@q4_k_m`,
+  };
+}
+
 export const SPAWN_OK: LmSpawnResult = { exitCode: 0, stdout: '', stderr: '', timedOut: false };

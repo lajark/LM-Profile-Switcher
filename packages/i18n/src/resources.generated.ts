@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit manually.
 // Source of truth: locales/zh-CN/common.json, locales/en/common.json.
 // Regenerate with `corepack pnpm run i18n:generate`.
-// __CHECKSUM__: 78c17fcc373f3e225fba3b5172668d71aefaef41ee2255eea3130f6bac4ad291
+// __CHECKSUM__: 001f1d75e7ff6d78239d03ac1600d3b6a37b728a90d2f9b139fab6f10a106ddf
 
 export const DEFAULT_NAMESPACE = 'common';
 
@@ -25,6 +25,23 @@ export const resourceKeys = [
   'optimizer.estimated',
   'benchmark.title',
   'benchmark.cancelled',
+  'benchmark.completed',
+  'benchmark.failed',
+  'benchmark.failedWithCode',
+  'benchmark.canceled',
+  'benchmark.status',
+  'benchmark.loadMs',
+  'benchmark.ttft',
+  'benchmark.prefill',
+  'benchmark.decode',
+  'benchmark.memoryPeak',
+  'benchmark.samples',
+  'benchmark.fingerprint',
+  'benchmark.promptSuite',
+  'benchmark.saved',
+  'benchmark.batteryGuard',
+  'benchmark.preflight',
+  'benchmark.invalidRange',
   'error.modelNotFound',
   'error.capabilityUnsupported',
   'error.usage',
@@ -45,12 +62,52 @@ export const resourceKeys = [
   'error.internal',
   'settings.language',
   'settings.thirdPartyNotices',
-  'tray.open',
-  'tray.unload',
-  'tray.quit',
   'cli.usage',
   'cli.noCommand',
   'verbose.line',
+  'hook.status.unconfigured',
+  'hook.status.address',
+  'hook.status.line',
+  'hook.state.enabled',
+  'hook.state.disabled',
+  'hook.token.stored',
+  'hook.token.missing',
+  'hook.token.notStored',
+  'hook.token.show',
+  'hook.token.rotated',
+  'hook.rules.show.none',
+  'hook.rules.taskClause',
+  'hook.rules.disabledMark',
+  'hook.rules.rule',
+  'hook.rules.valid',
+  'hook.rules.invalid',
+  'hook.rules.missingProfile',
+  'hook.enable.updated',
+  'hook.disable.updated',
+  'hook.error.invalidRules',
+  'hook.error.notConfigured',
+  'proxy.status.unconfigured',
+  'proxy.status.line',
+  'proxy.state.enabled',
+  'proxy.state.disabled',
+  'proxy.state.locked',
+  'proxy.state.unlocked',
+  'proxy.aliases.show.none',
+  'proxy.aliases.show.empty',
+  'proxy.aliases.alias',
+  'proxy.aliases.activateMark',
+  'proxy.aliases.disabledMark',
+  'proxy.aliases.valid',
+  'proxy.aliases.invalid',
+  'proxy.aliases.missingProfile',
+  'proxy.aliases.added.new',
+  'proxy.aliases.added.replaced',
+  'proxy.aliases.removed',
+  'proxy.enable.updated',
+  'proxy.disable.updated',
+  'proxy.error.invalidAliases',
+  'proxy.error.notConfigured',
+  'proxy.error.aliasMissing',
   'profile.list.none',
   'profile.list.line',
   'profile.show.line',
@@ -115,6 +172,163 @@ export const resourceKeys = [
   'doctor.check.node',
   'doctor.check.discovery',
   'doctor.check.hardware',
+  'desktop.status.connecting',
+  'desktop.status.connected',
+  'desktop.status.disconnected',
+  'desktop.status.authFailed',
+  'desktop.status.startFailed',
+  'desktop.action.probe',
+  'desktop.action.hardware',
+  'desktop.action.sdkInfo',
+  'desktop.locale.label',
+  'desktop.locale.zhCN',
+  'desktop.locale.en',
+  'desktop.settings.label',
+  'desktop.settings.placeholder',
+  'desktop.probe.title',
+  'desktop.hardware.title',
+  'desktop.sdkInfo.title',
+  'desktop.result.error',
+  'desktop.hint.idle',
+  'desktop.nav.profiles',
+  'desktop.nav.optimize',
+  'desktop.nav.benchmark',
+  'desktop.nav.hardware',
+  'desktop.profiles.title',
+  'desktop.profiles.filter',
+  'desktop.profiles.new',
+  'desktop.profiles.empty',
+  'desktop.profiles.nothing',
+  'desktop.profiles.edit',
+  'desktop.profiles.delete',
+  'desktop.profiles.confirmDelete',
+  'desktop.profiles.optimize',
+  'desktop.profiles.benchmark',
+  'desktop.profiles.updatedAt',
+  'desktop.profiles.apply',
+  'desktop.profiles.applying',
+  'desktop.profiles.applyConfirm',
+  'desktop.profiles.activeBadge',
+  'desktop.footer.disclaimer',
+  'desktop.editor.title.create',
+  'desktop.editor.title.edit',
+  'desktop.editor.id',
+  'desktop.editor.id.help',
+  'desktop.editor.id.invalid',
+  'desktop.editor.displayName.zh',
+  'desktop.editor.displayName.en',
+  'desktop.editor.displayName.required',
+  'desktop.editor.description.en',
+  'desktop.editor.model.modelKey',
+  'desktop.editor.model.family',
+  'desktop.editor.model.quantization',
+  'desktop.editor.task.type',
+  'desktop.editor.task.kind',
+  'desktop.editor.task.kind.none',
+  'desktop.editor.runtime.context',
+  'desktop.editor.runtime.gpuOffload',
+  'desktop.editor.generation.temperature',
+  'desktop.editor.behavior.mode',
+  'desktop.editor.json',
+  'desktop.editor.saved',
+  'desktop.optimize.title',
+  'desktop.optimize.select',
+  'desktop.optimize.preview',
+  'desktop.optimize.rules',
+  'desktop.optimize.candidates',
+  'desktop.optimize.none',
+  'desktop.optimize.confidence',
+  'desktop.optimize.diff.path',
+  'desktop.optimize.diff.baseline',
+  'desktop.optimize.diff.candidate',
+  'desktop.optimize.rationale.zh',
+  'desktop.optimize.rationale.en',
+  'desktop.optimize.warning',
+  'desktop.optimize.save',
+  'desktop.optimize.saved',
+  'desktop.optimize.notActivated',
+  'desktop.optimize.refused.noSafe',
+  'desktop.optimize.refused.lowConfidence',
+  'desktop.benchmark.title',
+  'desktop.benchmark.select',
+  'desktop.benchmark.samples',
+  'desktop.benchmark.maxTokens',
+  'desktop.benchmark.allowBattery',
+  'desktop.benchmark.run',
+  'desktop.benchmark.running',
+  'desktop.benchmark.noResult',
+  'desktop.benchmark.notValidated',
+  'desktop.benchmark.errorCode',
+  'desktop.benchmark.taskType',
+  'desktop.benchmark.lmStudio',
+  'desktop.unit.gib',
+  'desktop.benchmark.metrics',
+  'desktop.benchmark.field',
+  'desktop.benchmark.value',
+  'desktop.benchmark.status.ok',
+  'desktop.benchmark.status.failed',
+  'desktop.benchmark.status.canceled',
+  'desktop.benchmark.fingerprint',
+  'desktop.benchmark.promptSuite',
+  'desktop.benchmark.metric.tokensPerSecond',
+  'desktop.benchmark.metric.latencyP50Ms',
+  'desktop.benchmark.metric.loadMs',
+  'desktop.benchmark.metric.ttftMs',
+  'desktop.benchmark.metric.prefillTokensPerSecond',
+  'desktop.benchmark.metric.decodeTokensPerSecond',
+  'desktop.benchmark.metric.memoryPeakBytes',
+  'desktop.benchmark.metric.samples',
+  'desktop.hardware.os',
+  'desktop.hardware.cpu',
+  'desktop.hardware.cores',
+  'desktop.hardware.threads',
+  'desktop.hardware.memory',
+  'desktop.hardware.memory.total',
+  'desktop.hardware.memory.available',
+  'desktop.hardware.gpus',
+  'desktop.hardware.vram',
+  'desktop.hardware.volumes',
+  'desktop.hardware.power',
+  'desktop.hardware.onBattery',
+  'desktop.hardware.onPlugged',
+  'desktop.hardware.fingerprint',
+  'desktop.hardware.probedAt',
+  'desktop.hardware.diagnostics',
+  'desktop.hardware.sdkInfo',
+  'desktop.error.rpc.lmUnreachable',
+  'desktop.error.rpc.profileNotFound',
+  'desktop.error.rpc.alreadyExists',
+  'desktop.error.rpc.profileInvalid',
+  'desktop.error.rpc.optimizeRefused',
+  'desktop.error.rpc.batteryGuard',
+  'desktop.error.rpc.lockBusy',
+  'desktop.error.rpc.methodUnsupported',
+  'desktop.error.rpc.unknown',
+  'desktop.tasks.quick-chat',
+  'desktop.tasks.long-document',
+  'desktop.tasks.rag',
+  'desktop.tasks.investment-due-diligence',
+  'desktop.tasks.meeting-minutes',
+  'desktop.tasks.coding',
+  'desktop.tasks.structured-extraction',
+  'desktop.tasks.agent',
+  'desktop.tasks.creative-writing',
+  'desktop.tasks.vision',
+  'desktop.tasks.custom',
+  'tray.status.failed',
+  'tray.status.currentActive',
+  'tray.status.currentNone',
+  'tray.status.unreachable',
+  'tray.status.busy',
+  'tray.section.recent',
+  'tray.section.all',
+  'tray.error.unreachable',
+  'tray.error.lockBusy',
+  'tray.error.canceled',
+  'tray.error.stepFailed',
+  'tray.action.unload',
+  'tray.action.open',
+  'tray.action.quit',
 ] as const;
 
 export type ResourceKey = (typeof resourceKeys)[number];
@@ -139,6 +353,23 @@ export interface CommonResources {
   'optimizer.estimated': string;
   'benchmark.title': string;
   'benchmark.cancelled': string;
+  'benchmark.completed': string;
+  'benchmark.failed': string;
+  'benchmark.failedWithCode': string;
+  'benchmark.canceled': string;
+  'benchmark.status': string;
+  'benchmark.loadMs': string;
+  'benchmark.ttft': string;
+  'benchmark.prefill': string;
+  'benchmark.decode': string;
+  'benchmark.memoryPeak': string;
+  'benchmark.samples': string;
+  'benchmark.fingerprint': string;
+  'benchmark.promptSuite': string;
+  'benchmark.saved': string;
+  'benchmark.batteryGuard': string;
+  'benchmark.preflight': string;
+  'benchmark.invalidRange': string;
   'error.modelNotFound': string;
   'error.capabilityUnsupported': string;
   'error.usage': string;
@@ -159,12 +390,52 @@ export interface CommonResources {
   'error.internal': string;
   'settings.language': string;
   'settings.thirdPartyNotices': string;
-  'tray.open': string;
-  'tray.unload': string;
-  'tray.quit': string;
   'cli.usage': string;
   'cli.noCommand': string;
   'verbose.line': string;
+  'hook.status.unconfigured': string;
+  'hook.status.address': string;
+  'hook.status.line': string;
+  'hook.state.enabled': string;
+  'hook.state.disabled': string;
+  'hook.token.stored': string;
+  'hook.token.missing': string;
+  'hook.token.notStored': string;
+  'hook.token.show': string;
+  'hook.token.rotated': string;
+  'hook.rules.show.none': string;
+  'hook.rules.taskClause': string;
+  'hook.rules.disabledMark': string;
+  'hook.rules.rule': string;
+  'hook.rules.valid': string;
+  'hook.rules.invalid': string;
+  'hook.rules.missingProfile': string;
+  'hook.enable.updated': string;
+  'hook.disable.updated': string;
+  'hook.error.invalidRules': string;
+  'hook.error.notConfigured': string;
+  'proxy.status.unconfigured': string;
+  'proxy.status.line': string;
+  'proxy.state.enabled': string;
+  'proxy.state.disabled': string;
+  'proxy.state.locked': string;
+  'proxy.state.unlocked': string;
+  'proxy.aliases.show.none': string;
+  'proxy.aliases.show.empty': string;
+  'proxy.aliases.alias': string;
+  'proxy.aliases.activateMark': string;
+  'proxy.aliases.disabledMark': string;
+  'proxy.aliases.valid': string;
+  'proxy.aliases.invalid': string;
+  'proxy.aliases.missingProfile': string;
+  'proxy.aliases.added.new': string;
+  'proxy.aliases.added.replaced': string;
+  'proxy.aliases.removed': string;
+  'proxy.enable.updated': string;
+  'proxy.disable.updated': string;
+  'proxy.error.invalidAliases': string;
+  'proxy.error.notConfigured': string;
+  'proxy.error.aliasMissing': string;
   'profile.list.none': string;
   'profile.list.line': string;
   'profile.show.line': string;
@@ -229,4 +500,161 @@ export interface CommonResources {
   'doctor.check.node': string;
   'doctor.check.discovery': string;
   'doctor.check.hardware': string;
+  'desktop.status.connecting': string;
+  'desktop.status.connected': string;
+  'desktop.status.disconnected': string;
+  'desktop.status.authFailed': string;
+  'desktop.status.startFailed': string;
+  'desktop.action.probe': string;
+  'desktop.action.hardware': string;
+  'desktop.action.sdkInfo': string;
+  'desktop.locale.label': string;
+  'desktop.locale.zhCN': string;
+  'desktop.locale.en': string;
+  'desktop.settings.label': string;
+  'desktop.settings.placeholder': string;
+  'desktop.probe.title': string;
+  'desktop.hardware.title': string;
+  'desktop.sdkInfo.title': string;
+  'desktop.result.error': string;
+  'desktop.hint.idle': string;
+  'desktop.nav.profiles': string;
+  'desktop.nav.optimize': string;
+  'desktop.nav.benchmark': string;
+  'desktop.nav.hardware': string;
+  'desktop.profiles.title': string;
+  'desktop.profiles.filter': string;
+  'desktop.profiles.new': string;
+  'desktop.profiles.empty': string;
+  'desktop.profiles.nothing': string;
+  'desktop.profiles.edit': string;
+  'desktop.profiles.delete': string;
+  'desktop.profiles.confirmDelete': string;
+  'desktop.profiles.optimize': string;
+  'desktop.profiles.benchmark': string;
+  'desktop.profiles.updatedAt': string;
+  'desktop.profiles.apply': string;
+  'desktop.profiles.applying': string;
+  'desktop.profiles.applyConfirm': string;
+  'desktop.profiles.activeBadge': string;
+  'desktop.footer.disclaimer': string;
+  'desktop.editor.title.create': string;
+  'desktop.editor.title.edit': string;
+  'desktop.editor.id': string;
+  'desktop.editor.id.help': string;
+  'desktop.editor.id.invalid': string;
+  'desktop.editor.displayName.zh': string;
+  'desktop.editor.displayName.en': string;
+  'desktop.editor.displayName.required': string;
+  'desktop.editor.description.en': string;
+  'desktop.editor.model.modelKey': string;
+  'desktop.editor.model.family': string;
+  'desktop.editor.model.quantization': string;
+  'desktop.editor.task.type': string;
+  'desktop.editor.task.kind': string;
+  'desktop.editor.task.kind.none': string;
+  'desktop.editor.runtime.context': string;
+  'desktop.editor.runtime.gpuOffload': string;
+  'desktop.editor.generation.temperature': string;
+  'desktop.editor.behavior.mode': string;
+  'desktop.editor.json': string;
+  'desktop.editor.saved': string;
+  'desktop.optimize.title': string;
+  'desktop.optimize.select': string;
+  'desktop.optimize.preview': string;
+  'desktop.optimize.rules': string;
+  'desktop.optimize.candidates': string;
+  'desktop.optimize.none': string;
+  'desktop.optimize.confidence': string;
+  'desktop.optimize.diff.path': string;
+  'desktop.optimize.diff.baseline': string;
+  'desktop.optimize.diff.candidate': string;
+  'desktop.optimize.rationale.zh': string;
+  'desktop.optimize.rationale.en': string;
+  'desktop.optimize.warning': string;
+  'desktop.optimize.save': string;
+  'desktop.optimize.saved': string;
+  'desktop.optimize.notActivated': string;
+  'desktop.optimize.refused.noSafe': string;
+  'desktop.optimize.refused.lowConfidence': string;
+  'desktop.benchmark.title': string;
+  'desktop.benchmark.select': string;
+  'desktop.benchmark.samples': string;
+  'desktop.benchmark.maxTokens': string;
+  'desktop.benchmark.allowBattery': string;
+  'desktop.benchmark.run': string;
+  'desktop.benchmark.running': string;
+  'desktop.benchmark.noResult': string;
+  'desktop.benchmark.notValidated': string;
+  'desktop.benchmark.errorCode': string;
+  'desktop.benchmark.taskType': string;
+  'desktop.benchmark.lmStudio': string;
+  'desktop.unit.gib': string;
+  'desktop.benchmark.metrics': string;
+  'desktop.benchmark.field': string;
+  'desktop.benchmark.value': string;
+  'desktop.benchmark.status.ok': string;
+  'desktop.benchmark.status.failed': string;
+  'desktop.benchmark.status.canceled': string;
+  'desktop.benchmark.fingerprint': string;
+  'desktop.benchmark.promptSuite': string;
+  'desktop.benchmark.metric.tokensPerSecond': string;
+  'desktop.benchmark.metric.latencyP50Ms': string;
+  'desktop.benchmark.metric.loadMs': string;
+  'desktop.benchmark.metric.ttftMs': string;
+  'desktop.benchmark.metric.prefillTokensPerSecond': string;
+  'desktop.benchmark.metric.decodeTokensPerSecond': string;
+  'desktop.benchmark.metric.memoryPeakBytes': string;
+  'desktop.benchmark.metric.samples': string;
+  'desktop.hardware.os': string;
+  'desktop.hardware.cpu': string;
+  'desktop.hardware.cores': string;
+  'desktop.hardware.threads': string;
+  'desktop.hardware.memory': string;
+  'desktop.hardware.memory.total': string;
+  'desktop.hardware.memory.available': string;
+  'desktop.hardware.gpus': string;
+  'desktop.hardware.vram': string;
+  'desktop.hardware.volumes': string;
+  'desktop.hardware.power': string;
+  'desktop.hardware.onBattery': string;
+  'desktop.hardware.onPlugged': string;
+  'desktop.hardware.fingerprint': string;
+  'desktop.hardware.probedAt': string;
+  'desktop.hardware.diagnostics': string;
+  'desktop.hardware.sdkInfo': string;
+  'desktop.error.rpc.lmUnreachable': string;
+  'desktop.error.rpc.profileNotFound': string;
+  'desktop.error.rpc.alreadyExists': string;
+  'desktop.error.rpc.profileInvalid': string;
+  'desktop.error.rpc.optimizeRefused': string;
+  'desktop.error.rpc.batteryGuard': string;
+  'desktop.error.rpc.lockBusy': string;
+  'desktop.error.rpc.methodUnsupported': string;
+  'desktop.error.rpc.unknown': string;
+  'desktop.tasks.quick-chat': string;
+  'desktop.tasks.long-document': string;
+  'desktop.tasks.rag': string;
+  'desktop.tasks.investment-due-diligence': string;
+  'desktop.tasks.meeting-minutes': string;
+  'desktop.tasks.coding': string;
+  'desktop.tasks.structured-extraction': string;
+  'desktop.tasks.agent': string;
+  'desktop.tasks.creative-writing': string;
+  'desktop.tasks.vision': string;
+  'desktop.tasks.custom': string;
+  'tray.status.failed': string;
+  'tray.status.currentActive': string;
+  'tray.status.currentNone': string;
+  'tray.status.unreachable': string;
+  'tray.status.busy': string;
+  'tray.section.recent': string;
+  'tray.section.all': string;
+  'tray.error.unreachable': string;
+  'tray.error.lockBusy': string;
+  'tray.error.canceled': string;
+  'tray.error.stepFailed': string;
+  'tray.action.unload': string;
+  'tray.action.open': string;
+  'tray.action.quit': string;
 }

@@ -13,14 +13,17 @@ import { DEFAULT_LOCALE, LocaleResourceError, normalizeLocale, type Locale } fro
 import { isProfileStoreError } from '@lmps/profile-store';
 
 import { runApplyCommand } from './commands/apply.js';
+import { runBenchmarkCommand } from './commands/benchmark.js';
 import { runCurrentCommand } from './commands/current.js';
 import { runDoctorCommand } from './commands/doctor.js';
 import { runHardwareCommand } from './commands/hardware.js';
 import { runHelpCommand } from './commands/help.js';
+import { runHookCommand } from './commands/hook.js';
 import { runLangCommand } from './commands/lang.js';
 import { runModelsCommand } from './commands/models.js';
 import { runOptimizeCommand } from './commands/optimize.js';
 import { runProfileCommand } from './commands/profile.js';
+import { runProxyCommand } from './commands/proxy.js';
 import { runSnapshotCommand } from './commands/snapshot.js';
 import { isCliError } from './errors.js';
 import { EXIT, exitCodeForError, type ExitCode } from './exit-codes.js';
@@ -35,7 +38,7 @@ export interface RunCliResult {
   exitCode: ExitCode;
 }
 
-const KNOWN_COMMANDS = new Set(['profile', 'apply', 'models', 'current', 'snapshot', 'hardware', 'lang', 'doctor', 'optimize']);
+const KNOWN_COMMANDS = new Set(['profile', 'apply', 'models', 'current', 'snapshot', 'hardware', 'lang', 'doctor', 'optimize', 'benchmark', 'hook', 'proxy']);
 
 export async function runCli(argv: readonly string[], deps: CliDeps, signal?: AbortSignal): Promise<RunCliResult> {
   const startedAtMs = Date.now();
@@ -73,10 +76,13 @@ export async function runCli(argv: readonly string[], deps: CliDeps, signal?: Ab
   }
 
   // `command` is non-null past this point; the envelope/verbose label renders
-  // `profile <sub>` as "profile <sub>" and every other command by its bare name.
+  // `profile <sub>` and `hook <sub>` as "<command> <sub>" and every other
+  // command by its bare name.
   const commandLabel =
-    command === 'profile' && parsed.args[0] !== undefined && !parsed.args[0].startsWith('-')
-      ? `profile ${parsed.args[0]}`
+    (command === 'profile' || command === 'hook' || command === 'proxy') &&
+    parsed.args[0] !== undefined &&
+    !parsed.args[0].startsWith('-')
+      ? `${command} ${parsed.args[0]}`
       : command;
 
   if (!KNOWN_COMMANDS.has(command)) {
@@ -133,6 +139,8 @@ async function dispatchCommand(
       return runProfileCommand(deps, args);
     case 'apply':
       return runApplyCommand(deps, args, context);
+    case 'benchmark':
+      return runBenchmarkCommand(deps, args, context);
     case 'models':
       return runModelsCommand(deps, args);
     case 'current':
@@ -141,6 +149,10 @@ async function dispatchCommand(
       return runSnapshotCommand(deps, args);
     case 'hardware':
       return runHardwareCommand(deps);
+    case 'hook':
+      return runHookCommand(deps, args);
+    case 'proxy':
+      return runProxyCommand(deps, args);
     case 'lang':
       return runLangCommand(deps, args);
     case 'doctor':

@@ -17,8 +17,8 @@ project_license: "MIT"
 workspace_dir: ".workspace/"
 release_dir: "artifacts/releases/"
 generated_reports_dir: "reports/"
-policy_scan_command: ""
-ci_policy_job: ""
+policy_scan_command: "corepack pnpm run policy:scan"
+ci_policy_job: ".github/workflows/ci.yml → Policy and secret scan (corepack pnpm run policy:scan -- --strict)"
 existing_verification_command: "corepack pnpm run check"
 existing_compliance_command: "corepack pnpm run compliance"
 ```
@@ -128,15 +128,14 @@ SECRET 只能进入操作系统凭据管理器、CI Secret、硬件密钥或经�
 
 ### 4.2 首次远端 Push 前的硬门槛
 
-当前没有可用的自动政策扫描器，因此首次推送前必须先完成：
+政策/Secret 扫描器已实现并经本地验证（M3-004）：`scripts/policy-scan.mjs`，覆盖未跟踪文件（`git ls-files --others --exclude-standard`）、Secret 模式、禁止路径、大文件和证书/私钥；CI 中已配置等价的 `ci_policy_job`。首次推送前仍须完成：
 
 1. 明确远端 URL 和 `public`/`private` 可见性，并更新 §0。
-2. 实现能检查未跟踪文件、Secret 模式、禁止路径、大文件和证书/私钥的 `policy_scan_command`。
-3. 在 CI 中配置等价的 `ci_policy_job`，并实际运行成功。
-4. 根据目标可见性审查 INTERNAL 文件；公开仓库不得直接推送 INTERNAL 内容。
-5. 确认 `.gitignore` 与本政策一致，且没有误排除构建所需 PUBLIC 文件。
-6. 运行 `corepack pnpm run check` 和新增的政策扫描命令。
-7. 获得用户对 Commit 和 Push 的明确授权。
+2. **远端第一次实际运行时，CI 政策扫描 Job 必须真实运行并成功**（本地已验证，远端随后续首次 Push 验证）。
+3. 根据目标可见性审查 INTERNAL 文件；公开仓库不得直接推送 INTERNAL 内容。
+4. 确认 `.gitignore` 与本政策一致，且没有误排除构建所需 PUBLIC 文件。
+5. 运行 `corepack pnpm run check` 和 `corepack pnpm run policy:scan -- --strict`。
+6. 获得用户对 Commit 和 Push 的明确授权。
 
 在上述条件满足前，Agent 不得声称仓库已准备好公开或推送。
 
@@ -223,10 +222,12 @@ Agent 在创建、移动、提交、打包或发布文件时必须：
 - [x] Secret、生成报告、构建产物和本地工作区已有忽略规则。
 - [x] Release 目标明确为 Windows 与 macOS，项目许可证明确为 MIT。
 - [x] 已有可执行的代码质量与许可证/Provenance/SBOM 合规命令。
-- [ ] 首次远端 Push 前的政策/Secret 扫描命令尚未实现。
-- [ ] 等价 CI 政策扫描 Job 尚未配置和实测。
+- [x] 政策/Secret 扫描命令已实现并经本地验证（`policy:scan`，M3-004）。
+- [x] 等价 CI 政策扫描 Job 已配置；远端首次 Push 时实测。
 - [ ] 未来公开仓库的 INTERNAL 文件处置尚未决定。
-- [ ] M3-004 Release allowlist、Manifest 和 checksum 生成流程尚未实现。
-- [ ] Windows/macOS 最终制品、签名/公证和干净机验证尚未执行。
+- [x] M3-004 Release allowlist、Manifest 和 checksum 生成流程已实现（`release:pack`）。
+- [x] Windows 制品已构建并经本机安装/卸载/升级回滚验证；macOS blocked，签名/公证未执行。
+
+未完成项是对应分发动作的硬门槛，不阻塞当前本地 M0 开发。
 
 未完成项是对应分发动作的硬门槛，不阻塞当前本地 M0 开发。

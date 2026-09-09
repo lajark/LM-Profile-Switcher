@@ -5,7 +5,14 @@
  * in-memory fakes in every environment (tests, the CLI, the future sidecar and
  * the desktop WebView).
  */
-import type { CapabilityMatrix, CompositeProfile, HardwareProfile, LoadEstimate, ActivationTransaction } from '@lmps/domain';
+import type {
+  ActivationTransaction,
+  BenchmarkResult,
+  CapabilityMatrix,
+  CompositeProfile,
+  HardwareProfile,
+  LoadEstimate,
+} from '@lmps/domain';
 
 /** What the host currently has loaded; null fields mean "nothing active". */
 export interface ActiveState {
@@ -64,6 +71,44 @@ export interface CapabilityPort {
 /** Hardware probing for the candidate optimizer (M2-002, PRD FR-02). */
 export interface HardwarePort {
   profile(): Promise<HardwareProfile>;
+}
+
+/**
+ * One measured inference round-trip (M2-003 Benchmark Lite). Timing is captured
+ * by the adapter inside the streaming seam; the core service only aggregates.
+ */
+export interface BenchmarkSample {
+  /** Milliseconds to the first content delta; null when no token arrived. */
+  ttftMs: number | null;
+  /** Generated token count (usage count preferred over delta blocks). */
+  generatedTokens: number;
+  /** Total round-trip wall-clock in milliseconds. */
+  totalMs: number;
+  finishReason: string | null;
+}
+
+export interface BenchmarkMeasureOptions {
+  prompt: string;
+  maxTokens: number;
+  signal?: AbortSignal;
+}
+
+/**
+ * The runtime behind one benchmark run. Loads the target configuration,
+ * streams bounded generations for timing, then restores (unloads) it. Timing
+ * happens here — the pure core service only consumes the returned numbers.
+ */
+export interface BenchmarkRuntime {
+  getActiveState(): Promise<ActiveState>;
+  load(profile: CompositeProfile): Promise<{ loadConfig: Record<string, unknown>; loadMs: number }>;
+  measure(profile: CompositeProfile, options: BenchmarkMeasureOptions): Promise<BenchmarkSample>;
+  /** Unload the benchmark configuration the run loaded. */
+  restore(): Promise<void>;
+}
+
+/** Audit sink for the benchmark result record (M2-003). */
+export interface BenchmarkLogSink {
+  write(result: BenchmarkResult): Promise<void>;
 }
 
 /**

@@ -43,3 +43,43 @@ export class ActivationError extends Error {
 export function isActivationError(error: unknown): error is ActivationError {
   return error instanceof ActivationError;
 }
+
+/**
+ * Stable machine codes for benchmark runs (M2-003). User-level guard failures
+ * (battery, lock busy, empty suite) throw so the CLI exits 4; measurement
+ * failures (timeout/OOM/crash) become a `status:'failed'` result with the
+ * matching errorCode instead — the audit record is still produced.
+ */
+export const BENCHMARK_ERROR_CODES = [
+  'BENCHMARK_BATTERY_GUARD',
+  'BENCHMARK_LOCK_BUSY',
+  'BENCHMARK_PREFLIGHT',
+  'BENCHMARK_TIMEOUT',
+  'BENCHMARK_OOM',
+  'BENCHMARK_CRASH',
+  'BENCHMARK_CANCELED',
+] as const;
+
+export type BenchmarkErrorCode = (typeof BENCHMARK_ERROR_CODES)[number];
+
+export interface BenchmarkErrorOptions {
+  /** Diagnostic text; must never carry tokens or private paths. */
+  detail?: string;
+  cause?: unknown;
+}
+
+export class BenchmarkError extends Error {
+  readonly code: BenchmarkErrorCode;
+  readonly detail?: string;
+
+  constructor(code: BenchmarkErrorCode, message: string, options: BenchmarkErrorOptions = {}) {
+    super(message, options.cause === undefined ? undefined : { cause: options.cause });
+    this.name = 'BenchmarkError';
+    this.code = code;
+    this.detail = options.detail;
+  }
+}
+
+export function isBenchmarkError(error: unknown): error is BenchmarkError {
+  return error instanceof BenchmarkError;
+}

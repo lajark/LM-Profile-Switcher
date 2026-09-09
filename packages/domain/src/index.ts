@@ -13,6 +13,8 @@ export * from './iso-date.js';
 
 export * from './profile.js';
 export * from './rules.js';
+export * from './hook-rules.js';
+export * from './virtual-aliases.js';
 export * from './hardware.js';
 export * from './capability.js';
 export * from './estimate.js';

@@ -11,7 +11,11 @@ import {
   SUPPORTED_LOCALES,
   type Locale,
 } from './detect.js';
-import { I18N_NAMESPACE, type I18nResources } from './resources.js';
+// `I18N_NAMESPACE` equals `DEFAULT_NAMESPACE` in the generated registry. It is
+// imported from there (not from resources.js) so the browser entry below stays
+// free of the Node-only resource-loading module graph.
+import { DEFAULT_NAMESPACE as I18N_NAMESPACE } from './resources.generated.js';
+import type { I18nResources } from './resources.js';
 import type { LanguageStore } from './storage.js';
 import type { ResourceKey } from './resources.generated.js';
 

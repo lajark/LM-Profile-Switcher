@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createRestV1Adapter, isLmStudioError } from '@lmps/lmstudio-adapter';
-import { makeFakeEnv, loadedModel, restModelsBody } from './fixtures.js';
+import { liveHostModel, makeFakeEnv, loadedModel, restModelsBody } from './fixtures.js';
 
 function makeProfile(modelKey: string, runtime: Record<string, unknown> = {}) {
   return {
@@ -29,6 +29,33 @@ describe('createRestV1Adapter', () => {
     const models = await adapter.listModels();
     expect(models.map((m) => m.modelKey)).toEqual(['mistral-7b.Q4_K_M.gguf', 'codestral-22b']);
     expect(models[0]).toMatchObject({ family: 'mistral', quantization: 'Q4_K_M', parametersB: 7 });
+  });
+
+  it('lists models from the live-host shape (`key` field, `models` top-level)', async () => {
+    const env = makeFakeEnv({
+      httpHandler: () => ({
+        status: 200,
+        body: { models: [liveHostModel('qwen/qwen3.8-27b'), liveHostModel('meta/muse-glimmer')] },
+      }),
+    });
+    const adapter = createRestV1Adapter(env);
+    const models = await adapter.listModels();
+    expect(models.map((m) => m.modelKey)).toEqual(['qwen/qwen3.8-27b', 'meta/muse-glimmer']);
+  });
+
+  it('reads active state from a live-host model with non-empty `loaded_instances`', async () => {
+    const env = makeFakeEnv({
+      httpHandler: () => ({
+        status: 200,
+        body: { models: [liveHostModel('qwen/qwen3.8-27b'), liveHostModel('meta/muse-glimmer', true)] },
+      }),
+    });
+    const adapter = createRestV1Adapter(env);
+    await expect(adapter.getActiveState()).resolves.toEqual({
+      profileId: null,
+      modelKey: 'meta/muse-glimmer',
+      since: null,
+    });
   });
 
   it('reports active state from the first loaded model (profile unknown via REST)', async () => {
@@ -63,19 +90,45 @@ describe('createRestV1Adapter', () => {
 
   it('unloads the active model via the unload endpoint', async () => {
     const seen: string[] = [];
+    let unloadBody: string | undefined;
     const env = makeFakeEnv({
       httpHandler: (path, init) => {
         seen.push(`${init.method ?? 'GET'} ${path}`);
         if (path === '/api/v1/models') {
           return { status: 200, body: restModelsBody([loadedModel('current-model')]) };
         }
-        if (path === '/api/v1/models/unload') return { status: 200, body: { success: true } };
+        if (path === '/api/v1/models/unload') {
+          unloadBody = init.body;
+          return { status: 200, body: { success: true } };
+        }
         return { status: 404, rawText: '{"error":"not found"}' };
       },
     });
     const adapter = createRestV1Adapter(env);
     await adapter.unload();
     expect(seen).toContain('POST /api/v1/models/unload');
+    // Live host 2026-09-07 rejects `{"model": …}`; the body must address the
+    // loaded instance by `instance_id` even when the host exposes no instance id.
+    expect(JSON.parse(unloadBody ?? '{}')).toEqual({ instance_id: 'current-model' });
+  });
+
+  it('unloads by instance_id from the live-host loaded_instances shape', async () => {
+    let unloadBody: string | undefined;
+    const env = makeFakeEnv({
+      httpHandler: (path, init) => {
+        if (path === '/api/v1/models') {
+          return { status: 200, body: { models: [liveHostModel('qwen/qwen3.8-27b', true)] } };
+        }
+        if (path === '/api/v1/models/unload') {
+          unloadBody = init.body;
+          return { status: 200, body: { success: true } };
+        }
+        return { status: 404, rawText: '{"error":"not found"}' };
+      },
+    });
+    const adapter = createRestV1Adapter(env);
+    await adapter.unload();
+    expect(JSON.parse(unloadBody ?? '{}')).toEqual({ instance_id: 'qwen/qwen3.8-27b' });
   });
 
   it('unload is a no-op when nothing is loaded', async () => {

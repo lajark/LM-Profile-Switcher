@@ -29,9 +29,20 @@ Use Node.js 20+ and pnpm 10.15.0 through Corepack.
 - SBOM: `corepack pnpm run sbom`
 - Generated third-party notices: `corepack pnpm run notices`
 - Compliance bundle: `corepack pnpm run compliance`
-- Distribution policy: `PROJECT_DISTRIBUTION_POLICY.md`; no automated policy/secret scan exists yet, and `check`/`compliance` do not replace the required first-push local and CI gate.
+- Distribution policy: `PROJECT_DISTRIBUTION_POLICY.md`; policy/secret scanning is implemented via `policy:scan` (below), with an equivalent `--strict` CI job that will be verified on the first remote push.
+- Policy/secret scan: `corepack pnpm run policy:scan` (repo default); `--strict` is the CI gate; `--release <dir>` does a pure-fs scan of a release staging tree. Covers untracked files (`git ls-files --others --exclude-standard`), secret patterns, forbidden paths, large files, and certificates/private keys; discovered values are never echoed.
+- Release assembly: `corepack pnpm run release:pack` (the only write path into `artifacts/releases/<ver>/`; copies approved artifacts + documents from `release-allowlist.json`, writes `release-manifest.json` + `checksums.sha256`, then post-scans the staging tree with `policy-scan --release --strict`; `--force` rebuilds, existing staging is refused by default). Artifacts glob-matching multiple candidates are filtered to exactly one file whose basename encodes the declared version, else refused.
+- Tauri packaging: `corepack pnpm --filter @lmps/desktop run tauri:build` (NSIS currentUser installer into `apps/desktop/src-tauri/target/release/bundle/nsis/`; actually run, `[profile.release]` LTO+strip in effect).
+- Tauri dev: `corepack pnpm --filter @lmps/desktop exec tauri dev` (actual command: pnpm arg passthrough requires `exec tauri dev`; `run tauri -- dev` passes the literal `--` to tauri and fails). Actually run (2026-09-09): vite dev server ready in 951ms (port 1420, react-refresh HMR), cargo dev shell compiled in 31.17s, `LM Profile Switcher` window Responding, supervisor spawned `lmps-sidecar.exe`; smoke evidence LOCAL-ONLY.
+- NSIS install verification: `scripts\verify-nsis-install.ps1 -Installer <exe>` (silent install/uninstall/upgrade/rollback + isolated mock sidecar handshake + mock launch assertions; outputs land in `reports/m3-004/`, LOCAL-ONLY).
+- Desktop frontend build: `corepack pnpm --filter @lmps/desktop run build:frontend` (TS type-check + Vite build into `apps/desktop/frontend/dist`; a prerequisite step before `tauri build`).
+- Sidecar SEA rebuild: `corepack pnpm --filter @lmps/desktop run sidecar:sea` (rebuilds the core-service SEA single exe into `apps/desktop/src-tauri/binaries/`; must be re-run after any sidecar-handler change before launching the shell).
+- Rust desktop shell unit tests: `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` (currently 7: M3-003 tray + supervisor flows).
+- Rust desktop shell build: `cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml`.
+- Real-machine desktop shell run: `cargo run --manifest-path apps/desktop/src-tauri/Cargo.toml` (spawns the sidecar + opens the window; depends on a built sidecar exe and `frontend/dist`).
+- Desktop sidecar env passthrough: `LMPS_ADAPTER=mock`/`LMPS_LMS_BIN`/`LMPS_LM_BIN` are forwarded from the Rust shell to the core-service (`LMPS_ADAPTER=mock` drives the deterministic Benchmark-view demo; set the env before `cargo run`).
 
-Start, E2E, real LM Studio smoke-test, benchmark, and Tauri/Cargo commands do not exist yet; add them only after the corresponding task creates and verifies them.
+E2E, a real LM Studio desktop smoke test, and a Benchmark command are not yet established; both `tauri dev` and `tauri build` ARE verified (see above). Add pending entries only after the corresponding task creates and verifies them.
 
 ## Architecture and Scope
 - Dependency direction: `UI/CLI/Hook → Application Core → Domain + Ports → Adapters/Infrastructure`.

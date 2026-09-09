@@ -5,11 +5,12 @@
  * one-line option — and it is never selected silently (the router requires the
  * explicit override).
  */
-import type { ActivationRuntime, ActiveState } from '@lmps/core';
+import type { ActivationRuntime, ActiveState, BenchmarkRuntime, BenchmarkSample } from '@lmps/core';
 import type { CompositeProfile } from '@lmps/domain';
 
 import type { ModelIdentity } from '../model-names.js';
 import { parseModelIdentity } from '../model-names.js';
+import type { ChatChunk, ChatUsage } from '../rest/chat.js';
 
 export interface MockModelInstance {
   key: string;
@@ -113,3 +114,151 @@ export function createMockAdapter(options: MockAdapterOptions = {}): ActivationR
 }
 
 export type MockAdapter = ReturnType<typeof createMockAdapter>;
+
+export interface MockBenchmarkScript {
+  /** Content deltas the stream yields, in order. */
+  deltas: string[];
+  /** Simulated gap before each delta, ms (default 0 → deterministic). */
+  gapMs?: number;
+  finishReason?: string | null;
+  usage?: { completionTokens?: number; promptTokens?: number } | null;
+}
+
+export interface MockBenchmarkFaults {
+  load?: Error;
+  restore?: Error;
+  getActiveState?: Error;
+  measure?: Error;
+}
+
+export interface MockBenchmarkOptions {
+  /** Single script or a per-sample list (rotated). */
+  scripts?: MockBenchmarkScript | MockBenchmarkScript[];
+  /** Scripted load wall-clock, ms (default 0). */
+  loadMs?: number;
+  nowMs?: () => number;
+  faults?: MockBenchmarkFaults;
+}
+
+export type MockBenchmarkRuntime = BenchmarkRuntime;
+
+/**
+ * Programmable in-memory BenchmarkRuntime (M2-003). Streams yield scripted
+ * deltas on an injected clock so TTFT / generated-token / total-Ms assertions
+ * are exact; faults inject load/measure failures. Used by core and CLI tests
+ * plus the explicit `LMPS_ADAPTER=mock` demo path.
+ */
+export function createMockBenchmarkRuntime(options: MockBenchmarkOptions = {}): MockBenchmarkRuntime {
+  const scripts: MockBenchmarkScript[] =
+    options.scripts === undefined
+      ? [{ deltas: ['hello', ' '] }]
+      : Array.isArray(options.scripts)
+        ? options.scripts
+        : [options.scripts];
+  const faults = options.faults ?? {};
+  const nowMs = options.nowMs ?? (() => Date.now());
+  const loadMs = options.loadMs ?? 0;
+  let measureCount = 0;
+
+  async function measure(): Promise<BenchmarkSample> {
+    const fault = faults.measure;
+    if (fault !== undefined) throw fault;
+    const script = scripts[measureCount % scripts.length] ?? { deltas: [] };
+    const started = nowMs();
+    let ttftMs: number | null = null;
+    let deltaCount = 0;
+    for (const delta of script.deltas) {
+      if ((script.gapMs ?? 0) > 0) await delay(script.gapMs ?? 0);
+      if (delta !== '') {
+        if (ttftMs === null) ttftMs = Math.round(nowMs() - started);
+        deltaCount += 1;
+      }
+    }
+    const finishReason = script.finishReason ?? (script.deltas.length > 0 ? 'stop' : null);
+    const usageCompletion = script.usage?.completionTokens ?? null;
+    measureCount += 1;
+    return {
+      ttftMs,
+      generatedTokens: usageCompletion ?? deltaCount,
+      totalMs: Math.round(nowMs() - started),
+      finishReason,
+    };
+  }
+
+  return {
+    async getActiveState() {
+      const fault = faults.getActiveState;
+      if (fault !== undefined) throw fault;
+      return { profileId: null, modelKey: null, since: null };
+    },
+    async load(profile: CompositeProfile) {
+      const fault = faults.load;
+      if (fault !== undefined) throw fault;
+      return { loadConfig: { model: profile.model.modelKey }, loadMs };
+    },
+    measure,
+    async restore() {
+      const fault = faults.restore;
+      if (fault !== undefined) throw fault;
+    },
+  };
+}
+
+export interface MockChatUpstreamScript {
+  /** Content deltas the stream yields, in order. */
+  deltas: string[];
+  /** Finish reason on the terminal chunk (default 'stop' when deltas exist). */
+  finishReason?: string | null;
+  usage?: ChatUsage | null;
+}
+
+export interface MockChatUpstreamOptions {
+  /** Single script (rotated). */
+  scripts?: MockChatUpstreamScript | MockChatUpstreamScript[];
+  faults?: { open?: Error };
+}
+
+/**
+ * Programmable OpenAI-compatible chat upstream (M4-002): `open(body, signal)`
+ * becomes an `AsyncIterable<ChatChunk>` mirroring what `parseSseChatStream`
+ * yields off the real REST wire, so the proxy seam's offline `LMPS_ADAPTER=mock`
+ * path is deterministic end-to-end. The request body is captured (callers may
+ * assert the injected generation fields) and never interpreted.
+ */
+export function createMockChatUpstream(
+  options: MockChatUpstreamOptions = {},
+): {
+  open(body: Record<string, unknown>, signal?: AbortSignal): Promise<AsyncIterable<ChatChunk>>;
+} {
+  const scripts: MockChatUpstreamScript[] =
+    options.scripts === undefined
+      ? [{ deltas: ['hello'] }]
+      : Array.isArray(options.scripts)
+        ? options.scripts
+        : [options.scripts];
+  const openFault = options.faults?.open;
+  let callCount = 0;
+  return {
+    open: async (body, signal) => {
+      if (openFault !== undefined) throw openFault;
+      const script = scripts[callCount % scripts.length] ?? { deltas: [] };
+      callCount += 1;
+      return (async function* () {
+        for (const delta of script.deltas) {
+          if (signal?.aborted) return;
+          yield { contentDelta: delta, finishReason: null, usage: null };
+        }
+        if (signal?.aborted) return;
+        yield {
+          contentDelta: '',
+          finishReason: script.finishReason ?? (script.deltas.length > 0 ? 'stop' : null),
+          usage: script.usage ?? null,
+        };
+      })();
+    },
+  };
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise<void>((resolveResult) => setTimeout(resolveResult, ms));
+}

@@ -13,10 +13,32 @@ import { LmStudioError, classifyHttpFailure } from '../errors.js';
 
 export const REST_MODELS_PATH = '/api/v1/models';
 
+/**
+ * Transport budget for `POST …/load`. Loading is a cold-start operation that
+ * legitimately takes seconds to minutes (a real 9B host needed ~16s), far
+ * beyond the 5s REST-latency default. Set above the activation stage budget
+ * (60s) so the stage — not the transport — is the deterministic bound; the
+ * transport timeout only guards a hung server as a last-resort safety net.
+ */
+export const REST_LOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
 export interface RestLmModel {
   id: string;
   loaded: boolean;
   loadConfig: Record<string, unknown> | null;
+  /**
+   * Instance id of a loaded model (live-host contract: unload addresses the
+   * loaded instance by `instance_id`, not the model key). Null when the model
+   * is not loaded or the host does not expose instance ids.
+   */
+  instanceId: string | null;
+  /**
+   * Every loaded instance id (live host 2026-09-07: loading the same model with
+   * a different config spawns a second instance, e.g. `qwen/qwen3.5-9b:2`). The
+   * benchmark runtime uses these to restore only the instances a run created and
+   * never an instance another activation left loaded.
+   */
+  loadedInstanceIds: string[];
 }
 
 export interface RestLoadResponse {
@@ -61,6 +83,7 @@ export async function restRequestJson(
       method: init.method ?? 'GET',
       headers: { accept: 'application/json', ...authHeaders(env.token), ...init.headers },
       body: init.body,
+      timeoutMs: init.timeoutMs,
     });
   } catch (error) {
     throw new LmStudioError(`REST ${path} unreachable`, {
@@ -97,7 +120,14 @@ export async function restRequestJson(
   return { status: response.status, body };
 }
 
-/** Parses the `GET /api/v1/models` response (`data` array, optionally `models`). */
+/**
+ * Parses the `GET /api/v1/models` response (`data` array, optionally `models`).
+ * Live host contract (verified 2026-09-06): each row names the model by `key`
+ * (snake_case, e.g. `qwen/qwen3.8-27b`) — not `id` — and reports loaded state
+ * via `loaded_instances` (non-empty when loaded). A legacy `data` array / `id`
+ * / `loaded` shape is accepted for compatibility; rows with neither `id` nor
+ * `key` are dropped.
+ */
 export function parseListResponse(body: unknown): RestLmModel[] {
   if (!isPlainRecord(body)) return [];
   const record: Record<string, unknown> = body;
@@ -107,11 +137,25 @@ export function parseListResponse(body: unknown): RestLmModel[] {
   for (const item of items) {
     if (!isPlainRecord(item)) continue;
     const row: Record<string, unknown> = item;
-    const id = typeof row.id === 'string' && row.id !== '' ? row.id : '';
+    const id =
+      typeof row.id === 'string' && row.id !== ''
+        ? row.id
+        : typeof row.key === 'string' && row.key !== ''
+          ? row.key
+          : '';
     if (id === '') continue;
     const loadConfig = isPlainRecord(row.load_config) ? row.load_config : null;
-    const loaded = row.loaded === true || row.state === 'loaded' || loadConfig !== null;
-    result.push({ id, loaded, loadConfig });
+    const instances = Array.isArray(row.loaded_instances)
+      ? (row.loaded_instances as unknown[]).filter(isPlainRecord)
+      : [];
+    const loaded =
+      row.loaded === true || row.state === 'loaded' || loadConfig !== null || instances.length > 0;
+    const instanceIds: string[] = [];
+    for (const instance of instances) {
+      const instanceId = (instance as Record<string, unknown>).id;
+      if (typeof instanceId === 'string' && instanceId !== '') instanceIds.push(instanceId);
+    }
+    result.push({ id, loaded, loadConfig, instanceId: instanceIds[0] ?? null, loadedInstanceIds: instanceIds });
   }
   return result;
 }
@@ -176,17 +220,31 @@ export async function restLoadModel(env: LmStudioEnv, params: RestLoadParams): P
     method: 'POST',
     headers: jsonContentType(),
     body: JSON.stringify(buildRestLoadBody(params)),
+    // A cold model load is a slow end-to-end operation; its transport budget is
+    // the dedicated load timeout, not the generic REST-latency budget.
+    timeoutMs: REST_LOAD_TIMEOUT_MS,
   });
   return parseLoadResponse(body);
 }
 
+/**
+ * Unloads a loaded model instance. Live-host contract (verified 2026-09-07):
+ * `POST …/unload` requires `instance_id` (`{"model": …}` alone is rejected with
+ * 400 missing-instance_id). The instance id comes from the list response's
+ * `loaded_instances[].id` (or the load response's `instance_id`); when no
+ * instance id is known the model key is sent as a best-effort fallback.
+ */
 export async function restUnloadModel(
   env: LmStudioEnv,
   modelKey: string,
+  instanceId?: string | null,
   identifier?: string | null,
 ): Promise<void> {
-  const body: Record<string, unknown> = { model: modelKey };
-  if (identifier !== undefined && identifier !== null) body.identifier = identifier;
+  const body: Record<string, unknown> = {
+    // The host addresses loaded instances by their instance id, not the key.
+    instance_id: instanceId ?? modelKey,
+  };
+  if (body.instance_id === modelKey && identifier !== undefined && identifier !== null) body.identifier = identifier;
   await restRequestJson(env, `${REST_MODELS_PATH}/unload`, {
     method: 'POST',
     headers: jsonContentType(),

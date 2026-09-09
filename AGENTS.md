@@ -50,8 +50,19 @@
 - SBOM：`corepack pnpm run sbom`。
 - 第三方依赖声明：`corepack pnpm run notices`。
 - 合规产物汇总：`corepack pnpm run compliance`（校验 Provenance，并生成许可证报告、CycloneDX SBOM 和依赖声明）。
-- 分发政策：`PROJECT_DISTRIBUTION_POLICY.md`；当前尚无政策/Secret 自动扫描命令，首次远端 Push 前必须实现并在 CI 中验证，不能以 `check`/`compliance` 代替。
-- 当前尚未建立启动、E2E、真实 LM Studio Smoke Test、Benchmark 或 Tauri/Cargo 命令；相关任务完成并实际验证后再补充。
+- 分发政策：`PROJECT_DISTRIBUTION_POLICY.md`；政策/Secret 扫描已实现：`policy:scan`（见下），CI 已有等价 `--strict` Job，首次远端 Push 时随 Push 实测。
+- 政策/Secret 扫描：`corepack pnpm run policy:scan`（仓库默认）；`--strict` 用于 CI 门；`--release <dir>` 对发布暂存树做纯 fs 扫描。覆盖未跟踪文件（`git ls-files --others --exclude-standard`）、Secret 模式、禁止路径、大文件与证书/私钥；发现值永不回显。
+- 发布组装：`corepack pnpm run release:pack`（唯一写 `artifacts/releases/<ver>/` 的入口；从 `release-allowlist.json` 复制制品与批准文档，写 `release-manifest.json` + `checksums.sha256` 并对暂存树做 `policy-scan --release --strict`；`--force` 重建，已存在默认拒绝；`pre-VER mkst` 不需要）。
+- Tauri 打包：`corepack pnpm --filter @lmps/desktop run tauri:build`（NSIS currentUser 安装包到 `apps/desktop/src-tauri/target/release/bundle/nsis/`；已实跑，`[profile.release]` LTO+strip 生效）。
+- Tauri dev：`corepack pnpm --filter @lmps/desktop exec tauri dev`（实际命令：pnpm 透传参数需用 `exec tauri dev`，`run tauri -- dev` 会把 `--` 传给 tauri 而失败）。已实跑（2026-09-09）：vite dev server 951ms 就绪（端口 1420，react-refresh HMR）、cargo dev 壳编译 31.17s、开窗 `LM Profile Switcher` Responding、supervisor spawn `lmps-sidecar.exe` 成功；冒烟截图证据 LOCAL-ONLY。
+- NSIS 安装验证：`scripts\verify-nsis-install.ps1 -Installer <exe>`（静默装/卸/升级/回滚 + 隔离 mock 侧car 手账 + mock 启动断言；产物写 `reports/m3-004/`，LOCAL-ONLY）。
+- 桌面前端构建：`corepack pnpm --filter @lmps/desktop run build:frontend`（TS 前端类型检查 + Vite 构建到 `apps/desktop/frontend/dist`；`tauri build` 前置一步）。
+- Sidecar SEA 重建：`corepack pnpm --filter @lmps/desktop run sidecar:sea`（重建 core-service SEA 单 exe 到 `apps/desktop/src-tauri/binaries/`；桌面壳启动前 sidecar 处理器变更都必须重跑）。
+- Rust 桌面壳单测：`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`（目前 7 条：M3-003 托盘 + supervisor 流）。
+- Rust 桌面壳构建：`cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml`。
+- 真机桌面壳运行：`cargo run --manifest-path apps/desktop/src-tauri/Cargo.toml`（spawn sidecar + 开窗；依赖已构建的侧car exe 与 `frontend/dist`）。
+- 桌面端 sidecar env 透传：`LMPS_ADAPTER=mock`/`LMPS_LMS_BIN`/`LMPS_LM_BIN` 经 Rust 壳透传给 core-service（`LMPS_ADAPTER=mock` 驱动桌面 Benchmark 视图的确定性演示；`cargo run` 前置该 env 即可）。
+- 尚未建立 E2E、真实 LM Studio 桌面冒烟与 Benchmark 命令；`tauri dev` 与 `tauri build` 均已实跑（见上）。相关任务完成并实际验证后再补充。
 
 > 只保留仓库中真实存在且已实际验证的命令，不让 Agent 猜测包管理器或脚本名称。
 

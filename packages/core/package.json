@@ -10,6 +10,7 @@
     }
   },
   "dependencies": {
+    "@lmps/benchmark": "workspace:*",
     "@lmps/domain": "workspace:*",
     "@lmps/optimizer": "workspace:*"
   }

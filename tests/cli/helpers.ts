@@ -7,6 +7,7 @@ import { createI18n, loadResourceFiles, type I18nService } from '@lmps/i18n';
 import type { ProbeEnv } from '@lmps/hardware';
 
 import { createFileLanguageStore } from '../../apps/cli/src/config.ts';
+import { createAliasConfigStore, createHookConfigStore } from '../../apps/cli/src/deps.ts';
 import type { CliDeps } from '../../apps/cli/src/seams.ts';
 import { makeFakeProbeEnv } from '../hardware/fixtures';
 import { BACKUP_DIR, FakeFs, PROFILE_DIR, makeClock } from '../profile-store/fixtures';
@@ -54,6 +55,9 @@ export function makeCliHarness(overrides: Partial<CliDeps> = {}): CliHarness {
     snapshot: null,
     activation: null,
     recommendation: null,
+    benchmark: null,
+    hookConfig: createHookConfigStore(fs, CLI_ROOT),
+    aliasConfig: createAliasConfigStore(fs, CLI_ROOT),
     nodeVersion: '24.13.1',
   };
 

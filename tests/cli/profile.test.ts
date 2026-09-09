@@ -1,3 +1,4 @@
+// policy-scan:fixture — sk-lmps-test-not-a-real-secret drives show/export key redaction assertions; exemption in scripts/lib/policy-scan-exemptions.json
 import { describe, expect, it } from 'vitest';
 import type { CompositeProfile } from '@lmps/domain';
 

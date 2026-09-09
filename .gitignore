@@ -17,6 +17,13 @@ secrets/
 target/
 src-tauri/target/
 
+# Sidecar packaging artifacts (built, never committed)
+apps/desktop/src-tauri/binaries/
+apps/core-service/dist-bundle/
+apps/core-service/sea/
+apps/core-service/*.blob
+apps/core-service/lmps-sidecar-*.exe
+
 # Local tooling
 .claude/settings.local.json
 CLAUDE.local.md
@@ -31,51 +38,6 @@ diagnostics/
 *.p8
 *.p12
 *.pfx
-
-# Harness workspace: private by default, with explicit governance exceptions
-!.workspace/
-.workspace/*
-!.workspace/TODO.md
-!.workspace/HANDOFF.md
-!.workspace/README.md
-!.workspace/decisions/
-!.workspace/decisions/**
-!.workspace/v4-migration/
-!.workspace/v4-migration/**
-.workspace/tmp/
-.workspace/logs/
-.workspace/cache/
-.workspace/research/private/
-
-# Harness workspace: private by default, with explicit governance exceptions
-!.workspace/
-.workspace/*
-!.workspace/TODO.md
-!.workspace/HANDOFF.md
-!.workspace/README.md
-!.workspace/decisions/
-!.workspace/decisions/**
-!.workspace/v4-migration/
-!.workspace/v4-migration/**
-.workspace/tmp/
-.workspace/logs/
-.workspace/cache/
-.workspace/research/private/
-
-# Harness workspace: private by default, with explicit governance exceptions
-!.workspace/
-.workspace/*
-!.workspace/TODO.md
-!.workspace/HANDOFF.md
-!.workspace/README.md
-!.workspace/decisions/
-!.workspace/decisions/**
-!.workspace/v4-migration/
-!.workspace/v4-migration/**
-.workspace/tmp/
-.workspace/logs/
-.workspace/cache/
-.workspace/research/private/
 
 # Harness workspace: private by default, with explicit governance exceptions
 .workspace/

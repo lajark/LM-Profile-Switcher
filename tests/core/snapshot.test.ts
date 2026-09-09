@@ -1,3 +1,4 @@
+// policy-scan:fixture — sk-live-secret must NOT survive capture; assertion + '[redacted]' tombstone; exemption in scripts/lib/policy-scan-exemptions.json
 import { describe, expect, it } from 'vitest';
 import { captureSnapshot } from '@lmps/core';
 

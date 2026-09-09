@@ -1,3 +1,4 @@
+// policy-scan:fixture — throwaway 'sekrit-token' env fixtures; exemption in scripts/lib/policy-scan-exemptions.json
 /**
  * M1-005 production wiring tests: the `apply` activation seam assembled in
  * `deps.ts`. Covers the mock-selection end-to-end path through the FULL CLI

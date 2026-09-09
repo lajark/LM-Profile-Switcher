@@ -20,7 +20,9 @@ import {
   RuntimeProfileSchema,
   TaskProfileSchema,
 } from './profile.js';
+import { HookRulesDocumentSchema } from './hook-rules.js';
 import { CandidateSchema, RecommendationSchema } from './recommendation.js';
+import { VirtualAliasesDocumentSchema } from './virtual-aliases.js';
 import { RulesDocumentSchema } from './rules.js';
 import { ActivationTransactionSchema } from './transaction.js';
 
@@ -62,6 +64,18 @@ export const DOMAIN_SCHEMAS: readonly DomainSchemaEntry[] = [
     'Rules Document',
     'Versioned task rules: constraints, parameter hints, scoring weights, rationale.',
     RulesDocumentSchema,
+  ),
+  entry(
+    'HookRulesDocument',
+    'Hook Rules Document',
+    'Explicit app/task to profile mapping for the local hook API.',
+    HookRulesDocumentSchema,
+  ),
+  entry(
+    'VirtualAliasesDocument',
+    'Virtual Aliases Document',
+    'Explicit virtual-model to profile mapping for the OpenAI-compatible proxy.',
+    VirtualAliasesDocumentSchema,
   ),
   entry('CapabilityMatrix', 'Capability Matrix', 'Per-adapter capability probing result.', CapabilityMatrixSchema),
   entry('Candidate', 'Candidate', 'One safe, scored candidate configuration for a baseline profile.', CandidateSchema),

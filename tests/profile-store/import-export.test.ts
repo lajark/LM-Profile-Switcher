@@ -1,3 +1,4 @@
+// policy-scan:fixture — sk-test-123 apiKey / 'very-secret' credential round-trip fixture; exemption in scripts/lib/policy-scan-exemptions.json
 // JSON/YAML import-export tests (M1-002, PRD FR-01/FR-05): round trips preserve
 // the contract; strict mode rejects unknown fields and unsupported versions;
 // export sanitizes tokens and absolute private paths before it leaves the store.

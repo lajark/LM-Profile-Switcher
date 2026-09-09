@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser-entry.d.ts",
+      "import": "./dist/browser-entry.js"
     }
   },
   "dependencies": {

@@ -23,12 +23,15 @@
     "hardware:probe": "node scripts/probe-hardware.mjs",
     "probe:real": "node scripts/probe-real.mjs",
     "smoke:real": "node scripts/smoke-real.mjs",
+    "sidecar:smoke:real": "node scripts/sidecar-smoke.mjs",
     "lmps": "node apps/cli/dist/index.js",
     "license:check": "node scripts/license-report.mjs --check",
     "license:report": "node scripts/license-report.mjs --write",
     "sbom": "node scripts/sbom.mjs",
     "notices": "node scripts/notices.mjs",
     "compliance": "node scripts/compliance.mjs",
+    "policy:scan": "node scripts/policy-scan.mjs",
+    "release:pack": "node scripts/release-pack.mjs",
     "check": "corepack pnpm run lint && corepack pnpm run typecheck && corepack pnpm run i18n:check && corepack pnpm run build && corepack pnpm run domain:generate && corepack pnpm run domain:schema:check && corepack pnpm run test && corepack pnpm run compliance"
   },
   "devDependencies": {

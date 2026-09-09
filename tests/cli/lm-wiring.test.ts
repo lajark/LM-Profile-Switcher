@@ -15,12 +15,13 @@ import {
 } from '@lmps/lmstudio-adapter';
 import { createProfileStore, type ProfileStore } from '@lmps/profile-store';
 
-import { createLmStudioCliPorts, mapLmStudioReachability } from '../../apps/cli/src/deps.ts';
+import { createBenchmarkSeam, createLmStudioCliPorts, mapLmStudioReachability } from '../../apps/cli/src/deps.ts';
 import { CliError, isCliError } from '../../apps/cli/src/errors.ts';
 import { runCli } from '../../apps/cli/src/run.ts';
 import { makeCliHarness, envelopeOf } from './helpers';
-import { makeFakeEnv, restModelsBody, loadedModel } from '../lmstudio-adapter/fixtures';
-import { BACKUP_DIR, FakeFs, PROFILE_DIR, makeClock } from '../profile-store/fixtures';
+import { makeFakeEnv, restModelsBody, loadedModel, liveHostModel } from '../lmstudio-adapter/fixtures';
+import { BACKUP_DIR, BASE_DIR, FakeFs, PROFILE_DIR, makeClock } from '../profile-store/fixtures';
+import { makeFakeProbeEnv } from '../hardware/fixtures';
 import { makeProfile } from '../core/fixtures';
 
 const QWEN_KEY = 'qwen2.5-7b-instruct-q4_k_m.gguf';
@@ -178,6 +179,72 @@ describe('LM Studio CLI wiring (M1-003)', () => {
 
     await expect(ports.state.getActive()).rejects.toBeInstanceOf(CliError);
     await expect(ports.state.getActive()).rejects.toMatchObject({ code: 'LM_UNREACHABLE' });
+  });
+});
+
+describe('benchmark seam restore semantics (M2-003 regression: 2026-09-07 live host)', () => {
+  // The bench seam must hand the SAME adapter runtime to load() and restore()
+  // within one run; a fresh runtime per call loses the pre-load instance
+  // snapshot and restore would evict a pre-existing activation. This test
+  // scripts the exact live-host multi-instance scenario: an activation already
+  // loaded `:1`, the benchmark reloads the key, the host spawns `:2`, and
+  // restore must unload only `:2`.
+  it('restore keeps the pre-existing activation instance and unloads only the run-created one', async () => {
+    const fs = new FakeFs();
+    const unloadBodies: string[] = [];
+    // List progression: pre-load snapshot shows only the activation (:1); the
+    // post-load list shows activation + benchmark-created (:2).
+    const listBodies = [
+      JSON.stringify(restModelsBody([liveHostModel(QWEN_KEY, true, [QWEN_KEY])])),
+      JSON.stringify(restModelsBody([liveHostModel(QWEN_KEY, true, [QWEN_KEY, `${QWEN_KEY}:2`])])),
+    ];
+    let listCalls = 0;
+    const lmEnv: LmStudioEnv = {
+      baseUrl: 'http://127.0.0.1:3310',
+      token: null,
+      lmsBin: 'lms',
+      now: () => '2026-09-07T00:00:00.000Z',
+      nowMs: () => 0,
+      async http(path, init) {
+        const baseUrl = 'http://127.0.0.1:3310';
+        const bare = path.startsWith(baseUrl) ? path.slice(baseUrl.length) : path;
+        if (bare === '/api/v1/models') {
+          const listBody = listBodies[listCalls] ?? listBodies[listBodies.length - 1]!;
+          listCalls += 1;
+          return { ok: true, status: 200, text: async () => listBody };
+        }
+        if (bare.endsWith('/models/load')) {
+          return { ok: true, status: 200, text: async () => JSON.stringify({ instance_id: `${QWEN_KEY}:2` }) };
+        }
+        if (bare.endsWith('/models/unload')) {
+          unloadBodies.push(init?.body ?? '');
+          return { ok: true, status: 200, text: async () => JSON.stringify({ success: true }) };
+        }
+        return { ok: false, status: 404, text: async () => '{"error":"unhandled"}' };
+      },
+      async httpStream() {
+        return {
+          ok: true,
+          status: 200,
+          body: () => ['data: {"choices":[{"delta":{"content":"hi"}}]}\ndata: [DONE]\n'],
+        };
+      },
+      async runLms() {
+        return { exitCode: 0, stdout: '', stderr: '', timedOut: false };
+      },
+    };
+    const seam = createBenchmarkSeam(fs, {
+      lmEnv,
+      selection: 'auto',
+      probeEnv: makeFakeProbeEnv(),
+      rootDir: BASE_DIR,
+    });
+    const profile = makeProfile('bench-target', { model: { modelKey: QWEN_KEY, family: 'qwen2' } });
+    const result = await seam.service.run(profile, { samples: 1, maxTokens: 8, sampleTimeoutMs: 0 });
+    expect(result.status).toBe('completed');
+    // Exactly one unload, of the run-created :2 instance only.
+    expect(unloadBodies).toHaveLength(1);
+    expect(JSON.parse(unloadBodies[0] ?? '{}')).toEqual({ instance_id: `${QWEN_KEY}:2` });
   });
 });
 
