@@ -62,3 +62,6 @@ PROJECT_DISTRIBUTION_POLICY_TEMPLATE.md
 .gitignore.snippet
 CLAUDE.md
 CLAUDE.local.example.md
+project-spec.json
+skills.lock.json
+scripts/harness/
