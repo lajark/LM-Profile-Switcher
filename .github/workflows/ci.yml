@@ -24,6 +24,12 @@ jobs:
       - name: Install dependencies
         run: corepack pnpm install --frozen-lockfile
       - name: Run verification suite
-        run: corepack pnpm run check
+        id: verify
+        run: corepack pnpm run check 2>&1 | tee /tmp/check.log
+        shell: bash
+      - name: Surface failure detail (diagnostic)
+        if: failure() && steps.verify.outcome == 'failure'
+        run: tail -80 /tmp/check.log | sed 's/^/::error::verify: /'
+        shell: bash
       - name: Policy and secret scan
         run: corepack pnpm run policy:scan -- --strict
