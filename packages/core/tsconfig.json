@@ -5,5 +5,9 @@
     "outDir": "dist"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../domain" }]
+  "references": [
+    { "path": "../benchmark" },
+    { "path": "../domain" },
+    { "path": "../optimizer" }
+  ]
 }
