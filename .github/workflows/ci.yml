@@ -29,7 +29,9 @@ jobs:
         shell: bash
       - name: Surface failure detail (diagnostic)
         if: failure() && steps.verify.outcome == 'failure'
-        run: "tail -80 /tmp/check.log | sed 's/^/::error::verify: /'"
+        run: |
+          TAIL=$(tail -120 /tmp/check.log | python3 -c "import sys,urllib.parse;print(urllib.parse.quote(sys.stdin.read()))")
+          echo "::error file=check.log,title=check-tail::$TAIL"
         shell: bash
       - name: Policy and secret scan
         run: corepack pnpm run policy:scan -- --strict
