@@ -73,5 +73,5 @@ Rollback:
 
 - Wire contract: `apps/core-service/src/protocol.ts` (frame shapes, auth, cancel, stream-final frame); deterministic tests in `tests/core-service/transports.test.ts` (25 tests, in-memory state machine + real loopback HTTP/pipe servers).
 - Architecture guards: `tests/core-service/architecture.test.ts` (import limits, no CJK, loopback-only, no `.lmstudio`/`.internal`, pure-module `node:` ban) and `tests/desktop/architecture.test.ts` (presentation boundary).
-- Real-machine evidence and remaining items: `docs/tasks/M0-006-completion.md`.
+- Real-machine evidence and remaining items are recorded in the internal task archive (LOCAL-ONLY). The spike report behind this ADR lives at `~/.lmps/spike/m0-006-report.json` (LOCAL-ONLY).
 - SECRET handling: `LMPS_LM_TOKEN` is env-only, never logged, never written into the repo; real-machine smoke output is redacted and lives only under `~/.lmps/realm/`.

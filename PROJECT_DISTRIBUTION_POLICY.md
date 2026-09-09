@@ -2,13 +2,15 @@
 
 > 版本：v1.0  
 > 生效日期：2026-08-21  
-> 依据：`PROJECT_DISTRIBUTION_POLICY_TEMPLATE.md` v2.0  
+> 公开仓库版本：2026-09-09（撰写依据的团队模板为 LOCAL-ONLY，不随公开仓库分发）  
 > 核心原则：最小必要分发、默认不公开、Secret 永不进入版本历史、Release 仅从明确清单组装。
 
 ## 0. 项目参数与当前状态
 
 ```yaml
-repository_visibility: "local-only"
+repository_visibility: "public"
+public_repository_github: "https://github.com/lajark/LM-Profile-Switcher.git"
+public_repository_gitee: "https://gitee.com/li_nanqi/lm-profile-switcher.git"
 release_visibility: "none"
 planned_release_targets:
   - "windows-installer"
@@ -23,14 +25,14 @@ existing_verification_command: "corepack pnpm run check"
 existing_compliance_command: "corepack pnpm run compliance"
 ```
 
-当前事实：
+当前事实（2026-09-09）：
 
-- 仓库尚未配置或核验远端，也没有提交历史，因此当前按 `local-only` 管理。
-- 尚未建立正式 Release 流程，`release_visibility` 为 `none`。
-- MIT 许可证不自动等同于仓库或 Release 已获准公开；可见性必须单独决定。
-- `corepack pnpm run check` 和 `corepack pnpm run compliance` 已存在，但它们不是 Secret/路径分发扫描器。
-- `policy_scan_command` 和 `ci_policy_job` 为空，首次推送任何远端前必须实现并验证等价的本地与 CI 守门。
-- 将仓库或 Release 改为 `public`/`private` 属于政策变更，必须由用户明确授权并同步本文件、`.gitignore`、CI 和发布清单。
+- 仓库已获用户明确授权公开，并推送到 GitHub（`lajark/LM-Profile-Switcher`）与 Gitee（`li_nanqi/lm-profile-switcher`）两个 public remote；公开历史由 `git filter-repo` 剥离内部工具配置、内部任务档案与 LOCAL-ONLY 材料后重写。
+- 尚未建立正式 Release 流程，`release_visibility` 为 `none`；发布组装仅由 `release:pack` 从 `release-allowlist.json` 驱动。
+- MIT 许可证不自动等同于仓库或 Release 已获准可见；未来可见性变更仍须按政策记录。
+- `corepack pnpm run check` 与 `corepack pnpm run compliance` 不是 Secret/路径分发扫描器；`policy:scan`（含 CI `--strict` 门）是本仓库的结构性分发守门。
+- `policy_scan_command` 与 `ci_policy_job` 已实现；`--strict` 的远端 CI 首次实测随首次远端 Push 完成，结果记录在各任务完成记录（LOCAL-ONLY）。
+- 将仓库或 Release 改为其它可见性仍属政策变更，必须由用户明确授权并同步本文件、`.gitignore`、CI 和发布清单。
 
 本文件是本项目文件分类、仓库可见性和 Release 内容边界的单一事实来源。`AGENTS.md` 仍是项目总规则的权威来源；发生冲突时依次遵循安全与许可证、`AGENTS.md`，并立即修订本文件消除冲突。
 

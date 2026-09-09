@@ -1,85 +1,68 @@
 # LM Profile Switcher
 
-**仓库启动阶段｜版本：0.1.0**
+[English](README.md)
 
-LM Profile Switcher 是一个独立、非官方的 LM Studio 本地模型 Profile 管理工具，与 LM Studio 官方不存在隶属、合作或背书关系。
+独立、本地优先的 [LM Studio](https://lmstudio.ai) 伴侣工具：提供硬件感知的模型 Profile 管理、基于任务的配置推荐、有界实测校准与一键安全切换。本项目是**独立、非官方的社区项目**，与 LM Studio 官方不存在隶属、合作或背书关系。
 
-当前仓库处于启动骨架阶段，产品能力将严格按照 `TASKS.md` 的原子任务逐项加入。
+## 功能特性
 
-## 开发
+- **Schema 校验的 Profile**：版本化的 `HardwareProfile` / `ModelProfile` / `TaskProfile` / `RuntimeProfile` / `GenerationProfile` / `BehaviorProfile` 领域契约，以纯 JSON/YAML 持久化在 `LMPS_HOME`（缺省 `~/.lmps`）下，支持原子写入与写前备份。
+- **硬件感知的推荐**：本机硬件探测（GPU 优先 `nvidia-smi`、通用回退），确定性候选优化器带显存安全余量，按任务类别排序并附中英双语理由。
+- **Benchmark Lite**：有界、可取消、绑定机器指纹的客观基准（加载时间 / TTFT / Prefill / Decode tokens·s⁻¹ / 峰值显存），结束后自动恢复原模型。
+- **安全激活事务**：带健康检查与自动回滚的状态机；CLI、托盘、Benchmark、Hook 与 Proxy 共用同一把 `activation.lock` 串行化激活。
+- **桌面端（Tauri 2）**：React/Web GUI 由轻量 Rust 壳承载——Profile 编辑器、优化向导、基准视图、硬件面板，以及驱动与 CLI 同一激活事务的系统托盘。
+- **本机自动化（仅回环）**：
+  - `lmps hook`：按应用/任务驱动的模型切换，持久化 token 认证，默认拒绝（deny-by-default）规则；
+  - `lmps proxy`：OpenAI 兼容 HTTP 面（`GET /v1/models`、`POST /v1/chat/completions`），经默认拒绝的别名文档把虚拟模型名映射到 Profile，支持会话锁定与显式 opt-in 激活。两者均只绑定 `127.0.0.1`。
+- **国际化**：所有用户可见字符串均为 `zh-CN` 与 `en` 双语；`--json` 输出使用稳定、不本地化的机器信封。
+- **受治理的分发**：`policy:scan` 结构性策略/Secret 扫描守门每一次提交、发布暂存树与 CI 流水线（strict 模式）。
 
-要求：Node.js 20 或更高版本，以及 pnpm 10.15.0（支持 Corepack）。
+## 环境要求
+
+- Node.js ≥ 20 与 pnpm 10.15.0（支持 Corepack）。
+- 桌面端构建需要 Windows 或 macOS；CLI 可在任意 Node.js 环境运行。
+
+## 快速开始
 
 ```text
 corepack pnpm install
-corepack pnpm run check
+corepack pnpm run build
+corepack pnpm run lmps -- --help
+corepack pnpm run lmps -- --json profile list
 ```
 
-`check` 会依次运行仓库 Lint、类型检查、i18n 门禁（语言 key 一致性、生成文件时效、用户可见硬编码扫描）、TypeScript 构建、单元测试和合规汇总。启动阶段检查不连接 LM Studio，也不下载模型。
+`corepack pnpm run check` 依次运行 Lint、类型检查、i18n 门禁、TypeScript 构建、领域 Schema 生成与时效门禁、单元测试与合规汇总；无需连接 LM Studio 或下载模型。
 
-最终发布目标：同时提供 Windows 安装包和 macOS 可安装分发包。macOS 支持的具体架构、签名和公证在 M3-004 中通过实测确定。
+## 文档
 
-## 国际化基础（M0-003）
+- `docs/ARCHITECTURE.md` — 模块、进程与 Adapter 设计
+- `docs/CLI_SPEC.md` — `lmps` 命令契约、机器信封与退出码
+- `docs/SECURITY.md` — 威胁模型、Secret 处理与回环绑定策略
+- `docs/OPEN_SOURCE_REUSE_POLICY.md` — 借用代码的来源与许可证规则
+- `docs/TRACEABILITY_MATRIX.md` — 需求—任务—测试追踪
+- `docs/RELEASE_NOTES-0.1.0.md` — 首个打包版本发布说明
+- `PROJECT_DISTRIBUTION_POLICY.md` — 文件分类与发布边界
+- `AGENTS.md` — 项目规则与已验证命令
 
-- `packages/i18n` 提供跨 CLI、Core Service 和 React/Web GUI 复用的事件无关 i18next 核心：语言检测与规范化、英文 fallback、即时切换、可注入持久化和类型安全翻译 key。
-- 首发语言为 `zh-CN` 与 `en`，资源位于 `locales/<locale>/common.json`；机器 JSON 输出不使用本地化 key。
-- `corepack pnpm run i18n:check` 作为 CI 门禁，同时校验语言 key 一致性、生成 key 的时效和用户可见硬编码字符串；改动资源后运行 `corepack pnpm run i18n:generate` 重新生成类型安全 key。
+## 仓库布局
 
-## 领域契约（M0-004）
+```text
+apps/cli                 lmps CLI（薄入口）
+apps/core-service        本地 sidecar：stdio/管道/回环 HTTP IPC、Hook 与 Proxy 面
+apps/desktop             Tauri 2 壳 + React/Web GUI 与系统托盘
+packages/benchmark       有界客观基准
+packages/core            用例编排、状态机与业务规则
+packages/domain          纯领域契约 + 生成的 JSON Schema
+packages/hardware        本机硬件探测
+packages/i18n            语言资源与类型安全 key
+packages/lmstudio-adapter  所有 LM Studio 调用（SDK / REST v1 / lms CLI）统一在一个边界之后
+packages/optimizer       数据驱动、有界的候选生成
+packages/profile-store   原子存储、备份、迁移、导入导出
+scripts/                 策略扫描、发布组装、安装验证
+```
 
-- `packages/domain` 提供纯领域契约（不依赖 Node/Tauri/文件系统/网络/LM Studio，可在 WebView 复用）：PRD §6 的 10 个核心契约（`HardwareProfile`、`ModelProfile`、`TaskProfile`、`RuntimeProfile`、`GenerationProfile`、`BehaviorProfile`、`LoadEstimate`、`BenchmarkResult`、`ActivationTransaction`、`CapabilityMatrix`）和组合形态 `CompositeProfile`。
-- Zod 作为单一事实来源：类型 + 校验器 + 生成的 JSON Schema（`packages/domain/schemas/*.schema.json`，带 `__CHECKSUM__`，不得手工编辑）。字段约束与既有 v1 样例（`schemas/`）保持一致，不修改已发布样本。
-- 序列化支持 JSON 与 YAML 往返一致；未知字段策略：默认保留（向前兼容），导入时可用显式 strict 模式拒绝；版本不兼容时报稳定错误码，绝不静默改写。
-- 迁移（`packages/domain/src/migrate.ts`）为纯函数：失败不动源对象（可回滚）、未来版本明确拒绝，并提供 Runtime/Generation/Behavior 分离工具。
-- `corepack pnpm run domain:generate`（先 `build`）重新生成 Schema；`corepack pnpm run domain:schema:check` 作为 CI 门禁比对产物时效。
+## 许可证
 
-## 硬件探测（M1-001）
+MIT — 见 [LICENSE](LICENSE)。
 
-- `packages/hardware` 探测本机 OS/CPU/RAM/GPU/VRAM/磁盘/电源并返回领域 `HardwareProfile`；所有平台能力经注入的 `ProbeEnv` 进入采集器，纯模块只依赖合成 fixtures 即可跨平台测试。
-- GPU 路径优先 `nvidia-smi`，**仅当两个 VRAM 总量都可靠才生成 `gpus` 条目**（2026-08-22 用户确认的策略，WMI `AdapterRAM` 为 uint32 限幅不可信）；否则走通用适配器枚举（WMI + 注册表类键），其名称进入硬件指纹并保持 `gpus: null`。
-- 诊断输出经 `redactDiagnostics` 脱敏；指纹（`computeHardwareFingerprint`）只用稳定非身份字段（`os`/`arch`/`cpuModel`/`cores`/`threads`/`totalMemoryBytes`/排序 `gpuNames`/排序 `volumeTotalBytes`）。
-- `corepack pnpm run hardware:probe` 输出脱敏机器 JSON 快照，需先 `corepack pnpm run build`；其输出属 LOCAL-ONLY，不得入仓库。
-
-## Profile 存储（M1-002）
-
-- `packages/profile-store` 提供领域 Profile 的持久化：CRUD、原子写（temp + fsync + 同目录 rename，任意一步失败抛稳定 `STORE_IO_FAILED` 且原文件不变）、写前备份（默认保留最新 20 份，1–200 可配）与 `recover()` 启动恢复（损坏主文件→从最新合法备份恢复；备份复活缺失主文件；清理残留 temp）。
-- 存储实现经注入的 `Fsys` seam 与时钟（`ctx.now()`）进入，纯模块离线可测；运行时失败映射 `STORE_*` 机器码（`STORE_NOT_FOUND`/`STORE_CORRUPTED`/`STORE_IMPORT_FAILED` 等），配置错误（备份数越界）抛普通 `RangeError`。
-- 导入导出支持 JSON 与 YAML：导入默认 strict 拒绝未知字段可用 `allowRename` 处理 id 冲突并限流（`STORE_LIMIT_EXCEEDED`）；导出默认脱敏——未知 token/secret 键置 `null`、绝对私有路径段（`C:\Users\…`、`/home/…`）替换为 `<private>`，领域字段不受影响、往返一致。
-- 可选索引接口 `ProfileIndex`（`list/get/upsert/remove/invalidate`）附内存实现 `createMemoryIndex`；SQLite 索引按已确认策略后置，Profile 文件是唯一事实来源。
-
-## CLI（M1-004）
-
-- `apps/cli` 提供产品命令 `lmps`：`profile list/show/create/edit/clone/delete/import/export`、`hardware`、`lang`、`doctor` 为完整实现，`models/current/snapshot` 为注入 seam（M1-003/005 接线前诚实返回 exit 6）。
-- 全局 flag `--json/--lang/--verbose/--no-color/--timeout`；机器信封 `{product,api,ok,locale,command,data|error}` 稳定不本地化；人类输出走 i18n key（`zh-CN`/`en` 双语）；退出码 0/2/3/4/5/6/10（2/3/5 为 M1-005 预留）。
-- 数据根 `LMPS_HOME`（缺省 `~/.lmps`）含 profile 存储与语言持久化；`doctor --bundle` 的诊断对象先脱敏；详细契约见 `docs/CLI_SPEC.md`。
-- 试运行：先 `corepack pnpm run build`，再 `corepack pnpm run lmps -- --help` 或 `corepack pnpm run lmps -- --json profile list`。
-
-以下文件仍是本项目的正式产品与工程基线。
-
-本开发包用于 Claude Code、Codex、Cursor、TRAE 等 AI 编程工具分阶段执行，也供人工开发者和评审者使用。
-
-## 定稿结论
-
-- 正式名称：**LM Profile Switcher**
-- 界面简称：**LM Switcher**
-- CLI：`lmps`
-- 核心路线：**TypeScript Core + CLI 先行，Tauri 2 承载 Web GUI 的桌面薄壳后接入**
-- GUI 形态：**React/Web GUI**；布局和交互可参考 CC Switch，但不复制其代码或建立仓库依赖
-- 项目许可证：**MIT**（详见 `LICENSE`）
-- LM Studio 接入：官方 TypeScript SDK、原生 REST API v1、`lms` CLI 统一封装于 Adapter
-- 开源继承：允许选择性移植，但禁止 Fork 主线、Git Submodule、Git Subtree、运行时拉取和跨仓构建依赖
-- 首发语言：简体中文、英文；语言包可扩展
-- 稳定功能不得读取或修改 LM Studio 私有目录和未公开格式
-
-## AI 编程工具读取顺序
-
-1. `AGENTS.md`：项目级规则的单一事实来源
-2. `PROJECT_DISTRIBUTION_POLICY.md`：文件分类、仓库可见性和 Release 内容边界
-3. `docs/PRD.zh-CN.md`：完整产品与工程需求
-4. `TASKS.md`：原子化任务与验收条件
-5. `docs/IMPLEMENTATION_PLAN.md`：里程碑和依赖顺序
-6. `docs/ARCHITECTURE.md`：模块、进程和 Adapter 设计
-7. `docs/OPEN_SOURCE_REUSE_POLICY.md`：开源代码继承边界
-8. `docs/TRACEABILITY_MATRIX.md`：需求—任务—测试追踪
-
-> 本项目是独立、非官方的社区工具，与 LM Studio 官方不存在隶属、合作或背书关系。
+> LM Profile Switcher 是独立、非官方的社区工具，与 LM Studio 官方不存在隶属、合作或背书关系。

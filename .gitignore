@@ -39,18 +39,26 @@ diagnostics/
 *.p12
 *.pfx
 
-# Harness workspace: private by default, with explicit governance exceptions
+# Internal engineering artifacts (present on maintainer machines only; never part of the public repository)
+.claude/
+.agents/
+.codex/
+.trae/
 .workspace/
-!.workspace/
-.workspace/*
-!.workspace/TODO.md
-!.workspace/HANDOFF.md
-!.workspace/README.md
-!.workspace/decisions/
-!.workspace/decisions/**
-!.workspace/v4-migration/
-!.workspace/v4-migration/**
-.workspace/tmp/
-.workspace/logs/
-.workspace/cache/
-.workspace/research/private/
+docs/agents/
+docs/tasks/
+CONTEXT.md
+WORKFLOW.md
+TASKS.md
+TODO.md
+docs/PRD.en.md
+docs/PRD.zh-CN.md
+docs/IMPLEMENTATION_PLAN.md
+docs/COMPARISON_AND_FINAL_DECISIONS.zh-CN.md
+docs/RELEASE_CHECKLIST.md
+MANIFEST.sha256.json
+VALIDATION_REPORT.md
+PROJECT_DISTRIBUTION_POLICY_TEMPLATE.md
+.gitignore.snippet
+CLAUDE.md
+CLAUDE.local.example.md

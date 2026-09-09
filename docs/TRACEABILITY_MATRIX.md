@@ -1,5 +1,8 @@
 # Requirements Traceability Matrix / 需求追踪矩阵
 
+> 本矩阵保留需求—任务—测试映射。完成记录、决策草稿与验收证据等过程档案保存在维护者本机（LOCAL-ONLY），不随公开仓库分发；矩阵中出现的 `docs/tasks/*`、`.workspace/decisions/*` 类路径均指该内部档案。
+> This matrix keeps the requirement–task–test mapping. Completion records, decision drafts, and verification evidence live on maintainer machines (LOCAL-ONLY) and are not shipped with this repository; `docs/tasks/*` and `.workspace/decisions/*` references above point to that internal archive.
+
 | Requirement | Primary tasks | Main tests |
 |---|---|---|
 | FR-01 Profile management | M0-004, M1-002, M1-004 | domain contract validation, JSON/YAML round trip, unknown-field policy, schema round trip, CRUD, import/export; M1-002 CRUD + update backup/updatedAt stamp, path-traversal id rejection, JSON/YAML import round trip + strict/allowRename/oversize/hostile-id, export sanitize (token/secret keys → null, absolute private path → `<private>`), uncorrupted-path error leak guard; M1-004 CLI list summary + --model/--task filter, show sanitized doc, create from stdin(-)/YAML-file with --name id-match + duplicate-id fast-fail + rollback on mismatch, edit deep-merge patch + id-immutable + template mode, clone fresh metadata, delete --yes, import extension routing + --allow-rename, export literal document + -o (not wrapped by --json) |
