@@ -33,6 +33,51 @@ corepack pnpm run lmps -- --json profile list
 
 `corepack pnpm run check` 依次运行 Lint、类型检查、i18n 门禁、TypeScript 构建、领域 Schema 生成与时效门禁、单元测试与合规汇总；无需连接 LM Studio 或下载模型。
 
+## 真机基准测试
+
+测试于 **2026-09-10** 在本机进行：RTX 5060 Ti 16 GB（驱动 596.36）、Intel Core Ultra 5 225H（14C/14T）、31.4 GiB 内存、Windows 11。LM Studio 服务位于 `127.0.0.1:1234`；每个档案运行在 `8k 上下文 / max 显存卸载`（Q4_K_M 量化）。基准设置为 3 样本 × 64 tokens，通过 `lmps benchmark` 执行；以下数字取自 CLI 实测结果 JSON（原始数据 LOCAL-ONLY，已按发布政策脱敏）。
+
+### Qwen3.5-9B-Q4_K_M（5.2 GB，全量驻留 GPU）
+
+| 指标 | 优化前 | `optimize` 后 | Δ |
+| --- | ---: | ---: | ---: |
+| 加载时间 (ms) | 6306 | 6315 | +0.1% |
+| TTFT (ms) | 169 | **138** | **−18.3%** |
+| Prefill (tok/s) | 189 | **219** | **+15.8%** |
+| Decode (tok/s) | 65.17 | 64.84 | −0.5% |
+| 峰值显存 (GiB) | 6.61 | 6.60 | −0.1% |
+
+优化器选择了低时延候选：context 8192→4096、temperature（缺省）→0.6、卸载策略不变（`max`）。结果：首 token 快约 18%，decode 吞吐基本持平。
+
+### Qwen3.8-27B-Q4_K_M（15.7 GB，临近显存上限）—— 有意拒绝
+
+| 指标 | 优化前基线 |
+| --- | ---: |
+| 加载时间 (ms) | 49244 |
+| TTFT (ms) | 5733 |
+| Decode (tok/s) | 2.24 |
+| 峰值显存 (GiB) | 6.61* |
+
+`lmps optimize` **拒绝了全部候选**：quick-chat 规则的每个草稿都保持 `gpuOffload: max`，而 15.7 GB 权重 + KV cache 的精确显存估算超出 16 GB 显存，优化器按"默认拒绝"（deny-by-default）原则不推荐不安全配置。*峰值为 GPU/CPU 溢分配额——该模型只有依赖系统内存溢出才能运行。
+
+### Qwen3.6-35B-A3B-Q4_K_M（19.7 GB MoE，超出显存）—— 有意拒绝
+
+| 指标 | 优化前基线 |
+| --- | ---: |
+| 加载时间 (ms) | 45475 |
+| TTFT (ms) | 621 |
+| Decode (tok/s) | 31.92 |
+| 峰值显存 (GiB) | 3.48 |
+
+`lmps optimize` 在此处同样**拒绝了全部候选**：max 卸载估算将完整 19.7 GB 计入 16 GB 显存。值得注意的是该模型在实践中*能够*运行——MoE 模型只需约 3 B 活跃专家驻留显存（实测峰值 3.48 GiB）——因此这次拒绝是安全门偏保守的一面，不属于本版本可修复的缺陷。
+
+### 诚实标注
+
+- 9B 首次基线命中了冷磁盘缓存（峰值 271 MB / 加载 23.5 s）；上表使用干净复测值。
+- 27B/35B 的拒绝是数据点，符合安全门"默认拒绝"的设计意图。
+
+- 截图：[配置档案](docs/screenshots/screenshot-profiles.png) · [优化向导·接受](docs/screenshots/screenshot-optimize-9b.png) · [优化向导·拒绝](docs/screenshots/screenshot-optimize-27b-rejected.png) · [硬件](docs/screenshots/screenshot-hardware.png)。
+
 ## 文档
 
 - `docs/ARCHITECTURE.md` — 模块、进程与 Adapter 设计

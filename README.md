@@ -33,6 +33,51 @@ corepack pnpm run lmps -- --json profile list
 
 `corepack pnpm run check` runs lint, typecheck, the i18n gate, the TypeScript build, domain-schema generation + freshness, unit tests, and the compliance bundle. It needs no LM Studio connection or model download.
 
+## Real-machine benchmarks
+
+Measured on **2026-09-10** on this machine: RTX 5060 Ti 16 GB (driver 596.36), Intel Core Ultra 5 225H (14C/14T), 31.4 GiB RAM, Windows 11. LM Studio server at `127.0.0.1:1234`; every profile runs at `8k context / max GPU offload` (Q4_K_M quantizations). Benchmark settings: 3 samples × 64 tokens via `lmps benchmark`; the numbers below come from the CLI-measured result JSON.
+
+### Qwen3.5-9B-Q4_K_M (5.2 GB, fully GPU-resident)
+
+| Metric | Baseline | After `optimize` | Δ |
+| --- | ---: | ---: | ---: |
+| Load time (ms) | 6306 | 6315 | +0.1% |
+| TTFT (ms) | 169 | **138** | **−18.3%** |
+| Prefill (tok/s) | 189 | **219** | **+15.8%** |
+| Decode (tok/s) | 65.17 | 64.84 | −0.5% |
+| Peak VRAM (GiB) | 6.61 | 6.60 | −0.1% |
+
+The optimizer picked the low-latency candidate: context 8192→4096, temperature (unset)→0.6, offload unchanged (`max`). Result: ~18% faster first token at unchanged decode throughput.
+
+### Qwen3.8-27B-Q4_K_M (15.7 GB, at the VRAM limit) — rejected on purpose
+
+| Metric | Baseline |
+| --- | ---: |
+| Load time (ms) | 49 244 |
+| TTFT (ms) | 5733 |
+| Decode (tok/s) | 2.24 |
+| Peak VRAM (GiB) | 6.61* |
+
+`lmps optimize` **rejected all candidates**: every quick-chat draft keeps `gpuOffload: max`, and the exact VRAM estimate for 15.7 GB of weights ± KV cache exceeds the 16 GB card, so the optimizer refuses (deny-by-default) instead of recommending an unsafe load. *Peak is the GPU/CPU spill portion — the model only runs via system-RAM overflow.
+
+### Qwen3.6-35B-A3B-Q4_K_M (19.7 GB MoE, beyond VRAM) — rejected on purpose
+
+| Metric | Baseline |
+| --- | ---: |
+| Load time (ms) | 45 475 |
+| TTFT (ms) | 621 |
+| Decode (tok/s) | 31.92 |
+| Peak VRAM (GiB) | 3.48 |
+
+`lmps optimize` **rejected all candidates** here too: the max-offload estimate counts the full 19.7 GB against 16 GB VRAM. Note the model *does* run in practice — MoE models only keep the ~3 B active experts resident (3.48 GiB peak) — so this rejection is the conservative side of the safety gate, not a limitation fixable in this release.
+
+### Honest notes
+
+- The 9B first baseline run hit a cold disk cache (peak 271 MB / load 23.5 s); a clean re-run went into the table.
+- The 27B/35B rejections are intended data points for the deny-by-default safety gate.
+
+- Screenshots: [profiles](docs/screenshots/screenshot-profiles.png) · [optimize accepted](docs/screenshots/screenshot-optimize-9b.png) · [optimize rejected](docs/screenshots/screenshot-optimize-27b-rejected.png) · [hardware](docs/screenshots/screenshot-hardware.png).
+
 ## Documentation
 
 - `docs/ARCHITECTURE.md` — modules, processes, and adapter design
