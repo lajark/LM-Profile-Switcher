@@ -25,8 +25,11 @@ function collectTsFiles(directory, output) {
 }
 
 /**
- * SHA-256 over all domain sources (paths + raw bytes). This is the "source of
- * truth" side of the freshness gate, mirroring `computeLocalesDigest`.
+ * SHA-256 over all domain sources. Paths are normalized to forward slashes and
+ * file bytes to LF-only line endings, so the digest is identical on any
+ * platform and any checkout line-ending policy (`core.autocrlf`). This is the
+ * "source of truth" side of the freshness gate, mirroring
+ * `computeLocalesDigest`.
  */
 export function schemaSourceDigest(workspaceRoot) {
   const srcRoot = resolve(workspaceRoot, DOMAIN_SRC_REL);
@@ -35,13 +38,14 @@ export function schemaSourceDigest(workspaceRoot) {
   }
   const files = [];
   collectTsFiles(srcRoot, files);
-  files.sort((a, b) => relative(workspaceRoot, a).localeCompare(relative(workspaceRoot, b)));
+  const relOf = (p) => relative(workspaceRoot, p).replaceAll('\\', '/');
+  files.sort((a, b) => relOf(a).localeCompare(relOf(b)));
 
   const hash = createHash('sha256');
   for (const file of files) {
-    hash.update(relative(workspaceRoot, file));
+    hash.update(relOf(file));
     hash.update('\0');
-    hash.update(readFileSync(file));
+    hash.update(readFileSync(file, 'utf8').replace(/\r\n/g, '\n'));
   }
   return hash.digest('hex');
 }

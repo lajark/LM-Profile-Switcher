@@ -47,13 +47,17 @@ export function loadAllLocaleResources(root) {
 }
 
 /**
- * Stable digest of the raw resource file bytes.
- * The generated resource-key file embeds this digest so drift can be detected by the gate.
+ * Stable digest of the locale resources.
+ * Raw file bytes are normalized first (JSON semantics, two-space indent,
+ * LF-only line endings), so the digest is identical on any platform and any
+ * checkout line-ending policy (`core.autocrlf`). The generated resource-key
+ * file embeds this digest so drift can be detected by the gate.
  */
 export function computeLocalesDigest(root) {
   const hash = createHash('sha256');
   for (const locale of SUPPORTED_LOCALES) {
-    hash.update(readFileSync(localeFile(root, locale)));
+    const resource = readLocaleResource(root, locale);
+    hash.update(`${JSON.stringify(resource, null, 2)}\n`);
   }
   return hash.digest('hex');
 }
