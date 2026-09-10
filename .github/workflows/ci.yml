@@ -29,16 +29,9 @@ jobs:
           corepack pnpm run check > /tmp/check.log 2>&1
           rc=$?
           if [ $rc -ne 0 ]; then
-            python3 - <<'PY' >&2
-import pathlib, re
-t = pathlib.Path('/tmp/check.log').read_text(errors='replace')
-t = re.sub(r'\x1b\[[0-9;]*m', '', t)
-lines = t.splitlines()
-sel = lines[-100:]
-enc = lambda s: s.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-msg = '%0A'.join(enc(l)[:500] for l in sel)[:3800]
-print(f"::error title=check-failed rc={rc}::{msg}")
-PY
+            tail -120 /tmp/check.log | sed -e 's/\x1b\[[0-9;]*m//g' -e 's/%/%25/g' | tr '\n' '%0A' > /tmp/check.enc
+            msg=$(cat /tmp/check.enc)
+            echo "::error title=check-failed rc=${rc}::$msg"
           fi
           exit $rc
       - name: Policy and secret scan
