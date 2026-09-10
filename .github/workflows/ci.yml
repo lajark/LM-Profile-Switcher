@@ -23,16 +23,6 @@ jobs:
       - name: Install dependencies
         run: corepack pnpm install --frozen-lockfile
       - name: Run verification suite
-        shell: bash
-        run: |
-          set +e
-          corepack pnpm run check > /tmp/check.log 2>&1
-          rc=$?
-          if [ $rc -ne 0 ]; then
-            tail -120 /tmp/check.log | sed -e 's/\x1b\[[0-9;]*m//g' -e 's/%/%25/g' | tr '\n' '%0A' > /tmp/check.enc
-            msg=$(cat /tmp/check.enc)
-            echo "::error title=check-failed rc=${rc}::$msg"
-          fi
-          exit $rc
+        run: corepack pnpm run check
       - name: Policy and secret scan
         run: corepack pnpm run policy:scan -- --strict
