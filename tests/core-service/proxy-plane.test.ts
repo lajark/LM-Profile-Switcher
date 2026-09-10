@@ -594,11 +594,16 @@ describe('GET /v1/models + aliases.status (M4-002)', () => {
 
   it('aliases.status reports METHOD_UNSUPPORTED without the seam and ALIASES_INVALID on a broken doc', async () => {
     const plane = await makePlane({ doc: makeAliases() });
+    // Inject the fake store: the default store eagerly mkdir's rootDir on the
+    // real filesystem, which is not writable for the non-root CI runner (the
+    // /app rootDir here is meant for the memory-only fake fs). aliases.status
+    // still reports METHOD_UNSUPPORTED because the alias seam is what is absent.
     const unsupported = createHandlers({
       lmBaseUrl: undefined,
       lmToken: null,
       lmsBin: undefined,
       rootDir: ROOT,
+      store: plane.store,
       alias: null,
       hook: null,
       activation: null,
