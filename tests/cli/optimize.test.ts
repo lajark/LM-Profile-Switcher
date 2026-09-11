@@ -162,6 +162,28 @@ describe('lmps optimize (M2-002)', () => {
     expect(entry.candidateId).toBe('rag-prime-max');
   });
 
+  it('--yes audits the calibration verdict when the baseline is measured (M5-009)', async () => {
+    const harness = makeCliHarness();
+    const baseline = { ...baselineProfile(), validation: { source: 'benchmarked', testedAt: NOW, memoryPeakBytes: 10 * 1024 ** 3 } };
+    harness.store.create(baseline);
+    const { seam, audit } = stubSeam(recommendation());
+    harness.deps.recommendation = seam;
+
+    const result = await runCli(['optimize', 'rag-prime', '--yes'], harness.deps);
+    expect(result.exitCode).toBe(0);
+    expect(audit).toHaveBeenCalledTimes(1);
+    const entry = audit.mock.calls[0]?.[0] as Record<string, unknown>;
+    // Estimate (VRAM 6 + RAM 2 = 8 GiB) is exceeded by the measured peak → degraded.
+    expect(entry.calibration).toMatchObject({
+      applied: true,
+      degraded: true,
+      note: 'degraded',
+      estimatedTotalBytes: 8 * 1024 ** 3,
+      overrunBytes: 2 * 1024 ** 3,
+      confidence: 'low',
+    });
+  });
+
   it('--json wraps the recommendation without the saved id', async () => {
     const harness = makeCliHarness();
     harness.store.create(baselineProfile());

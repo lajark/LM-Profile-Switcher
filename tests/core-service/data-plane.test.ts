@@ -366,6 +366,29 @@ describe('optimize data plane (M3-002)', () => {
     });
   });
 
+  it('save audits the calibration verdict when the baseline is measured (M5-009)', async () => {
+    const store = makeStore();
+    store.create({
+      ...validProfile('alpha'),
+      validation: { source: 'benchmarked', testedAt: FAKE_NOW, memoryPeakBytes: 9 * 1024 ** 3 },
+    });
+    const seam = stubRecommendation(recommendation());
+    const plane = makePlane({ store, recommendation: seam });
+
+    const res = await dispatch(plane, 'optimize.save', { profileId: 'alpha' });
+    expect(res.error).toBeUndefined();
+    expect(seam.audit).toHaveBeenCalledTimes(1);
+    const entry = (seam.audit as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as Record<string, unknown>;
+    // Estimate = vram 6 + RAM 2 = 8 GiB; measured 9 GiB > 1.1x → degraded.
+    expect(entry.calibration).toMatchObject({
+      applied: true,
+      degraded: true,
+      note: 'degraded',
+      estimatedTotalBytes: 8 * 1024 ** 3,
+      overrunBytes: 1 * 1024 ** 3,
+    });
+  });
+
   it('save refuses when nothing is safe', async () => {
     const store = makeStore();
     store.create(validProfile('alpha'));

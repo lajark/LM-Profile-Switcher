@@ -96,6 +96,17 @@ function saveCandidate(
   };
   const created = deps.store.create(saved); // duplicate id → STORE_ALREADY_EXISTS → exit 4
 
+  // M5-009: persist the estimate-vs-measured calibration verdict for the saved
+  // candidate when the baseline carries a measured peak — advisory audit trail.
+  const measuredPeak = baseline.validation?.memoryPeakBytes ?? null;
+  const calibration =
+    typeof measuredPeak === 'number'
+      ? calibrateEstimate(selected.estimate, {
+          status: 'completed',
+          metrics: { memoryPeakBytes: measuredPeak },
+        } as BenchmarkResult)
+      : undefined;
+
   seam.audit({
     at: now,
     baselineProfileId: baseline.id,
@@ -104,6 +115,7 @@ function saveCandidate(
     ruleVersion: recommendation.ruleVersion,
     confidence: selected.score.confidence,
     candidateId: selected.id,
+    calibration,
   });
   return created;
 }

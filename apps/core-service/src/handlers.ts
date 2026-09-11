@@ -654,6 +654,9 @@ export function createHandlers(options: SidecarHandlerOptions): Handlers {
         };
         // Duplicate id → STORE_ALREADY_EXISTS surfaces as-is; no rollback.
         const created = requireStore().create(saved);
+        // M5-009: advisory calibration verdict for the saved (head) candidate.
+        const projection = buildCalibrationProjection(baseline, recommendation);
+        const headCalibration = projection.candidates.find((entry) => entry.candidateId === head.id)?.verdict;
         seam.audit({
           at: timestamp,
           baselineProfileId: baseline.id,
@@ -662,8 +665,9 @@ export function createHandlers(options: SidecarHandlerOptions): Handlers {
           ruleVersion: recommendation.ruleVersion,
           confidence: head.score.confidence,
           candidateId: head.id,
+          calibration: headCalibration,
         });
-        return { appliedProfileId: created.id, recommendation, calibration: buildCalibrationProjection(baseline, recommendation) };
+        return { appliedProfileId: created.id, recommendation, calibration: projection };
       }),
 
     /**
