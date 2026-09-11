@@ -1,0 +1,70 @@
+name: Draft Release (lightweight)
+
+# M5-007: lightweight manual/tag Draft/Pre-release automation. Deliberately NO
+# semantic-release / Changesets. Publisher is gated: the release step only runs
+# after the build + release-pack + policy gates succeed, and it creates a Draft
+# (not public). `fail_on_unmatched_files: true` refuses a partial release if any
+# allowlisted asset is missing. Signing/notarization secrets are OPTIONAL and
+# never logged.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (must match apps/desktop/src-tauri/tauri.conf.json)'
+        required: true
+        default: '0.2.0-beta.1'
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+      - name: Verify source gates
+        run: corepack pnpm run check
+      - name: Coverage baseline ratchet
+        run: corepack pnpm run coverage:run && corepack pnpm run coverage:ratchet
+      - name: Version consistency
+        # release-pack reads version from tauri.conf.json (single source); the
+        # dispatch input must match it — refused otherwise.
+        run: |
+          GOT=$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")
+          if [ "$GOT" != "${{ inputs.version }}" ] && [ "$GOT" != "${GITHUB_REF_NAME#v}" ]; then
+            echo "version mismatch: tauri.conf=$GOT input=${{ inputs.version }}"; exit 1
+          fi
+          echo "version ok: $GOT"
+      - name: Assemble allowlisted artifacts (release-pack)
+        run: node scripts/release-pack.mjs --version "${{ inputs.version }}"
+      - name: Publish Draft (allowlisted assets only)
+        if: ${{ !cancelled() && !failure() }}
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: true
+          files: |
+            artifacts/releases/${{ inputs.version }}/windows-x86_64/*.exe
+            artifacts/releases/${{ inputs.version }}/release-manifest.json
+            artifacts/releases/${{ inputs.version }}/checksums.sha256
+            artifacts/releases/${{ inputs.version }}/RELEASE_NOTES-*.md
+            artifacts/releases/${{ inputs.version }}/THIRD_PARTY_NOTICES.generated.md
+            artifacts/releases/${{ inputs.version }}/dependency-licenses.json
+            artifacts/releases/${{ inputs.version }}/LICENSE
+            artifacts/releases/${{ inputs.version }}/sbom.cdx.json
+          fail_on_unmatched_files: true
+          generate_release_notes: false
