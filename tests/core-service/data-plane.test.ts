@@ -298,6 +298,45 @@ describe('optimize data plane (M3-002)', () => {
     expect(store.list().length).toBe(1);
   });
 
+  it('preview returns an advisory calibration projection when the baseline is measured', async () => {
+    const store = makeStore();
+    store.create({
+      ...validProfile('alpha'),
+      validation: { source: 'benchmarked', testedAt: FAKE_NOW, memoryPeakBytes: 9 * 1024 ** 3 },
+    });
+    const seam = stubRecommendation(recommendation());
+    const plane = makePlane({ store, recommendation: seam });
+
+    const res = await dispatch(plane, 'optimize.preview', { profileId: 'alpha' });
+    expect(res.error).toBeUndefined();
+    const body = res.result as {
+      calibration: {
+        measuredPeakBytes: number | null;
+        candidates: Array<{ candidateId: string; verdict: Record<string, unknown> }>;
+      };
+    };
+    // Estimate = vram 6GiB + system RAM 2GiB = 8GiB; measured peak 9GiB > 1.1x.
+    expect(body.calibration.measuredPeakBytes).toBe(9 * 1024 ** 3);
+    expect(body.calibration.candidates).toHaveLength(1);
+    const verdict = body.calibration.candidates[0]?.verdict;
+    expect(body.calibration.candidates[0]?.candidateId).toBe('alpha-max');
+    expect(verdict?.applied).toBe(true);
+    expect(verdict?.degraded).toBe(true);
+    expect(verdict?.overrunBytes).toBe(1 * 1024 ** 3);
+  });
+
+  it('preview emits an empty calibration projection when the baseline is unmeasured', async () => {
+    const store = makeStore();
+    store.create(validProfile('alpha'));
+    const plane = makePlane({ store, recommendation: stubRecommendation(recommendation()) });
+
+    const res = await dispatch(plane, 'optimize.preview', { profileId: 'alpha' });
+    expect(res.error).toBeUndefined();
+    const body = res.result as { calibration: { measuredPeakBytes: number | null; candidates: unknown[] } };
+    expect(body.calibration.measuredPeakBytes).toBeNull();
+    expect(body.calibration.candidates).toEqual([]);
+  });
+
   it('save applies the head candidate, persists a rule-recommended profile and audits', async () => {
     const store = makeStore();
     store.create(validProfile('alpha'));

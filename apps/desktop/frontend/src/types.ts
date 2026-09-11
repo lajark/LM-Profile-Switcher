@@ -80,6 +80,18 @@ export interface DiffRow {
   candidate: unknown;
 }
 
+export type ResourceFitName =
+  | 'gpu-resident'
+  | 'hybrid-memory'
+  | 'host-memory'
+  | 'resource-unknown'
+  | 'resource-insufficient';
+
+/**
+ * M5-003: per-candidate resource projection surfaced from `@lmps/domain`
+ * `Candidate` through the sidecar data plane. Liberty-supplying `[k: string]`
+ * stays so legacy fields (e.g. legacy `safe`/`reason`) remain passable.
+ */
 export interface CandidateView {
   id: string;
   profile: ProfileDocument;
@@ -88,7 +100,28 @@ export interface CandidateView {
     safe: boolean;
     reason: string | null;
     headroomBytes: number | null;
+    /** M5-001: five-class resource fit verdict. */
+    resourceFit?: ResourceFitName | null;
+    /** GPU/Total estimate split. */
+    vramUsedBytes?: number | null;
+    vramAvailableBytes?: number | null;
+    vramReserveBytes?: number | null;
+    /** RAM budget (M5-003). */
+    ramUsedBytes?: number | null;
+    ramReserveBytes?: number | null;
+    ramHeadroomBytes?: number | null;
+    [k: string]: unknown;
   };
+  /**
+   * M5-001/003: load estimate (GPU + total + system RAM) used by CLI resource
+   * detail. Carried verbatim from `@lmps/domain` `Candidate.estimate`.
+   */
+  estimate?: {
+    vramTotalBytes?: number | null;
+    totalMemoryBytes?: number | null;
+    systemRamBytes?: number | null;
+    [k: string]: unknown;
+  } | null;
   score: {
     total: number;
     breakdown?: Record<string, number>;
@@ -100,6 +133,24 @@ export interface CandidateView {
   [k: string]: unknown;
 }
 
+/** M5-003: normalized calibration verdict mirror of `@lmps/optimizer`. */
+export interface CalibrationVerdictView {
+  applied: boolean;
+  comparedPeakBytes: number | null;
+  estimatedTotalBytes: number | null;
+  ratio: number | null;
+  degraded: boolean;
+  overrunBytes: number | null;
+  confidence: 'measured' | 'low' | 'estimated';
+  note: 'calibrated' | 'degraded' | 'unavailable';
+}
+
+/** M5-003: advisory calibration projection returned alongside a recommendation. */
+export interface CalibrationProjectionView {
+  measuredPeakBytes: number | null;
+  candidates: Array<{ candidateId: string; verdict: CalibrationVerdictView }>;
+}
+
 export interface RecommendationView {
   schemaVersion?: number;
   baselineProfileId: string;
@@ -109,6 +160,14 @@ export interface RecommendationView {
   selectedIndex: number | null;
   generatedAt: string;
   warnings: string[];
+  /** M5-003: estimate-vs-measured calibration projection (advisory). */
+  calibration?: CalibrationProjectionView;
+}
+
+/** `optimize.preview` / `optimize.save` payload with calibration projection. */
+export interface OptimizePreviewView {
+  recommendation: RecommendationView;
+  calibration: CalibrationProjectionView;
 }
 
 export interface BenchmarkMetrics {

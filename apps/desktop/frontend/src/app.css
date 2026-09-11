@@ -438,6 +438,28 @@ pre.result {
   padding: 10px 14px;
 }
 
+/* --- M5-003 resource estimate + calibration detail --- */
+
+.resource-detail {
+  margin: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.resource-lines {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.calibration-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .rationale p {
   margin: 4px 0;
   font-size: 13px;

@@ -13,14 +13,23 @@
  * stable code the Dispatcher forwards verbatim; anything unexpected collapses to
  * INTERNAL so the existing handler behavior (settings.setLocale) is unchanged.
  */
-import { isActivationError, isBenchmarkError, type ActivationRunResult } from '@lmps/core';
+import {
+  calibrateEstimate,
+  isActivationError,
+  isBenchmarkError,
+  type ActivationRunResult,
+  type CalibrationVerdict,
+} from '@lmps/core';
 import {
   describeHookRules,
   describeVirtualAliases,
   isDomainError,
   matchHookRule,
   TASK_KINDS,
+  type BenchmarkResult,
+  type Candidate,
   type CompositeProfile,
+  type Recommendation,
 } from '@lmps/domain';
 import { createDefaultProbeEnv, probeHardware, redactDiagnostics } from '@lmps/hardware';
 import {
@@ -157,6 +166,41 @@ function uniqueRuleProfileIds(document: {
     }
   }
   return ids;
+}
+
+/** BasicMemoryPeak projection shape exposed to the desktop view. */
+export interface CalibrationProjection {
+  measuredPeakBytes: number | null;
+  /** Per-candidate advisory verdicts keyed by candidate id; empty when unmeasured. */
+  candidates: Array<{ candidateId: string; verdict: CalibrationVerdict }>;
+}
+
+/**
+ * M5-003: compare each candidate's load estimate against the baseline's
+ * measured peak (validation.memoryPeakBytes) and report an advisory verdict.
+ * Calibration never mutates the estimate; it only surfaces `degraded` when the
+ * measured peak exceeds the estimate beyond the tolerance. Empty projection when
+ * the baseline carries no completed measurement, so the view can stay silent.
+ */
+function buildCalibrationProjection(
+  baseline: CompositeProfile,
+  recommendation: Recommendation,
+): CalibrationProjection {
+  const measuredPeakBytes = baseline.validation?.memoryPeakBytes ?? null;
+  if (measuredPeakBytes === null || typeof measuredPeakBytes !== 'number') {
+    return { measuredPeakBytes: null, candidates: [] };
+  }
+  const asBenchmark = {
+    status: 'completed' as const,
+    metrics: { memoryPeakBytes: measuredPeakBytes },
+  } as BenchmarkResult;
+  const candidates: CalibrationProjection['candidates'] = recommendation.candidates.map(
+    (candidate: Candidate) => ({
+      candidateId: candidate.id,
+      verdict: calibrateEstimate(candidate.estimate, asBenchmark),
+    }),
+  );
+  return { measuredPeakBytes, candidates };
 }
 
 // ---------------------------------------------------------------------------
@@ -568,13 +612,18 @@ export function createHandlers(options: SidecarHandlerOptions): Handlers {
         return { id };
       }),
 
-    /** Run the candidate optimizer for one baseline; never writes anything. */
+    /**
+     * M5-003: advisory per-candidate calibration projection. Compares each
+     * candidate's load estimate against the baseline's measured peak and reports
+     * `degraded` transparently — never overwrites the estimate. Empty when the
+     * baseline carries no completed measurement.
+     */
     'optimize.preview': async (params, signal) =>
       guard(async () => {
         const seam = requireRecommendation();
         const baseline = requireStore().get(paramProfileId(params));
         const recommendation = await seam.service.recommend(baseline, { signal });
-        return { recommendation };
+        return { recommendation, calibration: buildCalibrationProjection(baseline, recommendation) };
       }),
 
     /**
@@ -614,7 +663,7 @@ export function createHandlers(options: SidecarHandlerOptions): Handlers {
           confidence: head.score.confidence,
           candidateId: head.id,
         });
-        return { appliedProfileId: created.id, recommendation };
+        return { appliedProfileId: created.id, recommendation, calibration: buildCalibrationProjection(baseline, recommendation) };
       }),
 
     /**

@@ -9,7 +9,13 @@ import { useEffect, useState } from 'react';
 import type { I18nService, ResourceKey } from '@lmps/i18n/browser';
 import { rpc } from '../api';
 import { useTypedRpc } from '../hooks';
-import type { CandidateView, ProfilesList, RecommendationView } from '../types';
+import type {
+  CandidateView,
+  CalibrationProjectionView,
+  OptimizePreviewView,
+  ProfilesList,
+  ResourceFitName,
+} from '../types';
 import { displayNameOf, rpcFailureText } from './ProfilesView';
 
 interface OptimizeViewProps {
@@ -22,6 +28,16 @@ interface OptimizeViewProps {
 }
 
 const GIB = 1024 ** 3;
+
+function gib(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '';
+  return `${(value / GIB).toFixed(1)} GiB`;
+}
+
+/** Resource-fit classes that indicate the candidate cannot fully reside on GPU. */
+function isUnsafeFit(fit: ResourceFitName | null | undefined): boolean {
+  return fit === 'host-memory' || fit === 'resource-insufficient';
+}
 
 function formatValue(value: unknown): string {
   if (typeof value === 'string') return value;
@@ -45,8 +61,8 @@ export function OptimizeView({
   const [saveStartPid, setSaveStartPid] = useState<string | null>(null);
 
   const profiles = useTypedRpc<ProfilesList>();
-  const preview = useTypedRpc<{ recommendation: RecommendationView }>();
-  const save = useTypedRpc<{ appliedProfileId: string; recommendation: RecommendationView }>();
+  const preview = useTypedRpc<OptimizePreviewView>();
+  const save = useTypedRpc<{ appliedProfileId: string; recommendation: OptimizePreviewView['recommendation'] }>();
 
   useEffect(() => {
     profiles.run(() => rpc.profilesList());
@@ -72,6 +88,7 @@ export function OptimizeView({
   }, [save.state.kind, onProfilesChanged]);
 
   const recommendation = preview.state.kind === 'done' ? preview.state.value.recommendation : null;
+  const calibration = preview.state.kind === 'done' ? preview.state.value.calibration : null;
   const candidates = recommendation?.candidates ?? [];
 
   const canSave =
@@ -100,6 +117,70 @@ export function OptimizeView({
     const key = `desktop.tasks.${kind}` as ResourceKey;
     const label = t(key);
     return label === key ? kind : label;
+  };
+
+  const resourceFitKey = (fit: ResourceFitName | null | undefined): ResourceKey | null => {
+    switch (fit) {
+      case 'gpu-resident':
+        return 'resourceFit.gpuResident' as ResourceKey;
+      case 'hybrid-memory':
+        return 'resourceFit.hybridMemory' as ResourceKey;
+      case 'host-memory':
+        return 'resourceFit.hostMemory' as ResourceKey;
+      case 'resource-unknown':
+        return 'resourceFit.resourceUnknown' as ResourceKey;
+      case 'resource-insufficient':
+        return 'resourceFit.resourceInsufficient' as ResourceKey;
+      default:
+        return null;
+    }
+  };
+
+  const calibrationFor = (
+    calibration: CalibrationProjectionView | null,
+    candidateId: string,
+  ) =>
+    calibration?.candidates.find((entry) => entry.candidateId === candidateId)?.verdict ?? null;
+
+  const renderResourceRow = (
+    candidate: CandidateView,
+    calibration: CalibrationProjectionView | null,
+  ) => {
+    const est = candidate.estimate;
+    const safety = candidate.safety;
+    const verdict = calibrationFor(calibration, candidate.id);
+    const fitKey = resourceFitKey(safety.resourceFit);
+    const lines: string[] = [];
+    if (typeof est?.vramTotalBytes === 'number') lines.push(t('optimize.memGpu', { value: gib(est.vramTotalBytes) }));
+    if (typeof est?.totalMemoryBytes === 'number') lines.push(t('optimize.memTotal', { value: gib(est.totalMemoryBytes) }));
+    if (safety.ramReserveBytes != null) lines.push(t('optimize.ramReserve', { value: gib(safety.ramReserveBytes) }));
+    if (safety.ramHeadroomBytes != null) lines.push(t('optimize.ramHeadroom', { value: gib(safety.ramHeadroomBytes) }));
+    const hasAnything = fitKey !== null || lines.length > 0 || verdict?.applied === true;
+    if (!hasAnything) return null;
+    return (
+      <div className="resource-detail">
+        {fitKey !== null && (
+          <span className={`pill ${isUnsafeFit(safety.resourceFit) ? 'pill-low' : 'pill-safe'}`}>
+            {t(fitKey)}
+          </span>
+        )}
+        {lines.length > 0 && (
+          <ul className="resource-lines">
+            {lines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        )}
+        {verdict?.applied === true && (
+          <div className="calibration-row">
+            <span className="pill pill-low">
+              {t('optimize.measuredPeak', { value: gib(verdict.comparedPeakBytes) })}
+            </span>
+            {verdict.degraded && <span className="pill pill-low">{t('optimize.degraded')}</span>}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderCandidate = (candidate: CandidateView, index: number) => {
@@ -131,9 +212,11 @@ export function OptimizeView({
           <div className="candidate-body">
             <p className="muted">
               {candidate.safety.safe && candidate.safety.headroomBytes !== null
-                ? t('optimize.headroom', { value: (candidate.safety.headroomBytes / GIB).toFixed(2) })
+                ? t('optimize.headroom', { value: gib(candidate.safety.headroomBytes) })
                 : candidate.safety.reason ?? ''}
             </p>
+
+            {renderResourceRow(candidate, calibration)}
 
             {candidate.diff !== null && candidate.diff.length > 0 && (
               <table className="diff-table">

@@ -11,10 +11,10 @@ import type {
   ActivationStatus,
   BenchmarkBody,
   HardwareView,
+  ProfilesMeta,
+  OptimizePreviewView,
   ProfileDocument,
   ProfilesList,
-  ProfilesMeta,
-  RecommendationView,
   RpcFailure,
 } from './types';
 
@@ -75,9 +75,9 @@ export const rpc = {
   activationApply: (id: string) =>
     invokeRpc<ActivationApplyResult>('activation.apply', { id }, ACTIVATION_APPLY_TIMEOUT_MS),
   optimizePreview: (profileId: string) =>
-    invokeRpc<{ recommendation: RecommendationView }>('optimize.preview', { profileId }),
+    invokeRpc<OptimizePreviewView>('optimize.preview', { profileId }),
   optimizeSave: (profileId: string) =>
-    invokeRpc<{ appliedProfileId: string; recommendation: RecommendationView }>(
+    invokeRpc<{ appliedProfileId: string; recommendation: OptimizePreviewView['recommendation'] }>(
       'optimize.save',
       { profileId },
     ),
