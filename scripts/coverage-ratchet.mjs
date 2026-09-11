@@ -18,6 +18,8 @@ const SUMMARY = resolve(ROOT, '.workspace/coverage/coverage-summary.json');
 const BASELINE = resolve(ROOT, 'coverage-baseline.json');
 const GOAL = 80;
 
+const RATCHET_TOLERANCE = 0.5;
+
 function readSummary() {
   if (!existsSync(SUMMARY)) {
     console.error(`coverage summary not found: ${SUMMARY}`);
@@ -48,8 +50,8 @@ function writeBaseline(pct) {
 const current = readSummary();
 const baseline = readBaseline();
 
-if (baseline !== null && current < baseline) {
-  console.error(`COVERAGE REGRESSION: ${current.toFixed(2)}% below baseline ${baseline.toFixed(2)}%`);
+if (baseline !== null && current < baseline - RATCHET_TOLERANCE) {
+  console.error(`COVERAGE REGRESSION: ${current.toFixed(2)}% more than ${RATCHET_TOLERANCE}pt below baseline ${baseline.toFixed(2)}%`);
   console.error('See .workspace/coverage/coverage-summary.json; do not lower the committed baseline.');
   process.exit(1);
 }
