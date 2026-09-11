@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit manually.
 // Source of truth: locales/zh-CN/common.json, locales/en/common.json.
 // Regenerate with `corepack pnpm run i18n:generate`.
-// __CHECKSUM__: 001f1d75e7ff6d78239d03ac1600d3b6a37b728a90d2f9b139fab6f10a106ddf
+// __CHECKSUM__: d2f7c3a8d35b40a4c621b5f341bbc45035a5372cccc4c43fb91e19f8143ea6ab
 
 export const DEFAULT_NAMESPACE = 'common';
 
@@ -138,6 +138,17 @@ export const resourceKeys = [
   'optimize.confidenceHigh',
   'optimize.confidenceLow',
   'optimize.headroom',
+  'optimize.memGpu',
+  'optimize.memTotal',
+  'optimize.ramReserve',
+  'optimize.ramHeadroom',
+  'optimize.measuredPeak',
+  'optimize.degraded',
+  'resourceFit.gpuResident',
+  'resourceFit.hybridMemory',
+  'resourceFit.hostMemory',
+  'resourceFit.resourceUnknown',
+  'resourceFit.resourceInsufficient',
   'candidate.head',
   'candidate.score',
   'candidate.unsafe',
@@ -466,6 +477,17 @@ export interface CommonResources {
   'optimize.confidenceHigh': string;
   'optimize.confidenceLow': string;
   'optimize.headroom': string;
+  'optimize.memGpu': string;
+  'optimize.memTotal': string;
+  'optimize.ramReserve': string;
+  'optimize.ramHeadroom': string;
+  'optimize.measuredPeak': string;
+  'optimize.degraded': string;
+  'resourceFit.gpuResident': string;
+  'resourceFit.hybridMemory': string;
+  'resourceFit.hostMemory': string;
+  'resourceFit.resourceUnknown': string;
+  'resourceFit.resourceInsufficient': string;
   'candidate.head': string;
   'candidate.score': string;
   'candidate.unsafe': string;

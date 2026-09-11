@@ -1,5 +1,7 @@
 # LM Profile Switcher
 
+[![CI](https://github.com/lajark/LM-Profile-Switcher/actions/workflows/ci.yml/badge.svg)](https://github.com/lajark/LM-Profile-Switcher/actions/workflows/ci.yml)
+
 [English](README.md)
 
 独立、本地优先的 [LM Studio](https://lmstudio.ai) 伴侣工具：提供硬件感知的模型 Profile 管理、基于任务的配置推荐、有界实测校准与一键安全切换。本项目是**独立、非官方的社区项目**，与 LM Studio 官方不存在隶属、合作或背书关系。
@@ -21,6 +23,10 @@
 
 - Node.js ≥ 20 与 pnpm 10.15.0（支持 Corepack）。
 - 桌面端构建需要 Windows 或 macOS；CLI 可在任意 Node.js 环境运行。
+
+## 发布状态
+
+截至 **2026-09-11**，源码仓库已经公开，但 GitHub 和 Gitee 均**没有可供终端用户下载的公开 Release**。本机存在一次基于旧源码提交的 Windows 0.1.0 历史打包结果，它只是维护者验证证据，不是当前版本下载包。当前没有任何 macOS 制品。M5 计划从同一源码生成 Windows x86_64、macOS arm64、macOS x86_64 的 `0.2.0-beta.1` 候选制品，并放入 GitHub Draft/Pre-release；在具备 Mac 真机与 Apple 凭据前，macOS 真机安装、签名和公证将明确标为未验证。
 
 ## 快速开始
 
@@ -49,7 +55,7 @@ corepack pnpm run lmps -- --json profile list
 
 优化器选择了低时延候选：context 8192→4096、temperature（缺省）→0.6、卸载策略不变（`max`）。结果：首 token 快约 18%，decode 吞吐基本持平。
 
-### Qwen3.8-27B-Q4_K_M（15.7 GB，临近显存上限）—— 有意拒绝
+### Qwen3.8-27B-Q4_K_M（15.7 GB，临近显存上限）—— 当前优化器拒绝
 
 | 指标 | 优化前基线 |
 | --- | ---: |
@@ -58,9 +64,9 @@ corepack pnpm run lmps -- --json profile list
 | Decode (tok/s) | 2.24 |
 | 峰值显存 (GiB) | 6.61* |
 
-`lmps optimize` **拒绝了全部候选**：quick-chat 规则的每个草稿都保持 `gpuOffload: max`，而 15.7 GB 权重 + KV cache 的精确显存估算超出 16 GB 显存，优化器按"默认拒绝"（deny-by-default）原则不推荐不安全配置。*峰值为 GPU/CPU 溢分配额——该模型只有依赖系统内存溢出才能运行。
+`lmps optimize` **拒绝了全部候选**，原因是 quick-chat 草稿当前都保持 `gpuOffload: max`，且估算结果只与显存比较；但该模型实际上借助系统内存成功运行。这是现有优化器/配置生成的已知缺口：M5 将区分 GPU-resident、Hybrid-memory 与 Host-memory，不再把“超过显存”单独等同于不可运行。*峰值是观测到的 GPU 部分，不代表主机内存总用量。
 
-### Qwen3.6-35B-A3B-Q4_K_M（19.7 GB MoE，超出显存）—— 有意拒绝
+### Qwen3.6-35B-A3B-Q4_K_M（19.7 GB MoE，超出显存）—— 当前优化器拒绝
 
 | 指标 | 优化前基线 |
 | --- | ---: |
@@ -69,12 +75,12 @@ corepack pnpm run lmps -- --json profile list
 | Decode (tok/s) | 31.92 |
 | 峰值显存 (GiB) | 3.48 |
 
-`lmps optimize` 在此处同样**拒绝了全部候选**：max 卸载估算将完整 19.7 GB 计入 16 GB 显存。值得注意的是该模型在实践中*能够*运行——MoE 模型只需约 3 B 活跃专家驻留显存（实测峰值 3.48 GiB）——因此这次拒绝是安全门偏保守的一面，不属于本版本可修复的缺陷。
+`lmps optimize` 在此处同样**拒绝了全部候选**，因为 max 卸载估算按 16 GB 显存进行判断；但该模型实测能够运行，峰值显存为 3.48 GiB。M5 将其作为自适应 offload 与 RAM 感知分类的回归场景；当前结果不能再描述为产品预期的最终行为。
 
 ### 诚实标注
 
 - 9B 首次基线命中了冷磁盘缓存（峰值 271 MB / 加载 23.5 s）；上表使用干净复测值。
-- 27B/35B 的拒绝是数据点，符合安全门"默认拒绝"的设计意图。
+- 27B/35B 的拒绝保留为 M5 回归证据；它们暴露的是资源模型缺口，而不是期望的产品行为。
 
 - 截图：[配置档案](docs/screenshots/screenshot-profiles.png) · [优化向导·接受](docs/screenshots/screenshot-optimize-9b.png) · [优化向导·拒绝](docs/screenshots/screenshot-optimize-27b-rejected.png) · [硬件](docs/screenshots/screenshot-hardware.png)。
 

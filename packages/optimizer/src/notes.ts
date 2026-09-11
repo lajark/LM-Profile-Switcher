@@ -22,3 +22,9 @@ export const HEADROOM_NOTE: { 'zh-CN': string; en: string } = {
   'zh-CN': '，显存余量 {headroom} GiB',
   en: ', VRAM headroom {headroom} GiB',
 };
+
+/** M5-002: performance/resource warning + Benchmark guidance for Hybrid/Host candidates. */
+export const HYBRID_MEMORY_NOTE: { 'zh-CN': string; en: string } = {
+  'zh-CN': '；该候选以混合/主机内存承载，可能较纯显存加载更慢并占用系统内存，建议先启用 Benchmark 实测校准后再选用。',
+  en: '; this candidate is carried by Hybrid/Host memory, may load slower than a GPU-resident config and consume system RAM, so calibrate it with a Benchmark before adopting.',
+};

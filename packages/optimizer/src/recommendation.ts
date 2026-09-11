@@ -14,6 +14,7 @@ import { StrictRecommendationSchema, type Candidate, type CapabilityMatrix, type
 
 import { filterByHardConstraints, generateCandidateDrafts } from './candidate.js';
 import type { CandidateDraft } from './candidate.js';
+import { MAX_CANDIDATES } from './offload-ladder.js';
 import { computeSafetyMargin, type SafetyMargin } from './safe-margin.js';
 import { buildRationale, diffAgainst, scoreCandidate } from './scoring.js';
 
@@ -40,10 +41,12 @@ export function generateRecommendation(
   hardware: HardwareProfile,
   generatedAt: string,
   ruleVersion: string,
+  extraDrafts: CandidateDraft[] = [],
 ): Recommendation {
   const warnings: string[] = [];
 
-  const drafts = generateCandidateDrafts(baseline, rule);
+  const generated = generateCandidateDrafts(baseline, rule);
+  const drafts = extraDrafts.length === 0 ? generated : dedupeDrafts([...generated, ...extraDrafts]);
   if (drafts.length === 0) {
     const arch = rule.applicableArchitectures;
     if (arch !== undefined) {
@@ -100,13 +103,21 @@ export function generateRecommendation(
           vramUsedBytes: safety.vramUsedBytes,
           vramAvailableBytes: safety.vramAvailableBytes,
           headroomBytes: safety.headroomBytes,
+          resourceFit: safety.resourceFit,
+          recommendable: safety.recommendable,
+          vramReserveBytes: safety.vramReserveBytes,
+          ramUsedBytes: safety.ramUsedBytes,
+          ramAvailableBytes: safety.ramAvailableBytes,
+          ramReserveBytes: safety.ramReserveBytes,
+          ramHeadroomBytes: safety.ramHeadroomBytes,
         },
         score,
         diff: diffAgainst(draft.profile, baseline),
         rationale: buildRationale(rule, safety, score),
       };
     })
-    .sort((a, b) => b.score.total - a.score.total || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    .sort((a, b) => b.score.total - a.score.total || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .slice(0, MAX_CANDIDATES);
 
   const recommendation: Recommendation = {
     schemaVersion: 2,
@@ -124,4 +135,16 @@ export function generateRecommendation(
     throw new Error(`Recommendation failed strict validation: ${check.error.message}`);
   }
   return check.data;
+}
+
+/** Dedupe draft list by stable id, keeping the first occurrence. */
+function dedupeDrafts(drafts: CandidateDraft[]): CandidateDraft[] {
+  const seen = new Set<string>();
+  const unique: CandidateDraft[] = [];
+  for (const draft of drafts) {
+    if (seen.has(draft.id)) continue;
+    seen.add(draft.id);
+    unique.push(draft);
+  }
+  return unique;
 }

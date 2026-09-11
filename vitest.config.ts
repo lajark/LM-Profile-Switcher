@@ -5,6 +5,14 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
     reporters: ['default'],
+    // Coverage (M5-004): v8 provider, raw JSON for the ratchet + text for humans.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary'],
+      reportsDirectory: '.workspace/coverage',
+      include: ['packages/**/src/**', 'apps/cli/src/**', 'apps/core-service/src/**'],
+      exclude: ['**/schemas/**', '**/generated*.ts', '**/resources.generated.ts', '**/vendor/**', '**/*.d.ts'],
+    },
   },
   resolve: {
     alias: {

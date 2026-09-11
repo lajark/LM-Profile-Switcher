@@ -116,15 +116,16 @@ export function createCliAdapter(env: LmStudioEnv): CliLms {
       });
     }
     const identity = parseModelIdentity(profile.model.modelKey);
-    const gpuOffload = profile.runtime.gpuOffload;
+    const gpuOffload = gpuOffloadToCliValue(profile.runtime.gpuOffload);
     return {
       schemaVersion: SCHEMA_VERSION,
       provider: 'exact',
       modelKey: profile.model.modelKey,
       quantization: identity.quantization,
       contextLength: profile.runtime.contextLength ?? null,
-      gpuOffload: typeof gpuOffload === 'number' ? gpuOffload : null,
+      gpuOffload: gpuOffload === null ? null : Number(gpuOffload),
       vramTotalBytes: values.vramTotalBytes,
+      totalMemoryBytes: values.totalMemoryBytes,
       systemRamBytes: values.systemRamBytes,
       hardwareFingerprint: null,
       lmStudioVersion: null,
@@ -137,19 +138,40 @@ export function createCliAdapter(env: LmStudioEnv): CliLms {
 }
 
 /**
+ * Profile GPU-offload → `lms load --gpu` argument (M5-001). The CLI takes a
+ * numeric fraction (0..1); the profile schema stores either a number or one of
+ * `max`/`off`/`auto`. `max` is 1, `off` is 0, `auto` (and unset) means "let the
+ * engine decide" so the flag is omitted entirely.
+ */
+export function gpuOffloadToCliValue(
+  gpuOffload: CompositeProfile['runtime']['gpuOffload'],
+): string | null {
+  if (typeof gpuOffload === 'number') return String(gpuOffload);
+  if (gpuOffload === 'max') return '1';
+  if (gpuOffload === 'off') return '0';
+  return null;
+}
+
+/**
  * Arg vector for the official estimate. Mirrors the loader flags so the
- * estimate answers the same configuration that `apply` would load; `--json` is
- * deliberately not used — `lms status --json` drift (2026-09-05) showed the
- * binary only documents `ls --json`, and the parser accepts human output.
- * `--yes` is required for scripting: without it `lms load --estimate-only`
- * starts the interactive "Select a model to estimate" TUI (observed on the live
- * host 2026-09-05), which hangs a non-TTY CLI until the estimate timeout.
+ * estimate answers the same configuration that `apply` would load — the
+ * Profile's context length (`--context-length`) and GPU offload (`--gpu`) both
+ * reach the engine. `--json` is deliberately not used — `lms status --json`
+ * drift (2026-09-05) showed the binary only documents `ls --json`, and the
+ * parser accepts human output. `--yes` is required for scripting: without it
+ * `lms load --estimate-only` starts the interactive "Select a model to
+ * estimate" TUI (observed on the live host 2026-09-05), which hangs a non-TTY
+ * CLI until the estimate timeout.
  */
 export function estimateArgs(profile: CompositeProfile): string[] {
   const args = ['load', profile.model.modelKey, '--estimate-only', '--yes'];
   const contextLength = profile.runtime.contextLength;
   if (typeof contextLength === 'number' && contextLength > 0) {
     args.push('--context-length', String(contextLength));
+  }
+  const gpu = gpuOffloadToCliValue(profile.runtime.gpuOffload);
+  if (gpu !== null) {
+    args.push('--gpu', gpu);
   }
   return args;
 }
@@ -234,40 +256,49 @@ function figureAfterLabel(line: string, label: RegExp): number | null {
 }
 
 const VRAM_LABEL_RE = /(?:vram|graphics|gpu)\b/i;
+/** Engine "Estimated Total Memory": the whole-footprint figure, NOT system RAM. */
+const TOTAL_MEMORY_LABEL_RE = /\btotal\s+memory\b/i;
 
 /**
  * System-RAM label test. `VRAM` never matches (the `\b` needs a word boundary
- * before `ram`, and VRAM has the letter V in front), and `GPU/graphics memory`
- * is VRAM, not system RAM — only a plain `memory`/`ram`/`system ram` label
- * counts.
+ * before `ram`, and VRAM has the letter V in front), `GPU/graphics memory` is
+ * VRAM (not system RAM) and the engine's `Total Memory` figure is the whole
+ * footprint (not system RAM) — only an explicit `system ram`/`system memory`/
+ * plain `ram` label counts.
  */
 function hasRamLabel(line: string): boolean {
   const lower = line.toLowerCase();
   if (/(?:gpu|graphics|video|vram)\s+memory\b/.test(lower)) return false;
-  return /\b(?:system\s*ram|memory|ram)\b/.test(lower);
+  if (TOTAL_MEMORY_LABEL_RE.test(lower)) return false;
+  return /\b(?:system\s*ram|system\s*memory|ram)\b/.test(lower);
 }
 
 /**
- * Lenient classifier for `lms load --estimate-only` output (M1-006). The real
- * output contract is NOT yet captured on a live host — the parser understands
- * the documented shapes (`| label | size |` table cells and `label: size` lines,
- * VRAM/GPU and RAM/memory labels) and returns null when nothing can be
- * classified with confidence, so drift degrades to a labeled rough estimate
- * instead of a fabricated exact one.
+ * Lenient classifier for `lms load --estimate-only` output (M1-006 + M5-001).
+ * The live host contract (verified 2026-09-05) labels the figures `Estimated
+ * GPU Memory` and `Estimated Total Memory`; the parser understands those shapes
+ * plus the documented `| label | size |` table and `label: size` lines. Total
+ * Memory is reported in its own field — it must never be mapped to System RAM.
+ * When nothing can be classified with confidence it returns null, so drift
+ * degrades to a labeled rough estimate instead of a fabricated exact one.
  */
 export function parseLmsEstimateValues(
   stdout: string,
-): { vramTotalBytes: number | null; systemRamBytes: number | null } | null {
+): { vramTotalBytes: number | null; totalMemoryBytes: number | null; systemRamBytes: number | null } | null {
   let vramTotalBytes: number | null = null;
+  let totalMemoryBytes: number | null = null;
   let systemRamBytes: number | null = null;
   for (const line of stdout.split(/\r?\n/)) {
     if (vramTotalBytes === null && VRAM_LABEL_RE.test(line)) {
       vramTotalBytes = figureAfterLabel(line, VRAM_LABEL_RE);
     }
+    if (totalMemoryBytes === null && TOTAL_MEMORY_LABEL_RE.test(line)) {
+      totalMemoryBytes = figureAfterLabel(line, TOTAL_MEMORY_LABEL_RE);
+    }
     if (systemRamBytes === null && hasRamLabel(line)) {
-      systemRamBytes = figureAfterLabel(line, /\bmemory\b|\bram\b|\bsystem\s*ram\b/i);
+      systemRamBytes = figureAfterLabel(line, /\b(?:system\s*ram|system\s*memory|ram)\b/i);
     }
   }
-  if (vramTotalBytes === null && systemRamBytes === null) return null;
-  return { vramTotalBytes, systemRamBytes };
+  if (vramTotalBytes === null && totalMemoryBytes === null && systemRamBytes === null) return null;
+  return { vramTotalBytes, totalMemoryBytes, systemRamBytes };
 }

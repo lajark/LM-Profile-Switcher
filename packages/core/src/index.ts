@@ -8,6 +8,8 @@
  * executable in tests and embeddable in the CLI, the future sidecar and the
  * desktop WebView.
  */
+export { calibrateEstimate, MEASUREMENT_TOLERANCE } from '@lmps/optimizer';
+export type { CalibrationVerdict, CalibrationNote } from '@lmps/optimizer';
 export * from './benchmark.js';
 export * from './errors.js';
 export * from './lock.js';

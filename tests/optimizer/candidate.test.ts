@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   filterByHardConstraints,
   generateCandidateDrafts,
+  generateLadderDrafts,
   SEED_RULE_CATALOG,
   toCapabilityPath,
   type HardConstraintFilter,
@@ -91,6 +92,30 @@ describe('generateCandidateDrafts', () => {
     expect(drafts.length).toBe(1);
     expect(drafts[0]?.id).toBe('rag-prime-min');
     expect(drafts[0]?.profile.runtime.flashAttention).toBe(true);
+  });
+});
+
+describe('generateLadderDrafts', () => {
+  it('returns the five offload-step drafts for a baseline', () => {
+    const drafts = generateLadderDrafts(makeRagBaseline());
+    expect(drafts).toHaveLength(5);
+    expect(drafts.map((d) => d.profile.runtime.gpuOffload)).toEqual([1, 0.75, 0.5, 0.25, 0]);
+    expect(drafts.map((d) => d.id)).toEqual([
+      'rag-prime-offload-100',
+      'rag-prime-offload-75',
+      'rag-prime-offload-50',
+      'rag-prime-offload-25',
+      'rag-prime-offload-0',
+    ]);
+    expect(new Set(drafts.map((d) => d.id)).size).toBe(5);
+  });
+
+  it('preserves the model and task in every ladder draft', () => {
+    const baseline = makeRagBaseline();
+    for (const draft of generateLadderDrafts(baseline)) {
+      expect(draft.profile.model).toEqual(baseline.model);
+      expect(draft.profile.task).toEqual(baseline.task);
+    }
   });
 });
 

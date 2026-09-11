@@ -2,7 +2,7 @@
 // by descending score, warnings carry stable codes, and the output satisfies the
 // strict machine contract (the generator itself throws otherwise).
 import { describe, expect, it } from 'vitest';
-import { generateCandidateDrafts, generateRecommendation, SEED_RULE_CATALOG } from '@lmps/optimizer';
+import { generateCandidateDrafts, generateLadderDrafts, generateRecommendation, SEED_RULE_CATALOG } from '@lmps/optimizer';
 import { StrictRecommendationSchema } from '@lmps/domain';
 import type { Rule } from '@lmps/domain';
 
@@ -52,6 +52,10 @@ describe('generateRecommendation', () => {
       expect(candidate.rationale.en.length).toBeGreaterThan(0);
       expect(candidate.rationale['zh-CN'].length).toBeGreaterThan(0);
       expect(candidate.diff.length).toBeGreaterThan(0);
+      // M5-001: every produced candidate carries the resource-fit contract.
+      expect(candidate.safety.resourceFit).toBe('gpu-resident');
+      expect(candidate.safety.recommendable).toBe(true);
+      expect(typeof candidate.safety.vramReserveBytes).toBe('number');
     }
 
     // Strictly non-increasing totals; full context + batch with zero temperature
@@ -173,5 +177,35 @@ describe('generateRecommendation', () => {
     );
     expect(recommendation.candidates.some((candidate) => candidate.id === firstId)).toBe(false);
     expect(recommendation.warnings).toContain('unsafe-drop:over-vram');
+  });
+
+  it('surfaces a non-max-offload candidate when the max-offload draft is resource-blocked (35B-class)', () => {
+    // A 27B/35B-class model at.max offload overruns/proves the GPU footprint is
+    // unproven-vs-RAM (dropped); the offload-50 ladder variant fits VRAM, so M5-002
+    // must still produce it as a recommendable non-max-offload candidate.
+    const baseline = makeRagBaseline({ runtime: { contextLength: 32768, gpuOffload: 'max' } });
+    const extraDrafts = generateLadderDrafts(baseline);
+
+    const estimates = new Map<string, ReturnType<typeof makeExactEstimate>>();
+    for (const draft of generateCandidateDrafts(baseline, ragRule())) {
+      estimates.set(draft.id, makeExactEstimate({ vramTotalBytes: 20 * GIB, totalMemoryBytes: null, systemRamBytes: null }));
+    }
+    for (const draft of extraDrafts) {
+      const gpuResident = Number(draft.profile.runtime.gpuOffload) === 0.5;
+      estimates.set(
+        draft.id,
+        makeExactEstimate({ vramTotalBytes: gpuResident ? 8 * GIB : 20 * GIB, totalMemoryBytes: null, systemRamBytes: null, gpuOffload: draft.profile.runtime.gpuOffload }),
+      );
+    }
+
+    const recommendation = generateRecommendation(baseline, ragRule(), estimates, makeCapability(), makeHardware(), NOW, RULE_VERSION, extraDrafts);
+    expect(recommendation.candidates.length).toBeGreaterThan(0);
+    const nonMax = recommendation.candidates.find((candidate) => Number(candidate.profile.runtime.gpuOffload) === 0.5);
+    expect(nonMax).toBeDefined();
+    if (nonMax !== undefined) {
+      expect(nonMax.safety.resourceFit).toBe('gpu-resident');
+      expect(nonMax.safety.recommendable).toBe(true);
+    }
+    expect(recommendation.candidates.every((candidate) => candidate.id.includes('-offload-'))).toBe(true);
   });
 });

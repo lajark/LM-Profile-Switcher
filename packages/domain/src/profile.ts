@@ -147,6 +147,8 @@ export const ValidationInfoSchema = z
     adapterCapabilityVersion: z.string().nullable().optional(),
     testedAt: isoDateTime('testedAt').nullable().optional(),
     benchmarkId: z.string().nullable().optional(),
+    /** M5-003: measured peak memory footprint (bytes) captured by `benchmark --yes`. Advisory only — never overwrites the origin load estimate. */
+    memoryPeakBytes: z.number().int().min(0).nullable().optional(),
   })
   .passthrough();
 

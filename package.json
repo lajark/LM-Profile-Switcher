@@ -1,6 +1,6 @@
 {
   "name": "lm-profile-switcher",
-  "version": "0.1.0",
+  "version": "0.2.0-beta.1",
   "private": true,
   "description": "Independent local profile management for LM Studio.",
   "license": "MIT",
@@ -14,6 +14,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "coverage:run": "vitest run --coverage",
+    "coverage:ratchet": "node scripts/coverage-ratchet.mjs",
     "typecheck": "tsc -b --pretty false",
     "provenance:check": "node scripts/check-provenance.mjs",
     "i18n:check": "node scripts/check-i18n.mjs",
@@ -30,6 +32,8 @@
     "sbom": "node scripts/sbom.mjs",
     "notices": "node scripts/notices.mjs",
     "compliance": "node scripts/compliance.mjs",
+    "audit:deps": "node scripts/dependency-audit.mjs",
+    "audit:deps:strict": "node scripts/dependency-audit.mjs --strict",
     "policy:scan": "node scripts/policy-scan.mjs",
     "release:pack": "node scripts/release-pack.mjs",
     "check": "corepack pnpm run lint && corepack pnpm run typecheck && corepack pnpm run i18n:check && corepack pnpm run build && corepack pnpm run domain:generate && corepack pnpm run domain:schema:check && corepack pnpm run test && corepack pnpm run compliance"
@@ -37,6 +41,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "^26.2.0",
+    "@vitest/coverage-v8": "4.1.11",
     "eslint": "10.0.1",
     "typescript": "5.7.3",
     "typescript-eslint": "8.67.0",

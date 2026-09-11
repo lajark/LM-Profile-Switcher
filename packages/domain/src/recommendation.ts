@@ -15,10 +15,12 @@ import { z } from 'zod';
 import { isoDateTime } from './iso-date.js';
 import { LoadEstimateSchema } from './estimate.js';
 import { CompositeProfileSchema, TASK_KINDS } from './profile.js';
+import { ResourceFitSchema } from './resource-fit.js';
 import { SCHEMA_VERSION } from './version.js';
 
 const CandidateSafetySchema = z
   .object({
+    /** @deprecated M5-001: VRAM-only verdict; prefer `resourceFit`/`recommendable`. */
     safe: z.boolean(),
     /** Human-readable reason for the safety verdict (data, not an i18n key). */
     reason: z.string().nullable().optional(),
@@ -26,8 +28,31 @@ const CandidateSafetySchema = z
     vramUsedBytes: z.number().int().min(0).nullable(),
     /** Available VRAM on the probed hardware; null when unknown. */
     vramAvailableBytes: z.number().int().min(0).nullable(),
-    /** available - used; negative only when the estimate exceeded available VRAM. */
+    /** @deprecated M5-001: VRAM-only headroom; the RAM budget fields below are the new contract. */
     headroomBytes: z.number().int().nullable(),
+    /**
+     * M5-001 resource-fit class (PRD FR-07 / CONTEXT.md). Additive field with a
+     * fail-closed default: legacy documents without it read as `resource-unknown`.
+     */
+    resourceFit: ResourceFitSchema.default('resource-unknown'),
+    /**
+     * M5-001: whether the candidate may be recommended under the resource
+     * contract — true for GPU-resident, Hybrid-memory and Host-memory. The
+     * legacy `safe` field above is VRAM-only and unchanged; `recommendable` is
+     * the new RAM-aware verdict (Hybrid/Host display still needs the M5-002/003
+     * warnings before being offered).
+     */
+    recommendable: z.boolean().default(false),
+    /** Reserved VRAM for headroom (max(512 MiB, 5% total VRAM)); null when total VRAM is unknown. */
+    vramReserveBytes: z.number().int().min(0).nullable().default(null),
+    /** Predicted system RAM usage (LoadEstimate.systemRamBytes); null when unknown. */
+    ramUsedBytes: z.number().int().min(0).nullable().default(null),
+    /** Available system RAM considered for the verdict; null when unknown. */
+    ramAvailableBytes: z.number().int().min(0).nullable().default(null),
+    /** Reserved RAM for headroom (max(2 GiB, 10% total RAM)); null when total RAM is unknown. */
+    ramReserveBytes: z.number().int().min(0).nullable().default(null),
+    /** ramAvailableBytes - ramReserveBytes - ramUsedBytes; null unless all three are known. */
+    ramHeadroomBytes: z.number().int().nullable().default(null),
   })
   .passthrough();
 

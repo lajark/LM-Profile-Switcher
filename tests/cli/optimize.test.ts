@@ -46,6 +46,13 @@ function candidate(overrides: Partial<Candidate> = {}): Candidate {
       vramUsedBytes: 6 * 1024 ** 3,
       vramAvailableBytes: 12 * 1024 ** 3,
       headroomBytes: 6 * 1024 ** 3,
+      resourceFit: 'gpu-resident',
+      recommendable: true,
+      vramReserveBytes: Math.round(0.8 * 1024 ** 3),
+      ramUsedBytes: 2 * 1024 ** 3,
+      ramAvailableBytes: 28 * 1024 ** 3,
+      ramReserveBytes: Math.round(3.2 * 1024 ** 3),
+      ramHeadroomBytes: 28 * 1024 ** 3 - Math.round(3.2 * 1024 ** 3) - 2 * 1024 ** 3,
     },
     score: {
       total: 0.409,
@@ -96,8 +103,42 @@ describe('lmps optimize (M2-002)', () => {
     expect(result.text).toContain('Optimization for rag-prime');
     expect(result.text).toContain('rules 2026.09.1');
     expect(result.text).toContain('rag-prime-max');
+    // M5-001: the candidate line shows the resource-fit class, not just VRAM.
+    expect(result.text).toContain('GPU-resident');
+    // M5-003: the line also carries the GPU estimate and RAM budget.
+    expect(result.text).toContain('GPU 6.0 GiB');
+    expect(result.text).toContain('RAM reserve 3.2 GiB');
+    expect(result.text).toContain('RAM headroom 22.8 GiB');
     expect(harness.store.list().length).toBe(1); // nothing saved
     expect(seam.audit).not.toHaveBeenCalled();
+  });
+
+  it('renders a hybrid candidate without calling it not-runnable', async () => {
+    const harness = makeCliHarness();
+    harness.store.create(baselineProfile());
+    const hybrid = candidate({ safety: { ...candidate().safety, safe: false, reason: 'over-vram', headroomBytes: -3 * 1024 ** 3, resourceFit: 'hybrid-memory', recommendable: true } });
+    const { seam } = stubSeam(recommendation({ candidates: [hybrid] }));
+    harness.deps.recommendation = seam;
+
+    const result = await runCli(['optimize', 'rag-prime'], harness.deps);
+    expect(result.exitCode).toBe(0);
+    expect(result.text).toContain('Hybrid-memory');
+    expect(result.text).not.toContain('Resource insufficient');
+  });
+
+  it('calibrates candidates against the baseline measured peak and surfaces degradation (M5-003)', async () => {
+    const harness = makeCliHarness();
+    const baseline = { ...baselineProfile(), validation: { source: 'benchmarked', benchmarkId: 'b1', testedAt: NOW, memoryPeakBytes: 10 * 1024 ** 3 } };
+    harness.store.create(baseline);
+    const { seam } = stubSeam(recommendation());
+    harness.deps.recommendation = seam;
+
+    const result = await runCli(['optimize', 'rag-prime'], harness.deps);
+    expect(result.exitCode).toBe(0);
+    expect(result.text).toContain('measured peak 10.0 GiB');
+    // Candidate estimate (VRAM 6 + RAM 2 = 8 GiB) is exceeded by the measured peak.
+    expect(result.text).toContain('degraded');
+    expect(harness.store.list().length).toBe(1);
   });
 
   it('--yes saves the head candidate as a rule-recommended profile and audits', async () => {

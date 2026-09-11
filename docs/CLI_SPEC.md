@@ -94,17 +94,18 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 
 生产 `activation` 端口已随 M1-005 生产接线接通（2026-09-05）：`apply` 走真实激活状态机；适配器因惰性解析并按 seam 生命周期缓存，确保 preflight 与各阶段看到同一宿主视图；互斥经 `<LMPS_HOME>/locks/activation.lock` 文件租约锁（owner=`process.pid`、30 分钟租约，运行结束释放）；事务日志（runner 已脱敏）落盘 `<LMPS_HOME>/logs/transactions.ndjson`。默认 `auto`——未显式设置 `LMPS_ADAPTER=mock` 时绝不静默使用演示适配器；离线/认证/超时 → `LM_UNREACHABLE` exit 4（中文 `无法连接到 LM Studio`）。
 
-### optimize（M2-002）
+### optimize（M2-002；M5-001 增补资源分类）
 
 `lmps optimize <id> [--yes]`：对已存储基线 Profile 运行候选优化（PRD FR-07）——按 `task.kind` 匹配规则（种子目录缺省），硬约束过滤 → 3–6 候选 → 官方 estimate → VRAM 安全余量（exact 且余量 ≥ 0 才 safe）→ 静态评分排序 → 字段级 diff 与双语理由。**不加载模型**（激活走 `apply`），**不自动激活**。
 
-- 无 `--yes`：仅展示候选（分数/置信度/显存余量/字段 diff）与 warnings；`selectedIndex === null` 时输出 `noSafeCandidate`（人类）或空 `candidates`（机器），**exit 0**——读到空推荐同样是成功读取。
+- 无 `--yes`：仅展示候选（分数/置信度/显存余量/资源分类/字段 diff）与 warnings；`selectedIndex === null` 时输出 `noSafeCandidate`（人类）或空 `candidates`（机器），**exit 0**——读到空推荐同样是成功读取。
 - `--yes`：保存头号候选为新 Profile（`validation.source = 'rule-recommended'`、`testedAt = now`；id = `<基线id>-<规则包版本>`）并追加审计到 `<LMPS_HOME>/logs/optimizations.ndjson`；**不激活**。拒绝条件（均 exit 4）：
   - `selectedIndex` 为 null（无安全候选）；
   - 头号候选 `score.confidence !== 'high'`（估算非实测——rough/service 降级或能力未证实均拒）。
 - 可信度：`confidence='high'` 仅当 estimate `exact` + 安全余量 safe + 无 `unknown` 能力降级；`rough` 估算永不安全（`unsafe-drop:rough-estimate`），保证「低置信永不静默保存」。
+- **M5-001 资源分类契约**：机器 `data.recommendation.candidates[].safety` 除旧 `safe`/`reason`/`headroomBytes`（弃用，保留兼容）外，新增 `resourceFit`（`gpu-resident`/`hybrid-memory`/`host-memory`/`resource-unknown`/`resource-insufficient`）、`recommendable`、`vramReserveBytes` 与 RAM 预算三元组 `ramUsedBytes`/`ramAvailableBytes`/`ramReserveBytes`/`ramHeadroomBytes`；人类候选行追加资源分类标签（`resourceFit.*` 双语 key）。`estimate` 内新增可选 `totalMemoryBytes`（Estimated Total Memory，整模型足迹，绝不映射为 System RAM）。分类依据 PRD 保留 `max(512 MiB, 5% 总 VRAM)`/`max(2 GiB, 10% 总 RAM)`；「超过显存」单独不判 Resource-insufficient——主机内存可承载时判 Hybrid-memory/Host-memory 且 `recommendable:true`，证据缺失判 Resource-unknown；完整 offload 梯度与 Hybrid/Host 推荐策略属 M5-002/003。
 - 机器 `data`：默认 `{ recommendation }`；`--yes` 保存后为 `{ recommendation, savedProfileId }`，`recommendation` 即 domain `Recommendation` 契约（`Candidate`/`Recommendation` JSON Schema 见 `schemas/`）。
-- 接线（M2-002）：capability 经 adapter 探针选操作能力最完整的 matrix（回退 REST），estimate 复用 `apply` 的官方估算端口（不可达降级 `rough` → 安全余量自然拒绝），hardware 复用 `lmps hardware` 同源探针。
+- 接线（M2-002 + M5-001）：capability 经 adapter 探针选操作能力最完整的 matrix（回退 REST），estimate 复用 `apply` 的官方估算端口（不可达降级 `rough` → 安全余量自然拒绝；`--estimate-only` 现把 Profile 的 `gpuOffload` 转换为真实 `--gpu` 参数：`max`→`1`、`off`→`0`、数值→分数、`auto`/未设置→省略，并返回解析后的 `totalMemoryBytes`），hardware 复用 `lmps hardware` 同源探针。
 
 ### benchmark（M2-003）
 

@@ -63,6 +63,18 @@
         }
       ]
     },
+    "totalMemoryBytes": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "systemRamBytes": {
       "anyOf": [
         {
@@ -118,5 +130,5 @@
   "additionalProperties": {},
   "title": "Load Estimate",
   "description": "Expected resource usage for one model configuration.",
-  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: bc5ad8089a92e20d8d81b19afbf42a751f921bc84179c4f9d87074d4fcce3035"
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 5742e312c946e1d9bd1106f18d5e27bd6ea5466b2279ee1fe0cbe586415ce624"
 }

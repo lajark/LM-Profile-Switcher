@@ -119,6 +119,8 @@ function runYes(deps: CliDeps, yes: boolean, result: BenchmarkResult, profileId:
       lmStudioVersion: result.lmStudioVersion,
       runtimeVersion: result.runtimeVersion,
       adapterCapabilityVersion: result.adapterCapabilityVersion,
+      // M5-003: persist the measured peak so `optimize` can calibrate against it.
+      memoryPeakBytes: result.metrics.memoryPeakBytes ?? null,
     },
   });
   return result.id;

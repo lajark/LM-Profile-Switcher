@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { buildRationale, computeSafetyMargin, diffAgainst, scoreCandidate, SEED_RULE_CATALOG } from '@lmps/optimizer';
 import type { Rule } from '@lmps/domain';
 
-import { makeExactEstimate, makeHardware, makeRagBaseline } from './fixtures';
+import { GIB, makeExactEstimate, makeHardware, makeRagBaseline } from './fixtures';
 
 function ragRule(): Rule {
   const rule = SEED_RULE_CATALOG.rules.find((r) => r.taskKind === 'rag');
@@ -120,5 +120,25 @@ describe('buildRationale', () => {
     expect(rationale.en).not.toContain('VRAM headroom');
     expect(rationale.en.length).toBeGreaterThan(0);
     expect(rationale['zh-CN'].length).toBeGreaterThan(0);
+  });
+
+  it('appends an explicit performance/resource warning and Benchmark guidance for Hybrid-memory candidates', () => {
+    const rule = ragRule();
+    const profile = makeRagBaseline({ runtime: { contextLength: 81920, gpuOffload: 0.5 } });
+    const estimate = makeExactEstimate({ vramTotalBytes: 15.7 * GIB, totalMemoryBytes: 15.7 * GIB, systemRamBytes: null, gpuOffload: 0.5 });
+    const safety = computeSafetyMargin(estimate, makeHardware(), rule);
+    expect(safety.resourceFit).toBe('hybrid-memory');
+    const score = scoreCandidate(profile, rule, estimate, safety, false);
+    const rationale = buildRationale(rule, safety, score);
+    expect(rationale.en).toContain('Benchmark');
+    expect(rationale['zh-CN']).toContain('Benchmark');
+  });
+
+  it('does not append the Hybrid/Host guidance to a GPU-resident candidate', () => {
+    const { rule, safety, score } = scored();
+    expect(safety.resourceFit).toBe('gpu-resident');
+    const rationale = buildRationale(rule, safety, score);
+    expect(rationale.en).not.toContain('Benchmark');
+    expect(rationale['zh-CN']).not.toContain('Benchmark');
   });
 });

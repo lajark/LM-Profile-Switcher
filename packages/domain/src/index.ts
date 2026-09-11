@@ -18,6 +18,7 @@ export * from './virtual-aliases.js';
 export * from './hardware.js';
 export * from './capability.js';
 export * from './estimate.js';
+export * from './resource-fit.js';
 export * from './benchmark.js';
 export * from './recommendation.js';
 export * from './transaction.js';

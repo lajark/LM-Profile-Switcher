@@ -21,6 +21,13 @@ describe('computeSafetyMargin', () => {
       vramUsedBytes: 6 * GIB,
       vramAvailableBytes: 12 * GIB,
       headroomBytes: 6 * GIB,
+      resourceFit: 'gpu-resident',
+      recommendable: true,
+      vramReserveBytes: Math.round(0.8 * GIB),
+      ramUsedBytes: 2 * GIB,
+      ramAvailableBytes: 28 * GIB,
+      ramReserveBytes: Math.round(3.2 * GIB),
+      ramHeadroomBytes: 28 * GIB - Math.round(3.2 * GIB) - 2 * GIB,
     });
   });
 
@@ -29,6 +36,7 @@ describe('computeSafetyMargin', () => {
     const margin = computeSafetyMargin(rough, makeHardware(), ragRule());
     expect(margin.safe).toBe(false);
     expect(margin.reason).toBe('rough-estimate');
+    expect(margin.resourceFit).toBe('resource-unknown');
   });
 
   it('fails closed when the exact estimate reports no VRAM figure', () => {
@@ -36,6 +44,7 @@ describe('computeSafetyMargin', () => {
     const margin = computeSafetyMargin(noVram, makeHardware(), ragRule());
     expect(margin.safe).toBe(false);
     expect(margin.reason).toBe('rough-estimate');
+    expect(margin.resourceFit).toBe('resource-unknown');
   });
 
   it('fails when the estimate exceeds available VRAM', () => {
@@ -44,6 +53,16 @@ describe('computeSafetyMargin', () => {
     expect(margin.safe).toBe(false);
     expect(margin.reason).toBe('over-vram');
     expect(margin.headroomBytes).toBe(-2 * GIB);
+  });
+
+  it('keeps the legacy fail-closed verdict but classifies over-VRAM RAM-feasible as Hybrid', () => {
+    // M5-001: "larger than VRAM" alone must never mean Resource-insufficient.
+    const over = makeExactEstimate({ vramTotalBytes: 14 * GIB });
+    const margin = computeSafetyMargin(over, makeHardware(), ragRule());
+    expect(margin.safe).toBe(false); // legacy VRAM-only semantics unchanged
+    expect(margin.reason).toBe('over-vram');
+    expect(margin.resourceFit).toBe('hybrid-memory');
+    expect(margin.recommendable).toBe(true);
   });
 
   it('fails closed when no GPU VRAM could be probed and no rule floor applies', () => {

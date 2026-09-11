@@ -25,6 +25,7 @@ export function roughEstimateFor(profile: CompositeProfile, estimatedAt: string)
     contextLength: profile.runtime.contextLength ?? null,
     gpuOffload: typeof gpuOffload === 'number' ? gpuOffload : null,
     vramTotalBytes: null,
+    totalMemoryBytes: null,
     systemRamBytes: null,
     hardwareFingerprint: null,
     estimatedAt,

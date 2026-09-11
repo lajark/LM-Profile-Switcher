@@ -44,12 +44,15 @@ describe('optimizer architecture guard (M2-001 → M2-002)', () => {
   it('ships exactly the expected source modules', () => {
     const names = srcFiles().map((p) => relative(SRC_DIR, p)).sort();
     expect(names).toEqual([
+      'calibration.ts',
       'candidate.ts',
       'catalog.ts',
       'index.ts',
       'notes.ts',
+      'offload-ladder.ts',
       'presets.ts',
       'recommendation.ts',
+      'resource-fit.ts',
       'safe-margin.ts',
       'scoring.ts',
     ]);
@@ -118,6 +121,14 @@ describe('optimizer architecture guard (M2-001 → M2-002)', () => {
       'HardConstraintFilter',
       'computeSafetyMargin',
       'SafetyMargin',
+      'classifyResourceFit',
+      'gpuReserveBytes',
+      'ramReserveBytes',
+      'DEFAULT_GPU_RESERVE_MIN_BYTES',
+      'DEFAULT_GPU_RESERVE_FRACTION',
+      'DEFAULT_RAM_RESERVE_MIN_BYTES',
+      'DEFAULT_RAM_RESERVE_FRACTION',
+      'ResourceFitVerdict',
       'scoreCandidate',
       'diffAgainst',
       'buildRationale',
@@ -126,7 +137,7 @@ describe('optimizer architecture guard (M2-001 → M2-002)', () => {
     ]) {
       expect(index).toContain(symbol);
     }
-    for (const module of ['catalog', 'presets', 'candidate', 'safe-margin', 'scoring', 'recommendation', 'notes']) {
+    for (const module of ['catalog', 'presets', 'candidate', 'safe-margin', 'resource-fit', 'offload-ladder', 'calibration', 'scoring', 'recommendation', 'notes']) {
       expect(index).toContain(`./${module}.js`);
     }
   });

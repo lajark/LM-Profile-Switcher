@@ -639,6 +639,18 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "memoryPeakBytes": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "additionalProperties": {}
@@ -736,6 +748,18 @@
                 ]
               },
               "vramTotalBytes": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "totalMemoryBytes": {
                 "anyOf": [
                   {
                     "type": "integer",
@@ -852,13 +876,100 @@
                     "type": "null"
                   }
                 ]
+              },
+              "resourceFit": {
+                "default": "resource-unknown",
+                "type": "string",
+                "enum": [
+                  "gpu-resident",
+                  "hybrid-memory",
+                  "host-memory",
+                  "resource-unknown",
+                  "resource-insufficient"
+                ]
+              },
+              "recommendable": {
+                "default": false,
+                "type": "boolean"
+              },
+              "vramReserveBytes": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ramUsedBytes": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ramAvailableBytes": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ramReserveBytes": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ramHeadroomBytes": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
               "safe",
               "vramUsedBytes",
               "vramAvailableBytes",
-              "headroomBytes"
+              "headroomBytes",
+              "resourceFit",
+              "recommendable",
+              "vramReserveBytes",
+              "ramUsedBytes",
+              "ramAvailableBytes",
+              "ramReserveBytes",
+              "ramHeadroomBytes"
             ],
             "additionalProperties": {}
           },
@@ -1016,5 +1127,5 @@
   "additionalProperties": {},
   "title": "Recommendation",
   "description": "Scored candidate set for a baseline profile under one task rule (PRD FR-07).",
-  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: bc5ad8089a92e20d8d81b19afbf42a751f921bc84179c4f9d87074d4fcce3035"
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 5742e312c946e1d9bd1106f18d5e27bd6ea5466b2279ee1fe0cbe586415ce624"
 }

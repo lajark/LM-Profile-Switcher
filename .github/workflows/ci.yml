@@ -24,5 +24,7 @@ jobs:
         run: corepack pnpm install --frozen-lockfile
       - name: Run verification suite
         run: corepack pnpm run check
+      - name: Coverage baseline ratchet
+        run: corepack pnpm run coverage:run && corepack pnpm run coverage:ratchet
       - name: Policy and secret scan
         run: corepack pnpm run policy:scan -- --strict

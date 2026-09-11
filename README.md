@@ -1,5 +1,7 @@
 # LM Profile Switcher
 
+[![CI](https://github.com/lajark/LM-Profile-Switcher/actions/workflows/ci.yml/badge.svg)](https://github.com/lajark/LM-Profile-Switcher/actions/workflows/ci.yml)
+
 [简体中文](README.zh-CN.md)
 
 Independent, local-first companion for [LM Studio](https://lmstudio.ai): hardware-aware model profiles, task-based configuration recommendations, bounded benchmarking, and safe one-click switching. It is an **independent, unofficial community project** — not affiliated with or endorsed by LM Studio.
@@ -21,6 +23,10 @@ Independent, local-first companion for [LM Studio](https://lmstudio.ai): hardwar
 
 - Node.js >= 20 and pnpm 10.15.0 (Corepack supported).
 - Windows or macOS for the desktop build; the CLI runs anywhere Node.js runs.
+
+## Release status
+
+As of **2026-09-11**, the source repositories are public, but there is **no public downloadable GitHub or Gitee Release**. A historical local Windows 0.1.0 packaging run exists from an older source commit; it is maintainer evidence, not a current end-user download. No macOS artifact exists yet. M5 plans same-source Windows x86_64, macOS arm64, and macOS x86_64 `0.2.0-beta.1` candidates in a GitHub Draft/Pre-release; macOS real-device installation, signing, and notarization will remain marked unverified until the required environment and credentials are available.
 
 ## Getting started
 
@@ -49,7 +55,7 @@ Measured on **2026-09-10** on this machine: RTX 5060 Ti 16 GB (driver 596.36), I
 
 The optimizer picked the low-latency candidate: context 8192→4096, temperature (unset)→0.6, offload unchanged (`max`). Result: ~18% faster first token at unchanged decode throughput.
 
-### Qwen3.8-27B-Q4_K_M (15.7 GB, at the VRAM limit) — rejected on purpose
+### Qwen3.8-27B-Q4_K_M (15.7 GB, at the VRAM limit) — current optimizer rejection
 
 | Metric | Baseline |
 | --- | ---: |
@@ -58,9 +64,9 @@ The optimizer picked the low-latency candidate: context 8192→4096, temperature
 | Decode (tok/s) | 2.24 |
 | Peak VRAM (GiB) | 6.61* |
 
-`lmps optimize` **rejected all candidates**: every quick-chat draft keeps `gpuOffload: max`, and the exact VRAM estimate for 15.7 GB of weights ± KV cache exceeds the 16 GB card, so the optimizer refuses (deny-by-default) instead of recommending an unsafe load. *Peak is the GPU/CPU spill portion — the model only runs via system-RAM overflow.
+`lmps optimize` **rejected all candidates** because every quick-chat draft currently keeps `gpuOffload: max` and the estimate is compared only with VRAM. The model nevertheless ran by using system RAM. This is a known optimizer/configuration gap: M5 will distinguish GPU-resident, Hybrid-memory, and Host-memory candidates instead of treating “over VRAM” alone as not runnable. *Peak is the observed GPU portion, not total host memory use.
 
-### Qwen3.6-35B-A3B-Q4_K_M (19.7 GB MoE, beyond VRAM) — rejected on purpose
+### Qwen3.6-35B-A3B-Q4_K_M (19.7 GB MoE, beyond VRAM) — current optimizer rejection
 
 | Metric | Baseline |
 | --- | ---: |
@@ -69,12 +75,12 @@ The optimizer picked the low-latency candidate: context 8192→4096, temperature
 | Decode (tok/s) | 31.92 |
 | Peak VRAM (GiB) | 3.48 |
 
-`lmps optimize` **rejected all candidates** here too: the max-offload estimate counts the full 19.7 GB against 16 GB VRAM. Note the model *does* run in practice — MoE models only keep the ~3 B active experts resident (3.48 GiB peak) — so this rejection is the conservative side of the safety gate, not a limitation fixable in this release.
+`lmps optimize` **rejected all candidates** here too because the max-offload estimate is evaluated against 16 GB VRAM. The model *did* run in practice, with 3.48 GiB observed peak VRAM. M5 treats this as a regression case for adaptive offload and RAM-aware classification; the current result must not be described as the intended final behavior.
 
 ### Honest notes
 
 - The 9B first baseline run hit a cold disk cache (peak 271 MB / load 23.5 s); a clean re-run went into the table.
-- The 27B/35B rejections are intended data points for the deny-by-default safety gate.
+- The 27B/35B rejections are retained as regression evidence for M5; they expose a resource-model gap rather than the desired product behavior.
 
 - Screenshots: [profiles](docs/screenshots/screenshot-profiles.png) · [optimize accepted](docs/screenshots/screenshot-optimize-9b.png) · [optimize rejected](docs/screenshots/screenshot-optimize-27b-rejected.png) · [hardware](docs/screenshots/screenshot-hardware.png).
 

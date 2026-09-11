@@ -43,11 +43,12 @@ export function makeExactEstimate(overrides: Partial<LoadEstimate> = {}): LoadEs
   };
 }
 
-/** One 16 GiB GPU with 12 GiB free (6 GiB headroom over the exact estimate). */
+/** One 16 GiB GPU with 12 GiB free and a 32 GiB host with 28 GiB free. */
 export function makeHardware(overrides: Partial<HardwareProfile> = {}): HardwareProfile {
   return {
     schemaVersion: 2,
     os: 'Windows 11',
+    memory: { totalBytes: 32 * GIB, availableBytes: 28 * GIB },
     gpus: [{ name: 'RTX 5060 Ti', vramTotalBytes: 16 * GIB, vramAvailableBytes: 12 * GIB }],
     probedAt: NOW,
     ...overrides,

@@ -15,6 +15,8 @@
  */
 import type { CapabilityMatrix, CompositeProfile, Rule } from '@lmps/domain';
 
+import { GPU_OFFLOAD_LADDER, offloadVariant } from './offload-ladder.js';
+
 export interface CandidateDraft {
   id: string;
   profile: CompositeProfile;
@@ -149,6 +151,18 @@ export function generateCandidateDrafts(baseline: CompositeProfile, rule: Rule):
 /** Straighten a capability name into a dot path a matrix entry can match. */
 export function toCapabilityPath(name: string): string {
   return name.includes('.') ? name : `${RUNTIME_PREFIX}${name}`;
+}
+
+/**
+ * M5-002: the offload-ladder variant drafts (1.0 / 0.75 / 0.5 / 0.25 / off) of a
+ * baseline. Used as `extraDrafts` when a kept draft's own estimate is
+ * resource-blocked, so a non-max-offload Hybrid/Host candidate can be proposed.
+ */
+export function generateLadderDrafts(baseline: CompositeProfile): CandidateDraft[] {
+  return GPU_OFFLOAD_LADDER.map((offload, index) => ({
+    id: `${baseline.id}-offload-${[100, 75, 50, 25, 0][index] ?? index}`,
+    profile: offloadVariant(baseline, offload),
+  }));
 }
 
 /**

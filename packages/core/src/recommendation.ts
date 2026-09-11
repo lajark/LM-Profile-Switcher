@@ -11,7 +11,7 @@
  * here; saving the winner is the CLI command's job under explicit `--yes`.
  */
 import { StrictRecommendationSchema, type CompositeProfile, type LoadEstimate, type Recommendation, type Rule } from '@lmps/domain';
-import { filterByHardConstraints, generateCandidateDrafts, generateRecommendation, SEED_RULE_CATALOG, type RuleCatalog } from '@lmps/optimizer';
+import { filterByHardConstraints, generateCandidateDrafts, generateRecommendation, MAX_ESTIMATE_CALLS, planLadderFallback, SEED_RULE_CATALOG, type CandidateDraft, type RuleCatalog } from '@lmps/optimizer';
 
 import { ActivationError } from './errors.js';
 import type { CapabilityPort, EstimatePort, HardwarePort, RunnerContext } from './ports.js';
@@ -80,20 +80,49 @@ export function createRecommendationService(
 
       const capability = await ports.capability.probe();
       const filter = filterByHardConstraints(drafts, rule, capability);
+      const hardware = await ports.hardware.profile();
 
       const estimates = new Map<string, LoadEstimate>();
       const estimateWarnings: string[] = [];
+      let calls = 0;
+      const bounded = async (profile: CompositeProfile): Promise<LoadEstimate | undefined> => {
+        if (calls >= MAX_ESTIMATE_CALLS) return undefined;
+        calls += 1;
+        return ports.estimate.estimate(profile);
+      };
+
       for (const draft of filter.kept) {
         try {
-          const estimate = await ports.estimate.estimate(draft.profile);
+          const estimate = await bounded(draft.profile);
+          if (estimate === undefined) {
+            estimateWarnings.push('estimate-budget-exhausted');
+            break;
+          }
           estimates.set(draft.id, estimate);
         } catch {
           estimateWarnings.push(`estimate-failed:${draft.id}`);
         }
       }
 
-      const hardware = await ports.hardware.profile();
-      const recommendation = generateRecommendation(profile, rule, estimates, capability, hardware, ctx.now(), catalog.version);
+      // M5-002: resource-blocked kept drafts are expanded down the offload ladder so a
+      // non-max-offload Hybrid/Host candidate can surface when the host can carry it.
+      const fallback = planLadderFallback(filter.kept, estimates, hardware, MAX_ESTIMATE_CALLS - calls);
+      const extraDrafts: CandidateDraft[] = [];
+      for (const item of fallback) {
+        try {
+          const estimate = await bounded(item.profile);
+          if (estimate === undefined) {
+            estimateWarnings.push('estimate-budget-exhausted');
+            break;
+          }
+          estimates.set(item.id, estimate);
+          extraDrafts.push({ id: item.id, profile: item.profile });
+        } catch {
+          estimateWarnings.push(`estimate-failed:${item.id}`);
+        }
+      }
+
+      const recommendation = generateRecommendation(profile, rule, estimates, capability, hardware, ctx.now(), catalog.version, extraDrafts);
       return { ...recommendation, warnings: [...estimateWarnings, ...recommendation.warnings] };
     },
   };

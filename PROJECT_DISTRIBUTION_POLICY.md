@@ -2,7 +2,7 @@
 
 > 版本：v1.0  
 > 生效日期：2026-08-21  
-> 公开仓库版本：2026-09-09（撰写依据的团队模板为 LOCAL-ONLY，不随公开仓库分发）  
+> 公开仓库版本：2026-09-11（撰写依据的团队模板为 LOCAL-ONLY，不随公开仓库分发）
 > 核心原则：最小必要分发、默认不公开、Secret 永不进入版本历史、Release 仅从明确清单组装。
 
 ## 0. 项目参数与当前状态
@@ -13,8 +13,9 @@ public_repository_github: "https://github.com/lajark/LM-Profile-Switcher.git"
 public_repository_gitee: "https://gitee.com/li_nanqi/lm-profile-switcher.git"
 release_visibility: "none"
 planned_release_targets:
-  - "windows-installer"
-  - "macos-installable-distribution"
+  - "windows-x86_64-installer"
+  - "macos-arm64-installable-distribution"
+  - "macos-x86_64-installable-distribution"
 project_license: "MIT"
 workspace_dir: ".workspace/"
 release_dir: "artifacts/releases/"
@@ -25,10 +26,12 @@ existing_verification_command: "corepack pnpm run check"
 existing_compliance_command: "corepack pnpm run compliance"
 ```
 
-当前事实（2026-09-09）：
+当前事实（2026-09-11）：
 
 - 仓库已获用户明确授权公开，并推送到 GitHub（`lajark/LM-Profile-Switcher`）与 Gitee（`li_nanqi/lm-profile-switcher`）两个 public remote；公开历史由 `git filter-repo` 剥离内部工具配置、内部任务档案与 LOCAL-ONLY 材料后重写。
-- 尚未建立正式 Release 流程，`release_visibility` 为 `none`；发布组装仅由 `release:pack` 从 `release-allowlist.json` 驱动。
+- `release_visibility` 仍为 `none`：GitHub/Gitee 均没有 Tag 或可供终端用户下载的公开 Release。
+- 本机 `artifacts/releases/0.1.0` 存在由旧源码提交生成的 Windows x86_64 历史暂存制品；它属于 LOCAL-ONLY 维护者证据，不代表当前源码已有安装包，也不得当作远端 Release。当前没有 macOS 制品。
+- M5 的目标版本为 `0.2.0-beta.1`，计划生成 Windows x86_64、macOS arm64 和 macOS x86_64 候选制品，并以 GitHub Draft/Pre-release 分层验证；在真正创建前 `release_visibility` 不得提前修改。
 - MIT 许可证不自动等同于仓库或 Release 已获准可见；未来可见性变更仍须按政策记录。
 - `corepack pnpm run check` 与 `corepack pnpm run compliance` 不是 Secret/路径分发扫描器；`policy:scan`（含 CI `--strict` 门）是本仓库的结构性分发守门。
 - `policy_scan_command` 与 `ci_policy_job` 已实现；`--strict` 的远端 CI 首次实测随首次远端 Push 完成，结果记录在各任务完成记录（LOCAL-ONLY）。
@@ -92,7 +95,7 @@ PUBLIC 表示内容具备公开候选资格，不表示当前已经授权上传�
 - `.claude/`、`CLAUDE.md`、`trae-project-rules-mirror.md`、`.gitignore.snippet` 等工具专属协作配置。
 - 未公开的性能对比、兼容矩阵草稿、发布演练报告和安全评审。
 
-当前 `local-only` 仓库可以保存 INTERNAL 文件。若未来仓库改为公开，必须在首次推送前逐项公开审查、迁移至私有协作空间或从跟踪集合排除。
+当前公开仓库不得包含 INTERNAL 文件；这些文件在维护者工作区通过忽略规则保留。新增 INTERNAL 内容必须继续排除在公开跟踪集合之外。
 
 ### 3.3 LOCAL-ONLY｜仅本机或受控环境
 
@@ -128,12 +131,12 @@ SECRET 只能进入操作系统凭据管理器、CI Secret、硬件密钥或经�
 - 运行与任务相关的最小验证；治理、依赖或发布相关变更至少运行 `corepack pnpm run check`。
 - 未经用户明确要求，不创建 Commit。
 
-### 4.2 首次远端 Push 前的硬门槛
+### 4.2 远端 Push 前的持续硬门槛
 
-政策/Secret 扫描器已实现并经本地验证（M3-004）：`scripts/policy-scan.mjs`，覆盖未跟踪文件（`git ls-files --others --exclude-standard`）、Secret 模式、禁止路径、大文件和证书/私钥；CI 中已配置等价的 `ci_policy_job`。首次推送前仍须完成：
+政策/Secret 扫描器已实现并经本地及远端 CI 验证：`scripts/policy-scan.mjs` 覆盖未跟踪文件（`git ls-files --others --exclude-standard`）、Secret 模式、禁止路径、大文件和证书/私钥；CI 中已配置等价的 `ci_policy_job`。首次公开推送已完成，今后每次远端分发仍须满足：
 
-1. 明确远端 URL 和 `public`/`private` 可见性，并更新 §0。
-2. **远端第一次实际运行时，CI 政策扫描 Job 必须真实运行并成功**（本地已验证，远端随后续首次 Push 验证）。
+1. 确认远端 URL 和 `public`/`private` 可见性与 §0 一致。
+2. CI 政策扫描 Job 必须真实运行并成功；失败时不得继续发布。
 3. 根据目标可见性审查 INTERNAL 文件；公开仓库不得直接推送 INTERNAL 内容。
 4. 确认 `.gitignore` 与本政策一致，且没有误排除构建所需 PUBLIC 文件。
 5. 运行 `corepack pnpm run check` 和 `corepack pnpm run policy:scan -- --strict`。
@@ -179,7 +182,9 @@ SECRET 只能进入操作系统凭据管理器、CI Secret、硬件密钥或经�
 - Windows 与 macOS 分别进行干净机安装、卸载、升级/回滚和首次启动验证。
 - 正式制品的签名、公证和架构支持必须按实际状态记录；未签名/未公证制品只能作为明确标识的开发或预发布产物。
 - Windows 签名私钥和 macOS Developer ID/Notarization 凭据不得写入仓库或构建日志。
-- macOS 的 Apple Silicon、Intel 或 Universal 支持范围由 M3-004 的真实构建和测试证据决定。
+- M5 预发布目标分别为 macOS Apple Silicon (`arm64`) 与 Intel (`x86_64`)；除非确实构建并验证，不得声称提供 Universal binary。
+- 缺少 Mac 真机或 Apple 凭据时，可以将 CI 构建与自动包检查记录为预发布证据，但真机安装/卸载、签名、公证、Gatekeeper 体验和稳定发行验收必须保持“未验证”。
+- Windows x86_64 与两种 macOS 架构必须从同一目标源码版本独立构建和记录；任一平台成功不得替代另一平台证据。
 
 ## 6. 第三方代码、资源与许可证
 
@@ -194,7 +199,7 @@ SECRET 只能进入操作系统凭据管理器、CI Secret、硬件密钥或经�
 - `.github/workflows/ci.yml` 当前的 `verify` Job 负责 Lint、类型检查、测试、构建和合规报告，不等同于政策/Secret 扫描。
 - CI Artifact 默认按 INTERNAL 处理；设置最短实际需要的保留期，不上传 LOCAL-ONLY 原始数据或 SECRET。
 - 合规报告只包含依赖元数据和已脱敏信息；出现完整本机路径、环境变量值或用户数据时必须停止上传。
-- Release Workflow、签名、自动更新和商店发布配置只有在 M3-004 获得授权后才能新增或修改。
+- M5-007 只允许在明确任务范围内新增轻量手动/Tag 触发的 GitHub Draft/Pre-release 流程；签名、自动更新、商店提交和公开发布仍需单独授权。
 
 ## 8. 例外与事故处理
 
@@ -226,10 +231,11 @@ Agent 在创建、移动、提交、打包或发布文件时必须：
 - [x] 已有可执行的代码质量与许可证/Provenance/SBOM 合规命令。
 - [x] 政策/Secret 扫描命令已实现并经本地验证（`policy:scan`，M3-004）。
 - [x] 等价 CI 政策扫描 Job 已配置；远端首次 Push 时实测。
-- [ ] 未来公开仓库的 INTERNAL 文件处置尚未决定。
+- [x] 公开仓库的 INTERNAL/LOCAL-ONLY 文件通过公开历史审查与忽略规则隔离；后续仍须持续扫描。
 - [x] M3-004 Release allowlist、Manifest 和 checksum 生成流程已实现（`release:pack`）。
-- [x] Windows 制品已构建并经本机安装/卸载/升级回滚验证；macOS blocked，签名/公证未执行。
+- [~] Windows 0.1.0 历史制品曾在本机完成安装/卸载/升级回滚验证；它不是当前源码制品，也没有远端 Release。
+- [ ] 当前版本 Windows x86_64 候选制品尚未重建与复验（M5-005）。
+- [ ] macOS arm64/x86_64 制品、真机验证、签名和公证均未完成（M5-006）。
+- [ ] GitHub Draft/Pre-release 自动化尚未实现或执行（M5-007）。
 
-未完成项是对应分发动作的硬门槛，不阻塞当前本地 M0 开发。
-
-未完成项是对应分发动作的硬门槛，不阻塞当前本地 M0 开发。
+未完成项是对应分发动作的硬门槛，不阻塞 M5-001～M5-004 的本地开发。

@@ -14,7 +14,7 @@
 import type { CandidateScore, CompositeProfile, LoadEstimate, ParameterDiffEntry, Rule } from '@lmps/domain';
 
 import type { SafetyMargin } from './safe-margin.js';
-import { CONFIDENCE_LABEL, HEADROOM_NOTE, RATIONALE_NOTE } from './notes.js';
+import { CONFIDENCE_LABEL, HEADROOM_NOTE, HYBRID_MEMORY_NOTE, RATIONALE_NOTE } from './notes.js';
 
 const GIB = 1024 ** 3;
 const MAX_CONTEXT = 131072;
@@ -151,5 +151,13 @@ export function buildRationale(rule: Rule, safety: SafetyMargin, score: Candidat
     .replace('{score}', score.total.toFixed(3))
     .replace('{confidence}', CONFIDENCE_LABEL.en[score.confidence])
     .replace('{headroom}', enHeadroom);
-  return { 'zh-CN': rule.rationale['zh-CN'] + zhNote, en: rule.rationale.en + enNote };
+  // M5-002: Hybrid/Host-memory candidates carry an explicit performance/resource
+  // warning and Benchmark guidance in their bilingual rationale.
+  const fitGuidanceZh = isHybridOrHost(safety) ? HYBRID_MEMORY_NOTE['zh-CN'] : '';
+  const fitGuidanceEn = isHybridOrHost(safety) ? HYBRID_MEMORY_NOTE.en : '';
+  return { 'zh-CN': rule.rationale['zh-CN'] + zhNote + fitGuidanceZh, en: rule.rationale.en + enNote + fitGuidanceEn };
+}
+
+function isHybridOrHost(safety: SafetyMargin): boolean {
+  return safety.resourceFit === 'hybrid-memory' || safety.resourceFit === 'host-memory';
 }

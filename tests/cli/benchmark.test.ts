@@ -99,6 +99,8 @@ describe('lmps benchmark (M2-003)', () => {
       lmStudioVersion: 'v0.3.27',
       runtimeVersion: '0.3.27',
       adapterCapabilityVersion: 'rest-v1',
+      // M5-003: the measured peak is persisted so `optimize` can calibrate.
+      memoryPeakBytes: 6 * 1024 ** 3,
     });
   });
 

@@ -201,6 +201,21 @@ describe('LoadEstimate', () => {
     expect(LoadEstimateSchema.safeParse({ ...minimalLoadEstimate, modelKey: '' }).success).toBe(false);
     expect(LoadEstimateSchema.safeParse({ ...minimalLoadEstimate, vramTotalBytes: -1 }).success).toBe(false);
   });
+
+  it('M5-001: accepts a legacy estimate without totalMemoryBytes (additive)', () => {
+    // Old consumers/fixtures keep passing; `totalMemoryBytes` is optional.
+    expect(LoadEstimateSchema.safeParse(minimalLoadEstimate).success).toBe(true);
+  });
+
+  it('M5-001: keeps totalMemoryBytes distinct from system RAM', () => {
+    const parsed = LoadEstimateSchema.safeParse({ ...minimalLoadEstimate, totalMemoryBytes: 7_500_000_000 });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.totalMemoryBytes).toBe(7_500_000_000);
+      expect(parsed.data.systemRamBytes).toBe(4_096_000);
+    }
+    expect(LoadEstimateSchema.safeParse({ ...minimalLoadEstimate, totalMemoryBytes: -1 }).success).toBe(false);
+  });
 });
 
 describe('BenchmarkResult', () => {

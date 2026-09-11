@@ -40,6 +40,7 @@ describe('parseLmsEstimateValues', () => {
     ].join('\n');
     expect(parseLmsEstimateValues(stdout)).toEqual({
       vramTotalBytes: Math.round(6.2 * 1024 ** 3),
+      totalMemoryBytes: null,
       systemRamBytes: 1024 ** 3,
     });
   });
@@ -48,6 +49,7 @@ describe('parseLmsEstimateValues', () => {
     const stdout = 'VRAM: 4.5 GB\nRAM: 512 MB';
     expect(parseLmsEstimateValues(stdout)).toEqual({
       vramTotalBytes: Math.round(4.5 * 1e9),
+      totalMemoryBytes: null,
       systemRamBytes: 512 * 1e6,
     });
   });
@@ -61,17 +63,51 @@ describe('parseLmsEstimateValues', () => {
       '| VRAM        |       |', // empty value after a VRAM label
     ].join('\n');
     const values = parseLmsEstimateValues(stdout);
-    expect(values).toEqual({ vramTotalBytes: 3 * 1024 ** 3, systemRamBytes: 2 * 1024 ** 3 });
+    expect(values).toEqual({ vramTotalBytes: 3 * 1024 ** 3, totalMemoryBytes: null, systemRamBytes: 2 * 1024 ** 3 });
   });
 
   it('reads both figures from a single line without cross-reading', () => {
     const stdout = 'VRAM: 4 GiB · System RAM: 1 GiB';
-    expect(parseLmsEstimateValues(stdout)).toEqual({ vramTotalBytes: 4 * 1024 ** 3, systemRamBytes: 1024 ** 3 });
+    expect(parseLmsEstimateValues(stdout)).toEqual({
+      vramTotalBytes: 4 * 1024 ** 3,
+      totalMemoryBytes: null,
+      systemRamBytes: 1024 ** 3,
+    });
   });
 
   it('accepts a partial result when only one figure is present', () => {
     expect(parseLmsEstimateValues('GPU memory: 8.0 GiB')).toEqual({
       vramTotalBytes: Math.round(8.0 * 1024 ** 3),
+      totalMemoryBytes: null,
+      systemRamBytes: null,
+    });
+  });
+
+  it('never maps the engine Total Memory figure to System RAM (real host labels)', () => {
+    // Live host contract (2026-09-05): `Estimated GPU Memory` and
+    // `Estimated Total Memory`. Total Memory is the whole-footprint figure
+    // (GPU + spill), NOT the host RAM usage — it must land in its own field.
+    const stdout = ['Estimated GPU Memory:   6.10 GiB', 'Estimated Total Memory: 6.10 GiB'].join('\n');
+    expect(parseLmsEstimateValues(stdout)).toEqual({
+      vramTotalBytes: Math.round(6.1 * 1024 ** 3),
+      totalMemoryBytes: Math.round(6.1 * 1024 ** 3),
+      systemRamBytes: null,
+    });
+  });
+
+  it('keeps Total Memory and explicit System RAM distinct on one stream', () => {
+    const stdout = 'System RAM: 2 GiB\nEstimated Total Memory: 6 GiB';
+    expect(parseLmsEstimateValues(stdout)).toEqual({
+      vramTotalBytes: null,
+      totalMemoryBytes: 6 * 1024 ** 3,
+      systemRamBytes: 2 * 1024 ** 3,
+    });
+  });
+
+  it('accepts a Total-Memory-only stream without inventing VRAM or RAM', () => {
+    expect(parseLmsEstimateValues('Estimated Total Memory: 6.10 GiB')).toEqual({
+      vramTotalBytes: null,
+      totalMemoryBytes: Math.round(6.1 * 1024 ** 3),
       systemRamBytes: null,
     });
   });
@@ -101,6 +137,47 @@ describe('estimateArgs', () => {
       '--context-length',
       '8192',
     ]);
+  });
+
+  it('converts a numeric profile gpuOffload into a real --gpu fraction', () => {
+    expect(estimateArgs(makeProfile(QWEN_KEY, { gpuOffload: 0.5 }))).toEqual([
+      'load',
+      QWEN_KEY,
+      '--estimate-only',
+      '--yes',
+      '--gpu',
+      '0.5',
+    ]);
+  });
+
+  it('converts the enum form `max` into --gpu 1', () => {
+    expect(estimateArgs(makeProfile(QWEN_KEY, { contextLength: 8192, gpuOffload: 'max' }))).toEqual([
+      'load',
+      QWEN_KEY,
+      '--estimate-only',
+      '--yes',
+      '--context-length',
+      '8192',
+      '--gpu',
+      '1',
+    ]);
+  });
+
+  it('converts the enum form `off` into --gpu 0', () => {
+    expect(estimateArgs(makeProfile(QWEN_KEY, { gpuOffload: 'off' }))).toEqual([
+      'load',
+      QWEN_KEY,
+      '--estimate-only',
+      '--yes',
+      '--gpu',
+      '0',
+    ]);
+  });
+
+  it('omits --gpu for `auto` so the engine keeps its default offload', () => {
+    const args = estimateArgs(makeProfile(QWEN_KEY, { gpuOffload: 'auto' }));
+    expect(args).toEqual(['load', QWEN_KEY, '--estimate-only', '--yes']);
+    expect(args).not.toContain('--gpu');
   });
 });
 
@@ -148,7 +225,9 @@ describe('createCliAdapter estimate', () => {
     const estimate = await createCliAdapter(env).estimate(makeProfile('qwen/qwen3.5-9b', { contextLength: 8192 }));
     expect(estimate.provider).toBe('exact');
     expect(estimate.vramTotalBytes).toBe(Math.round(6.1 * 1024 ** 3));
-    expect(estimate.systemRamBytes).toBe(Math.round(6.1 * 1024 ** 3));
+    // Estimated Total Memory is the whole-footprint figure — never System RAM.
+    expect(estimate.totalMemoryBytes).toBe(Math.round(6.1 * 1024 ** 3));
+    expect(estimate.systemRamBytes).toBeNull();
   });
 
   it('classifies a spawn timeout as a timeout error', async () => {

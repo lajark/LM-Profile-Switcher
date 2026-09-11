@@ -7,14 +7,29 @@
  * `--yes` save is refused when no candidate is safe (exit 4) or when the head
  * candidate is only `low` confidence (rough/unknown estimate), so an unmeasured
  * recommendation can never be persisted silently.
+ *
+ * M5-001: each candidate line also carries the resource-fit class
+ * (GPU-resident / Hybrid-memory / Host-memory / Resource-unknown /
+ * Resource-insufficient) so "over VRAM" is no longer rendered as "not runnable".
  */
-import type { Candidate, CompositeProfile, Recommendation } from '@lmps/domain';
+import type { BenchmarkResult, Candidate, CompositeProfile, Recommendation, ResourceFit } from '@lmps/domain';
+import { calibrateEstimate } from '@lmps/core';
+import type { ResourceKey } from '@lmps/i18n';
 
 import { capabilityUnsupported, CliError } from '../errors.js';
 import { parseCommandArgs } from '../options.js';
 import type { CliDeps, CommandOutput } from '../seams.js';
 
 const SPEC = { flags: { yes: 'boolean' }, maxPositional: 1 } as const;
+
+/** Static key map — `t` takes a literal ResourceKey, not a dynamic string. */
+const RESOURCE_FIT_KEYS: Record<ResourceFit, ResourceKey> = {
+  'gpu-resident': 'resourceFit.gpuResident',
+  'hybrid-memory': 'resourceFit.hybridMemory',
+  'host-memory': 'resourceFit.hostMemory',
+  'resource-unknown': 'resourceFit.resourceUnknown',
+  'resource-insufficient': 'resourceFit.resourceInsufficient',
+};
 
 export interface OptimizeContext {
   signal?: AbortSignal;
@@ -46,10 +61,10 @@ export async function runOptimizeCommand(
       });
     }
     const saved = saveCandidate(deps, seam, baseline, recommendation, selected);
-    return { text: `${humanSummary(deps, recommendation)}\n${deps.t('optimize.savedButNotActivated', { id: saved.id })}`, data: { recommendation, savedProfileId: saved.id } };
+    return { text: `${humanSummary(deps, baseline, recommendation)}\n${deps.t('optimize.savedButNotActivated', { id: saved.id })}`, data: { recommendation, savedProfileId: saved.id } };
   }
 
-  return { text: humanSummary(deps, recommendation), data: { recommendation } };
+  return { text: humanSummary(deps, baseline, recommendation), data: { recommendation } };
 }
 
 /** The head candidate, or a USAGE error when the recommendation has none. */
@@ -93,10 +108,11 @@ function saveCandidate(
   return created;
 }
 
-function humanSummary(deps: CliDeps, recommendation: Recommendation): string {
+function humanSummary(deps: CliDeps, baseline: CompositeProfile, recommendation: Recommendation): string {
   const lines: string[] = [];
   lines.push(deps.t('optimize.title', { id: recommendation.baselineProfileId }));
   lines.push(deps.t('optimize.ruleVersion', { version: recommendation.ruleVersion }));
+  const measuredPeak = baseline.validation?.memoryPeakBytes ?? null;
 
   recommendation.candidates.forEach((candidate, index) => {
     const score = deps.t('candidate.score', { score: candidate.score.total.toFixed(3) });
@@ -106,7 +122,11 @@ function humanSummary(deps: CliDeps, recommendation: Recommendation): string {
       candidate.safety.headroomBytes === null
         ? ''
         : ` · ${deps.t('optimize.headroom', { value: (candidate.safety.headroomBytes / GIB).toFixed(1) })}`;
-    lines.push(`  ${deps.t('candidate.head', { index: String(index + 1), id: candidate.id })} · ${score} · ${confidence}${headroom}`);
+    const fit =
+      candidate.safety.resourceFit === undefined
+        ? ''
+        : ` · ${deps.t(RESOURCE_FIT_KEYS[candidate.safety.resourceFit])}`;
+    lines.push(`  ${deps.t('candidate.head', { index: String(index + 1), id: candidate.id })} · ${score} · ${confidence}${headroom}${fit}${resourceDetail(deps, candidate)}${calibrationDetail(deps, candidate, measuredPeak)}`);
     for (const diff of candidate.diff) {
       lines.push(
         `    ${deps.t('diff.field', {
@@ -134,4 +154,32 @@ function warningText(deps: CliDeps, code: string): string {
   return code;
 }
 
+/** M5-003: per-candidate memory estimates + RAM budget, appended to the candidate line. */
+function resourceDetail(deps: CliDeps, candidate: Candidate): string {
+  const parts: string[] = [];
+  const est = candidate.estimate;
+  if (typeof est?.vramTotalBytes === 'number') parts.push(deps.t('optimize.memGpu', { value: gitb(est.vramTotalBytes) }));
+  if (typeof est?.totalMemoryBytes === 'number') parts.push(deps.t('optimize.memTotal', { value: gitb(est.totalMemoryBytes) }));
+  if (candidate.safety.ramReserveBytes !== null) parts.push(deps.t('optimize.ramReserve', { value: gitb(candidate.safety.ramReserveBytes) }));
+  if (candidate.safety.ramHeadroomBytes !== null) parts.push(deps.t('optimize.ramHeadroom', { value: gitb(candidate.safety.ramHeadroomBytes) }));
+  return parts.length === 0 ? '' : ` · ${parts.join(' · ')}`;
+}
+
+/** M5-003: calibrate the candidate estimate against the baseline's measured peak (advisory). */
+function calibrationDetail(deps: CliDeps, candidate: Candidate, measuredPeak: number | null): string {
+  if (typeof measuredPeak !== 'number') return '';
+  const verdict = calibrateEstimate(candidate.estimate, {
+    status: 'completed',
+    metrics: { memoryPeakBytes: measuredPeak },
+  } as BenchmarkResult);
+  if (!verdict.applied) return '';
+  const parts = [deps.t('optimize.measuredPeak', { value: gitb(measuredPeak) })];
+  if (verdict.degraded) parts.push(deps.t('optimize.degraded'));
+  return ` · ${parts.join(' · ')}`;
+}
+
 const GIB = 1024 ** 3;
+
+function gitb(value: number): string {
+  return `${(value / GIB).toFixed(1)} GiB`;
+}

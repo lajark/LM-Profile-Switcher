@@ -170,3 +170,40 @@ describe('StrictRecommendationSchema', () => {
     expect(StrictRecommendationSchema.safeParse(recommendation).success).toBe(false);
   });
 });
+
+describe('M5-001 backward-compatible resource contract', () => {
+  it('keeps legacy candidates valid without the new safety fields', () => {
+    // Old consumers/fixtures that only know `safe`/`reason`/`headroomBytes`
+    // keep passing; the new fields are additive, never a breaking change.
+    expect(CandidateSchema.safeParse(validCandidate()).success).toBe(true);
+    expect(StrictCandidateSchema.safeParse(validCandidate()).success).toBe(true);
+  });
+
+  it('accepts and preserves the new resource-fit safety fields', () => {
+    const candidate = validCandidate();
+    candidate.safety = {
+      ...candidate.safety,
+      resourceFit: 'hybrid-memory',
+      recommendable: true,
+      vramReserveBytes: 819_200_000,
+      ramUsedBytes: 2_000_000_000,
+      ramAvailableBytes: 28_000_000_000,
+      ramReserveBytes: 3_200_000_000,
+      ramHeadroomBytes: 22_800_000_000,
+    };
+    const parsed = CandidateSchema.safeParse(candidate);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.safety.resourceFit).toBe('hybrid-memory');
+      expect(parsed.data.safety.recommendable).toBe(true);
+      expect(parsed.data.safety.ramHeadroomBytes).toBe(22_800_000_000);
+    }
+    expect(StrictCandidateSchema.safeParse(candidate).success).toBe(true);
+  });
+
+  it('rejects an unknown resourceFit value', () => {
+    const candidate = validCandidate();
+    candidate.safety = { ...candidate.safety, resourceFit: 'vram-only' } as Candidate['safety'];
+    expect(CandidateSchema.safeParse(candidate).success).toBe(false);
+  });
+});
