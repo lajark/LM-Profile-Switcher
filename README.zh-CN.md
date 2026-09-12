@@ -42,43 +42,47 @@ corepack pnpm run lmps -- --json profile list
 
 ## 真机基准测试
 
-测试于 **2026-09-10**（9B）与本机 2026-09-12（27B/35B）在两轮真机会话中进行：RTX 5060 Ti 16 GB（驱动 596.36）、Intel Core Ultra 5 225H（14C/14T）、31.4 GiB 内存、Windows 11。LM Studio 服务位于 `127.0.0.1:1234`；9B 运行在 `8k 上下文 / max 显存卸载`，27B/35B 按下方自适应 offload 梯度测评（Q4_K_M 量化）。基准默认 3 样本 × 64 tokens，通过 `lmps benchmark` 执行；以下数字取自 CLI 实测结果 JSON（原始数据由维护者本地留存，不在本说明中展示敏感细节）。
+测试于 **2026-09-10**（9B 首表）与 **2026-09-12**（9B 复测 + 27B/35B）在本机真实会话中进行：RTX 5060 Ti 16 GB（驱动 596.36）、Intel Core Ultra 5 225H（14C/14T）、31.4 GiB 内存、Windows 11。LM Studio 服务位于 `127.0.0.1:1234`；9B 运行在 `8k 上下文 / max 显存卸载`，27B/35B 按下方自适应 offload 梯度测评（Q4_K_M 量化）。基准默认 3 样本 × 64 tokens，通过 `lmps benchmark` 执行；以下数字取自 CLI 实测结果 JSON（原始数据由维护者本地留存）。
 
 ### Qwen3.5-9B-Q4_K_M（5.2 GB，全量驻留 GPU）
 
-| 指标 | 优化前 | `optimize` 后 | Δ |
+**2026-09-12 复测**（2 样本 × 64 tokens）：
+
+| 指标 | 基线（max/8k/0.7） | `optimize` 后 | Δ |
 | --- | ---: | ---: | ---: |
-| 加载时间 (ms) | 6306 | 6315 | +0.1% |
-| TTFT (ms) | 169 | **138** | **−18.3%** |
-| Prefill (tok/s) | 189 | **219** | **+15.8%** |
-| Decode (tok/s) | 65.17 | 64.84 | −0.5% |
-| 峰值显存 (GiB) | 6.61 | 6.60 | −0.1% |
+| 加载时间 (ms) | 6295 | 6271 | −0.4% |
+| TTFT (ms) | 119 | 120.5 | +1.3% |
+| Prefill (tok/s) | 160.1 | 159.1 | −0.6% |
+| Decode (tok/s) | 63.6 | 63.5 | −0.1% |
+| 峰值显存 (GiB) | 0.253 | 0.253 | 0.0% |
 
-优化器选择了低时延候选：context 8192→4096、temperature（缺省）→0.6、卸载策略不变（`max`）。结果：首 token 快约 18%，decode 吞吐基本持平。
+对全量驻留 GPU 的 9B 而言，结论是：`lmps` 自身几乎零开销——decode 稳定在 ~63-65 tok/s、峰值显存与裸机一致、全程本地运行。这类模型上优化器的价值不在提速（模型已跑在 GPU 上限），而在配置治理：记录所选参数、维持 Schema 校验、经 `apply` 可复现。（2026-09-10 曾观测到 context 8192→4096 的候选带来 −18.3% TTFT；该效果依赖所选候选，不作为稳定承诺——仅作背景。）
 
-### Qwen3.8-27B-Q4_K_M（15.7 GB，临近显存上限）—— 自适应 offload 候选 + 实测校准
+### Qwen3.8-27B-Q4_K_M（15.7 GB，临近显存上限）—— 从「装不上」到可运行 + 实测校准
 
-下表中的"基线"是作者手动调出的运行配置（**`max` offload、context 8192、temperature 0.7**），不是 LM Studio 出厂默认。表格把它与 optimizer 推荐的可驻留 offload 挡位做同会话、同协议（3 样本 × 64 tokens）对比；实测峰值仅反映服务端报告的 GPU 驻留部分，不代表主机内存总用量。
+没有 `lmps` 时，27B 要么被拒绝、要么靠手工调参。`lmps optimize` 把它变成一次**可运行、可测量的配置搜索**：
+
+- **不再拒绝超显存模型**：GPU offload 梯度（`0 / 0.25 / 0.50 / 0.75 / off`）生成分档候选并做资源适配分类——`offload-0` → `resource-insufficient`，`offload 0.25/0.50/0.75` → `gpu-resident` 且可推荐。用户看到的是每个挡位「为什么适合/不适合」，而不是一个含糊的拒绝。
+- **实测校准揭示内存真相**：`benchmark --yes` 实测峰值 **≈0.25 GiB**（服务端报告的 GPU 驻留部分）对比 ≈19.2 GiB 主机内存估算——审计行记录 `ratio≈0.013`、`note:'calibrated'`、`confidence:'measured'`。这就是「我猜它用 19 GB」与「我量过它」的区别——且会回流给优化器（见下方实测排序）。
+- **诚实的速度说明**：在这台 16 GB 主机上，优化器可推荐挡位无法比 `max` 更激进驻 GPU，因此更高 offload **不会**提升 decode：显式挡位落在 `max` 基线或略低（≈9.9 → ≈8.0 tok/s）。对超显存模型，价值是可运行性 + 测量，而非提速。
 
 | 27B 指标 | `max`（基线） | offload 0.75 |
 | --- | ---: | ---: |
-| 加载时间 (ms) | ≈36865（冷） | ≈11000（热） |
+| Decode (tok/s) | ≈9.9 | ≈8.0 |
 | TTFT (ms) | ≈1700 | ≈2160 |
-| Decode (tok/s) | **≈9.9** | ≈8.0 |
+| 加载时间 (ms) | ≈36865（冷） | ≈11000（热） |
 | 实测峰值显存 (GiB) | ≈0.25 | ≈0.25 |
 
-自适应 offload 能力落地后，`lmps optimize` **不再对 27B 一律拒绝**：它沿 GPU offload 梯度（`0 / 0.25 / 0.50 / 0.75 / off`）生成分档候选并做 resource-fit 分类——`offload-0` 因几乎不进 GPU 判为 `resource-insufficient`，`offload 0.25/0.50/0.75` 判为 `gpu-resident` 且可推荐。在 16 GB 本机上，optimizer 的可推荐挡位并不能比 `max` 更激进驻 GPU，因此**更高 offload 比例并不会提升 decode 吞吐**；本机实测显式挡位解码反而与 `max` 基线持平或略低（此处约 −20%）。对这类超显存模型，`optimize` 的价值在于**可运行性与资源适配**，而非单纯提速。`benchmark --yes` 把实测峰值（≈0.25 GiB，远低于 `totalMemoryBytes` 估算的 ≈19.2 GiB）作为 `memoryPeakBytes` 落库，`optimize --yes` 写入 `calibration` 审计行（`ratio≈0.013`、`note:'calibrated'`、`confidence:'measured'`）。
+### Qwen3.6-35B-A3B-Q4_K_M（19.7 GB MoE，超出显存）—— 从「装不上」到可运行 + 实测校准
 
-### Qwen3.6-35B-A3B-Q4_K_M（19.7 GB MoE，超出显存）—— 自适应 offload 候选 + 实测校准
+35B 同样如此：先前硬性拒绝，现在是一次分档、可测量的配置搜索。梯度产出 `offload-0` → `resource-insufficient`、`offload 0.25/0.50` → `gpu-resident`；实测峰值 ≈0.25 GiB 对比 ≈21.4 GiB 估算，审计链记录 `calibration`（`ratio≈0.012`、`confidence:'measured'`）。与 27B 相同，本机更高 offload 不提升 decode（≈27.2 → ≈24.6 tok/s）——可运行性 + 校准，而非提速。
 
 | 35B 指标 | `max`（基线） | offload 0.5 |
 | --- | ---: | ---: |
-| 加载时间 (ms) | ≈45090（冷） | ≈24000（热） |
+| Decode (tok/s) | ≈27.2 | ≈24.6 |
 | TTFT (ms) | ≈596 | ≈710 |
-| Decode (tok/s) | **≈27.2** | ≈24.6 |
+| 加载时间 (ms) | ≈45090（冷） | ≈24000（热） |
 | 实测峰值显存 (GiB) | ≈0.25 | ≈0.25 |
-
-同样，自适应 offload 能力落地后，35B（MoE）也**不再一律拒绝**：`lmps` 沿卸载梯度生成分档候选——`offload-0` → `resource-insufficient`，`offload 0.25/0.50` → `gpu-resident` 且可推荐。与 27B 相同，本机上更高 offload 挡位并不提升 decode——显式挡位略低于 `max` 基线（此处约 −10%）；`optimize` 对这类超显存模型的价值同样是**可运行性与资源适配**，而非提速。`benchmark --yes` 将实测峰值（≈0.25 GiB）对 `totalMemoryBytes` 估算（≈21.4 GiB）校准，审计行含 `calibration`（`ratio≈0.012`、`note:'calibrated'`、`confidence:'measured'`）。
 
 > 以上 27B/35B 数字为 2026-09-12 在 RTX 5060 Ti 16 GB + 外接硬盘上的真机实测（LM Studio 本地会话）；实测峰值仅反映服务端报告的 GPU 驻留峰值，不代表主机内存总用量。
 
