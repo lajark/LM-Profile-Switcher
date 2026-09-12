@@ -27,7 +27,7 @@ Independent, local-first companion for [LM Studio](https://lmstudio.ai): hardwar
 
 ## Release status
 
-As of **2026-09-11**, the source repositories are public, but there is **no public downloadable GitHub or Gitee Release**. A historical local Windows 0.1.0 packaging run exists from an older source commit; it is maintainer evidence, not a current end-user download. No macOS artifact exists yet. Distributable artifacts (Windows x86_64, macOS arm64 / x86_64 candidates, signing, notarization, and a GitHub Draft/Pre-release) will be added once the relevant build environments and Apple credentials are available.
+**0.2.0-beta.1 pre-release published on 2026-09-12**: [GitHub Releases](https://github.com/lajark/LM-Profile-Switcher/releases/tag/v0.2.0-beta.1) hosts a Windows x86_64 NSIS installer (per-user, unsigned) together with `checksums.sha256`, `release-manifest.json`, SBOM, dependency license report, third-party notices, release notes and the MIT license — produced by the automated release workflow (M5-007) from this commit. The release is tagged `v0.2.0-beta.1` on GitHub; Gitee mirrors the source but hosts no downloadable artifact (no Gitee Releases page configured). macOS distribution remains blocked (no build hardware / Apple credentials).
 
 ## Getting started
 

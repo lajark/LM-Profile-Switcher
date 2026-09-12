@@ -27,7 +27,7 @@
 
 ## 发布状态
 
-截至 **2026-09-11**，源码仓库已经公开，但 GitHub 和 Gitee 均**没有可供终端用户下载的公开 Release**。本机存在一次基于旧源码提交的 Windows 0.1.0 历史打包结果，它只是维护者验证证据，不是当前版本下载包；当前也没有 macOS 制品。可执行发布（Windows x86_64、macOS arm64 / x86_64 候选制品、签名、公证、Draft/Pre-release）会在相关构建环境与 Apple 凭据就绪后补齐。
+**0.2.0-beta.1 Pre-release 已于 2026-09-12 发布**：[GitHub Releases](https://github.com/lajark/LM-Profile-Switcher/releases/tag/v0.2.0-beta.1) 提供 Windows x86_64 NSIS 安装包（按当前用户安装、未签名），随附 `checksums.sha256`、`release-manifest.json`、SBOM、依赖许可证清单、第三方声明、发布说明与 MIT 许可证——由自动化发布流程（M5-007）从本提交构建。发布在 GitHub 打标签为 `v0.2.0-beta.1`；Gitee 镜像源码但不提供下载制品（未配置 Gitee Releases 页）。macOS 分发仍阻塞（无构建硬件 / Apple 凭据）。
 
 ## 快速开始
 
