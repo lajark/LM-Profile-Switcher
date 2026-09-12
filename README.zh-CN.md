@@ -88,7 +88,7 @@ corepack pnpm run lmps -- --json profile list
 - 27B/35B 数值为 2026-09-12 会话的真机实测，反映所声明的配置下可复现的行为，而非性能保证。
 - 27B/35B 的 `max` 基线是作者手动调出的运行配置，不是 LM Studio 出厂默认；optimizer 推荐的 offload 挡位无法比 `max` 更激进驻 GPU，故本机实测 decode 未因更高 offload 而提升（见各表）。
 - 功能修复（2026-09-12）：数值 offload 挡位此前经 REST v1 `/load` 提交的 `gpu_offload` 键会被 LM Studio 以 `400 unrecognized_keys` 拒绝，导致 benchmark 崩溃；已改为对数值挡位走 `lms load --gpu <ratio>` 加载（measure 仍走 REST chat），`max`/`off`/`auto` 维持 REST 加载。
-- **实测排序（2026-09-12）**：当某个配置已在本机完成 benchmark，`optimize` 不再按静态启发式评分排序——实测候选被提升到列表顶部，按真实 decode 吞吐与 TTFT 排序。静态评分仅作为未实测配置的冷启动先验。闭环效果：`benchmark --yes` 之后，下一次 `optimize` 会优先展示本机实测最快的配置，而非静态评分最高的配置。
+- **实测排序（2026-09-12）**：当某个配置已在本机完成 benchmark，`optimize` 不再按静态启发式评分排序——实测候选被提升到列表顶部，按真实 decode 吞吐与 TTFT 排序。静态评分仅作为未实测配置的冷启动先验。闭环效果：`benchmark --yes` 之后，下一次 `optimize` 会优先展示本机实测最快的配置，而非静态评分最高的配置。真机验证（2026-09-12，RTX 5060 Ti，qwen3.5-9b）：`optimize --yes` 保存头号候选，对该保存配置 benchmark 实测 decode=64.1 tok/s 并记录精确配置快照（`gpuOffload=0, context 36864, temperature 0.2`）；下一次 `optimize` 逐值匹配该候选，标记为 `MEASURED`（`adjustedTotal=0.70, confidence=high`）并提升至列表顶部。
 
 - 截图：[配置档案](docs/screenshots/screenshot-profiles.png) · [优化向导·接受](docs/screenshots/screenshot-optimize-9b.png) · [硬件](docs/screenshots/screenshot-hardware.png)。
 
