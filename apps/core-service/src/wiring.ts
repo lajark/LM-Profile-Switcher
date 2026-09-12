@@ -163,8 +163,17 @@ export interface SidecarSeamOptions {
   /** Adapter selection; `mock` routes the whole call to the demo adapter. */
   selection?: AdapterSelection;
   rootDir: string;
-  /** Lock owner label. REQUIRED here because the SEA has no `pid`. */
+  /** Lock owner label. In production this is the numeric OS pid (the CLI
+   *  owner is also a pid), so both contend on the same lease and a crashed
+   *  owner's lease can be reclaimed via isOwnerAlive. */
   owner: string;
+  /**
+   * Liveness probe for a lease's recorded owner (a numeric pid in production).
+   * A live lease whose owner is gone is crash residue and is reclaimed on
+   * acquire instead of blocking until the lease expires. Absent → live leases
+   * always block (never steal from a live peer).
+   */
+  isOwnerAlive?: (owner: string) => boolean;
   now?: () => string;
 }
 
@@ -244,10 +253,12 @@ export function createSidecarRecommendationSeam(
  * mirror of the CLI's `deps.ts` recipe: the adapter runtime is resolved lazily
  * through the capability router on first use (a tray menu fetch never pays for
  * probing), reachability failures map to LM_UNREACHABLE, mutual exclusion uses
- * the SAME `activation.lock` path as the CLI and the benchmark (`owner:
- * 'sidecar'` because the SEA has no pid — the desktop and the CLI can no longer
- * interleave activations), the official estimator feeds the estimating stage
- * and every transaction lands redacted in `<rootDir>/logs/transactions.ndjson`.
+ * the SAME `activation.lock` path as the CLI and the benchmark (owner is this
+ * process's pid — the desktop and the CLI can no longer interleave
+ * activations, and a crashed owner's still-valid lease is reclaimed via
+ * isOwnerAlive on the next acquire), the official estimator feeds the
+ * estimating stage and every transaction lands redacted in
+ * `<rootDir>/logs/transactions.ndjson`.
  * Unload events append to `<rootDir>/logs/unloads.ndjson` (a schema cannot
  * express "nothing active", so they audit as their own record).
  */
@@ -298,6 +309,7 @@ export function createSidecarActivationSeam(
     owner: options.owner,
     leaseMs: ACTIVATION_LEASE_MS,
     now,
+    isOwnerAlive: options.isOwnerAlive,
   });
   const lock: ActivationLock = {
     acquire: async () => {
@@ -369,6 +381,7 @@ export function createSidecarBenchmarkSeam(fs: Fsys, options: SidecarSeamOptions
     owner: options.owner,
     leaseMs: ACTIVATION_LEASE_MS,
     now: options.now ?? (() => new Date().toISOString()),
+    isOwnerAlive: options.isOwnerAlive,
   });
   const lock: ActivationLock = {
     acquire: async () => {

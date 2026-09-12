@@ -78,6 +78,13 @@
       "rationale": "Verification script mints a random per-run token string used only as the stdio sidecar handshake argument (auth frame); ephemeral process scope, never persisted, displayed, or logged.",
       "owner": "M3-004",
       "date": "2026-09-06"
+    },
+    {
+      "path": "tests/core-service/child-process.test.ts",
+      "ruleIds": ["assignment-secret"],
+      "rationale": "M6-003 real child-process fixtures assign opaque throwaway per-run session tokens to drive the stdio/HTTP auth handshake and lock/redaction assertions; values are never real credentials.",
+      "owner": "M6-003",
+      "date": "2026-09-12"
     }
   ]
 }

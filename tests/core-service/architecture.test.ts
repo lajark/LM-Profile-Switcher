@@ -67,6 +67,7 @@ describe('core-service architecture guard (M0-006)', () => {
       'index.ts',
       'protocol.ts',
       'proxy.ts',
+      'settings.ts',
       'transports/http-rpc.ts',
       'transports/index.ts',
       'transports/pipe-rpc.ts',

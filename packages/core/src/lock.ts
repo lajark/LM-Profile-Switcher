@@ -2,7 +2,9 @@
  * Activation locks (M1-005 deliverable). `createMemoryLock` serves tests and
  * single-process embeddings; `createFileLock` guards concurrent CLI/desktop
  * processes via a lease-bearing `activation.lock` file. A stale lease (crash
- * residue) is overwritten on acquire — crash cleanup on the next run.
+ * residue) is overwritten on acquire — crash cleanup on the next run. M6-003:
+ * an optional `isOwnerAlive` probe lets a STILL-VALID lease from a dead owner
+ * (crashed process) be reclaimed immediately instead of waiting for expiry.
  *
  * Known constraint, recorded honestly: existence-check plus write is not an
  * atomic compare-and-swap across processes, so strict multi-process mutual
@@ -30,6 +32,15 @@ export interface FileLockOptions {
   owner: string;
   leaseMs: number;
   now(): string;
+  /**
+   * Optional liveness probe for a lease's recorded owner (a numeric pid in
+   * production). A live lease whose owner no longer exists is crash residue
+   * from a dead process and is reclaimed on acquire instead of blocking until
+   * the lease expires. When absent (or when the probe reports the owner alive
+   * or is itself uncertain), a live lease always blocks: never steal from a
+   * live peer.
+   */
+  isOwnerAlive?: (owner: string) => boolean;
 }
 
 export function isLeaseLive(lease: LockLease, nowIso: string): boolean {
@@ -70,7 +81,19 @@ export function createFileLock(fs: LockFs, options: FileLockOptions): Activation
           // Corrupt lock file counts as stale residue; overwrite below.
         }
         if (lease !== undefined && isLeaseLive(lease, payload.acquiredAt)) {
-          return false;
+          // M6-003 crash recovery: a still-valid lease whose owner is gone is
+          // residue from a crashed process and is reclaimed here, instead of
+          // blocking a restart for the rest of the lease window. The probe is
+          // fail-closed: an exception or an uncertain answer keeps blocking.
+          let reclaimable = false;
+          if (options.isOwnerAlive !== undefined) {
+            try {
+              reclaimable = options.isOwnerAlive(lease.owner) === false;
+            } catch {
+              reclaimable = false;
+            }
+          }
+          if (!reclaimable) return false;
         }
       }
       // Crash residue (stale or corrupt) from a dead process is reclaimed here.

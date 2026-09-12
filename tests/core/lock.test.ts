@@ -91,6 +91,64 @@ describe('createFileLock', () => {
     });
     expect(await lock.acquire()).toBe(false);
   });
+
+  it('keeps blocking a live lease whose owner is alive (M6-003: never steal)', async () => {
+    const { fs, lockPath } = context();
+    writeLease(fs, lockPath, '424242', '2026-08-22T00:59:30.000Z', 60_000);
+    const lock = createFileLock(fs, {
+      path: lockPath,
+      owner: 'new-owner',
+      leaseMs: 60_000,
+      now: () => '2026-08-22T01:00:00.000Z',
+      isOwnerAlive: (owner) => owner === '424242',
+    });
+    expect(await lock.acquire()).toBe(false);
+  });
+
+  it('reclaims a live lease whose owner is dead (M6-003 crash residue)', async () => {
+    const { fs, lockPath } = context();
+    writeLease(fs, lockPath, '999999', '2026-08-22T00:59:30.000Z', 60_000);
+    const lock = createFileLock(fs, {
+      path: lockPath,
+      owner: 'new-owner',
+      leaseMs: 60_000,
+      now: () => '2026-08-22T01:00:00.000Z',
+      isOwnerAlive: (owner) => owner !== '999999',
+    });
+    expect(await lock.acquire()).toBe(true);
+    expect(JSON.parse(fs.readFileUtf8(lockPath))).toMatchObject({ owner: 'new-owner' });
+  });
+
+  it('treats an uncertain liveness probe as alive (M6-003: fail closed)', async () => {
+    const { fs, lockPath } = context();
+    writeLease(fs, lockPath, '424242', '2026-08-22T00:59:30.000Z', 60_000);
+    // A probe that throws counts as "unknown": the live lease must block.
+    const lock = createFileLock(fs, {
+      path: lockPath,
+      owner: 'new-owner',
+      leaseMs: 60_000,
+      now: () => '2026-08-22T01:00:00.000Z',
+      isOwnerAlive: () => {
+        throw new Error('probe unavailable');
+      },
+    });
+    expect(await lock.acquire()).toBe(false);
+  });
+
+  it('treats a non-numeric owner as alive when a liveness probe exists (never steal)', async () => {
+    const { fs, lockPath } = context();
+    writeLease(fs, lockPath, 'some-label', '2026-08-22T00:59:30.000Z', 60_000);
+    // The lock trusts the probe; a probe that only knows numeric pids must
+    // report unknown owners as alive so the live lease keeps blocking.
+    const lock = createFileLock(fs, {
+      path: lockPath,
+      owner: 'new-owner',
+      leaseMs: 60_000,
+      now: () => '2026-08-22T01:00:00.000Z',
+      isOwnerAlive: (owner) => !Number.isInteger(Number(owner)) || Number(owner) > 0,
+    });
+    expect(await lock.acquire()).toBe(false);
+  });
 });
 
 describe('isLeaseLive', () => {

@@ -1,28 +1,33 @@
 /**
  * Sidecar entry point (spike M0-006 + M3-002 data plane). The single wiring
- * module: reads the transport kind, session token and LM Studio connection
- * settings from argv and env, builds the profile store and the
- * recommendation/benchmark seams, then starts the selected transport and serves
- * the shared RPC handlers.
+ * module: resolves the startup settings from argv/env, builds the profile
+ * store and the recommendation/benchmark seams, then starts the selected
+ * transport and serves the shared RPC handlers.
  *
  * The LM token is a SECRET: it is read here from env and passed straight into
  * the adapter; it never reaches stdout, frames or logs. Human diagnostics go
  * to stderr only; stdout carries the machine rendezvous line.
+ *
+ * M6-003: startup settings are parsed by the pure resolveSidecarSettings
+ * (settings.ts) so the entry is testable without a process; the activation and
+ * benchmark locks carry this process's real pid as owner and probe owner
+ * liveness on acquire, so a crashed sidecar's still-valid lease is reclaimed
+ * by the restart instead of blocking it until lease expiry.
  */
 import { randomBytes } from 'node:crypto';
-import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 import { SCHEMA_VERSION } from '@lmps/domain';
 import {
   createNodeLmStudioEnv,
   resolveBaseUrl,
-  type AdapterSelection,
   type LmStudioEnv,
 } from '@lmps/lmstudio-adapter';
 import { createDefaultFsys, createDefaultProfileStore } from '@lmps/profile-store';
 
 import { createHandlers } from './handlers.js';
 import { Dispatcher } from './protocol.js';
+import { resolveSidecarSettings, type SidecarEnv } from './settings.js';
 import { startTransport, type TransportKind } from './transports/index.js';
 import {
   createAliasSeam,
@@ -33,30 +38,31 @@ import {
   createSidecarRecommendationSeam,
 } from './wiring.js';
 
-const KINDS: readonly string[] = ['stdio', 'pipe', 'http'];
-
-function env(name: string): string | undefined {
-  return process.env[name];
-}
-
-function readTransport(): TransportKind {
-  const raw = process.argv[2] ?? env('LMPS_SIDECAR_TRANSPORT') ?? 'stdio';
-  return KINDS.includes(raw) ? (raw as TransportKind) : 'stdio';
-}
-
-/** Same precedence as the CLI: LMPS_HOME → <home>/.lmps → . (M3-001). */
-function resolveRootDir(): string {
-  const home = env('USERPROFILE') ?? env('HOME') ?? '.';
-  return env('LMPS_HOME') || join(home, '.lmps');
-}
-
 /**
- * `lms` executable path: CLI_SPEC documents LMPS_LMS_BIN; the pre-M3-002
- * scripts also honored LMPS_LM_BIN. Accept both so nothing already wired to the
- * older name breaks.
+ * Crash-cleanup liveness probe for lease owners (M6-003). The owner label is a
+ * numeric pid; a live lease whose pid is gone is reclaimable residue from a
+ * crashed process. Fail-closed: any probe failure is treated as "assume alive"
+ * so a live peer's lease is never stolen. On Windows `process.kill(pid, 0)`
+ * would terminate the target (signals are not supported), so liveness goes
+ * through `tasklist` and only a positive match proves the process exists.
  */
-function lmsBin(): string | undefined {
-  return env('LMPS_LMS_BIN') ?? env('LMPS_LM_BIN');
+function isOwnerAlive(ownerLabel: string): boolean {
+  const pid = Number(ownerLabel);
+  if (!Number.isInteger(pid) || pid <= 0) return true; // unknown owner → never steal
+  try {
+    if (process.platform === 'win32') {
+      const probe = spawnSync('tasklist', ['/FI', `PID eq ${pid}`, '/NH'], {
+        encoding: 'utf8',
+        windowsHide: true,
+      });
+      if (probe.status !== 0) return true; // probe failed → assume alive
+      return (probe.stdout ?? '').includes(String(pid));
+    }
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -69,69 +75,72 @@ function lmsBin(): string | undefined {
 function resolveToken(
   kind: TransportKind,
   hookSeam: ReturnType<typeof createHookSeam>,
-  argvToken: string | undefined,
-  envToken: string | undefined,
+  explicit: string | undefined,
 ): string {
-  const explicit = argvToken ?? envToken;
   if (explicit !== undefined) return explicit;
   if (kind === 'http') return hookSeam.readOrCreateToken(randomBytes(24).toString('hex'));
   throw new Error('stdio/pipe transports require a session token (argv[3] or LMPS_SIDECAR_TOKEN)');
 }
 
-/** Optional fixed loopback port; malformed values are a startup error, not a fallback. */
-function parseHookPort(raw: string | undefined): number | undefined {
-  if (raw === undefined) return undefined;
-  const port = Number(raw);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error(`invalid LMPS_HOOK_PORT: ${raw}`);
-  }
-  return port;
-}
-
 async function main(): Promise<void> {
-  const kind = readTransport();
+  const settings = resolveSidecarSettings(process.argv, process.env as SidecarEnv);
   const fs = createDefaultFsys();
-  const rootDir = resolveRootDir();
-  const hookSeam = createHookSeam(fs, { rootDir });
-  const token = resolveToken(kind, hookSeam, process.argv[3], env('LMPS_SIDECAR_TOKEN'));
-  const pipeName = process.argv[4] ?? env('LMPS_SIDECAR_PIPE');
-  const lmEnv: LmStudioEnv = createNodeLmStudioEnv({
-    baseUrl: resolveBaseUrl(env('LMPS_LM_URL')),
-    // SECRET by classification; only ever sent as an Authorization header.
-    token: env('LMPS_LM_TOKEN') ?? null,
-    lmsBin: lmsBin(),
-  });
-  // The explicit LMPS_ADAPTER=mock switch is the only way to select the demo
-  // adapter; production defaults to auto and never silently flips to mock.
-  const selection: AdapterSelection = env('LMPS_ADAPTER') === 'mock' ? 'mock' : 'auto';
+  const hookSeam = createHookSeam(fs, { rootDir: settings.rootDir });
+  const token = resolveToken(settings.kind, hookSeam, settings.token);
 
+  const lmEnv: LmStudioEnv = createNodeLmStudioEnv({
+    baseUrl: resolveBaseUrl(settings.lmBaseUrl),
+    // SECRET by classification; only ever sent as an Authorization header.
+    token: settings.lmToken,
+    lmsBin: settings.lmsBin,
+  });
+
+  // Every sidecar process owns the lock with its REAL pid (process.pid exists
+  // in the Node SEA too) and probes owner liveness on acquire, so a crashed
+  // peer's lease is reclaimed on restart. The tray/CLI and benchmark all
+  // contend on this one activation.lock.
+  const owner = String(process.pid);
   const seams = {
-    // A single consistent host view plus the SAME activation.lock apply uses:
-    // labelled 'sidecar' because the SEA has no process.pid. The tray/CLI and
-    // benchmark all contend on this one lock.
-    recommendation: createSidecarRecommendationSeam(fs, { lmEnv, selection, rootDir, owner: 'sidecar' }),
-    benchmark: createSidecarBenchmarkSeam(fs, { lmEnv, selection, rootDir, owner: 'sidecar' }),
-    activation: createSidecarActivationSeam(fs, { lmEnv, selection, rootDir, owner: 'sidecar' }),
+    recommendation: createSidecarRecommendationSeam(fs, {
+      lmEnv,
+      selection: settings.selection,
+      rootDir: settings.rootDir,
+      owner,
+    }),
+    benchmark: createSidecarBenchmarkSeam(fs, {
+      lmEnv,
+      selection: settings.selection,
+      rootDir: settings.rootDir,
+      owner,
+      isOwnerAlive,
+    }),
+    activation: createSidecarActivationSeam(fs, {
+      lmEnv,
+      selection: settings.selection,
+      rootDir: settings.rootDir,
+      owner,
+      isOwnerAlive,
+    }),
     hook: hookSeam,
-    alias: createAliasSeam(fs, { rootDir }),
+    alias: createAliasSeam(fs, { rootDir: settings.rootDir }),
   } as const;
 
   // The proxy (M4-002) resolves the SAME store the RPC data plane drives, so
   // profiles edited over RPC are immediately addressable as virtual models.
-  const store = createDefaultProfileStore(rootDir);
+  const store = createDefaultProfileStore(settings.rootDir);
   const openAiProxy = createOpenAiProxySeam(fs, {
     alias: seams.alias,
     store,
     lmEnv,
-    selection,
+    selection: settings.selection,
     activation: seams.activation,
   });
 
   const handlers = createHandlers({
-    lmBaseUrl: env('LMPS_LM_URL'),
-    lmToken: env('LMPS_LM_TOKEN') ?? null,
-    lmsBin: lmsBin(),
-    rootDir,
+    lmBaseUrl: settings.lmBaseUrl,
+    lmToken: settings.lmToken,
+    lmsBin: settings.lmsBin,
+    rootDir: settings.rootDir,
     store,
     recommendation: seams.recommendation,
     benchmark: seams.benchmark,
@@ -142,14 +151,14 @@ async function main(): Promise<void> {
 
   const dispatcher = new Dispatcher(handlers);
   const server = await startTransport({
-    kind,
+    kind: settings.kind,
     token,
     dispatcher,
-    pipeName,
-    port: kind === 'http' ? parseHookPort(env('LMPS_HOOK_PORT')) : undefined,
+    pipeName: settings.pipeName,
+    port: settings.kind === 'http' ? settings.port : undefined,
     openAi: openAiProxy,
   });
-  if (kind === 'http') {
+  if (settings.kind === 'http') {
     hookSeam.writeAddress({
       schemaVersion: SCHEMA_VERSION,
       transport: 'http',
@@ -158,7 +167,7 @@ async function main(): Promise<void> {
       startedAt: new Date().toISOString(),
     });
   }
-  process.stdout.write(`${JSON.stringify({ event: 'ready', transport: kind, address: server.address() })}\n`);
+  process.stdout.write(`${JSON.stringify({ event: 'ready', transport: settings.kind, address: server.address() })}\n`);
 
   const shutdown = async (): Promise<void> => {
     await server.close();
