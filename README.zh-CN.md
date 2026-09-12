@@ -26,7 +26,7 @@
 
 ## 发布状态
 
-截至 **2026-09-11**，源码仓库已经公开，但 GitHub 和 Gitee 均**没有可供终端用户下载的公开 Release**。本机存在一次基于旧源码提交的 Windows 0.1.0 历史打包结果，它只是维护者验证证据，不是当前版本下载包。当前没有任何 macOS 制品。M5 计划从同一源码生成 Windows x86_64、macOS arm64、macOS x86_64 的 `0.2.0-beta.1` 候选制品，并放入 GitHub Draft/Pre-release；在具备 Mac 真机与 Apple 凭据前，macOS 真机安装、签名和公证将明确标为未验证。
+截至 **2026-09-11**，源码仓库已经公开，但 GitHub 和 Gitee 均**没有可供终端用户下载的公开 Release**。本机存在一次基于旧源码提交的 Windows 0.1.0 历史打包结果，它只是维护者验证证据，不是当前版本下载包；当前也没有 macOS 制品。可执行发布（Windows x86_64、macOS arm64 / x86_64 候选制品、签名、公证、Draft/Pre-release）会在相关构建环境与 Apple 凭据就绪后补齐。
 
 ## 快速开始
 
@@ -41,7 +41,7 @@ corepack pnpm run lmps -- --json profile list
 
 ## 真机基准测试
 
-测试于 **2026-09-10** 在本机进行：RTX 5060 Ti 16 GB（驱动 596.36）、Intel Core Ultra 5 225H（14C/14T）、31.4 GiB 内存、Windows 11。LM Studio 服务位于 `127.0.0.1:1234`；每个档案运行在 `8k 上下文 / max 显存卸载`（Q4_K_M 量化）。基准设置为 3 样本 × 64 tokens，通过 `lmps benchmark` 执行；以下数字取自 CLI 实测结果 JSON（原始数据 LOCAL-ONLY，已按发布政策脱敏）。
+测试于 **2026-09-10**（9B）与本机 2026-09-12（27B/35B）在两轮真机会话中进行：RTX 5060 Ti 16 GB（驱动 596.36）、Intel Core Ultra 5 225H（14C/14T）、31.4 GiB 内存、Windows 11。LM Studio 服务位于 `127.0.0.1:1234`；9B 运行在 `8k 上下文 / max 显存卸载`，27B/35B 按下方自适应 offload 梯度测评（Q4_K_M 量化）。基准默认 3 样本 × 64 tokens，通过 `lmps benchmark` 执行；以下数字取自 CLI 实测结果 JSON（原始数据由维护者本地留存，不在本说明中展示敏感细节）。
 
 ### Qwen3.5-9B-Q4_K_M（5.2 GB，全量驻留 GPU）
 
@@ -55,34 +55,36 @@ corepack pnpm run lmps -- --json profile list
 
 优化器选择了低时延候选：context 8192→4096、temperature（缺省）→0.6、卸载策略不变（`max`）。结果：首 token 快约 18%，decode 吞吐基本持平。
 
-### Qwen3.8-27B-Q4_K_M（15.7 GB，临近显存上限）—— 当前优化器拒绝
+### Qwen3.8-27B-Q4_K_M（15.7 GB，临近显存上限）—— 自适应 offload 候选 + 实测校准
 
-| 指标 | 优化前基线 |
+| 指标 | 基线（`max` offload） |
 | --- | ---: |
-| 加载时间 (ms) | 49244 |
-| TTFT (ms) | 5733 |
-| Decode (tok/s) | 2.24 |
-| 峰值显存 (GiB) | 6.61* |
+| 加载时间 (ms) | ≈37105（首次）/ ≈12437（已缓存） |
+| TTFT (ms) | ≈1740 |
+| Decode (tok/s) | ≈10.2 |
+| 实测峰值显存 (GiB) | ≈0.25 |
 
-`lmps optimize` **拒绝了全部候选**，原因是 quick-chat 草稿当前都保持 `gpuOffload: max`，且估算结果只与显存比较；但该模型实际上借助系统内存成功运行。这是现有优化器/配置生成的已知缺口：M5 将区分 GPU-resident、Hybrid-memory 与 Host-memory，不再把“超过显存”单独等同于不可运行。*峰值是观测到的 GPU 部分，不代表主机内存总用量。
+自适应 offload 能力落地后，`lmps optimize` **不再对 27B 一律拒绝**：它会沿 GPU offload 梯度（`0 / 0.25 / 0.50 / 0.75 / off`）生成分档候选并做 resource-fit 分类——`offload-0` 因几乎不进 GPU 判为 `resource-insufficient`，`offload 0.25/0.50/0.75` 判为 `gpu-resident` 且可推荐。`benchmark --yes` 实测峰值（≈0.25 GiB，远低于 `totalMemoryBytes` 估算的 ≈19.2 GiB）作为 `memoryPeakBytes` 落库，`optimize --yes` 审计行写入 `calibration`（`ratio≈0.013`、`note:'calibrated'`、`confidence:'measured'`——实测低于估算，因此不误报降级）。
 
-### Qwen3.6-35B-A3B-Q4_K_M（19.7 GB MoE，超出显存）—— 当前优化器拒绝
+### Qwen3.6-35B-A3B-Q4_K_M（19.7 GB MoE，超出显存）—— 自适应 offload 候选 + 实测校准
 
-| 指标 | 优化前基线 |
+| 指标 | 基线（`max` offload） |
 | --- | ---: |
-| 加载时间 (ms) | 45475 |
-| TTFT (ms) | 621 |
-| Decode (tok/s) | 31.92 |
-| 峰值显存 (GiB) | 3.48 |
+| 加载时间 (ms) | ≈45090 |
+| TTFT (ms) | ≈584 |
+| Decode (tok/s) | ≈30.9 |
+| 实测峰值显存 (GiB) | ≈0.25 |
 
-`lmps optimize` 在此处同样**拒绝了全部候选**，因为 max 卸载估算按 16 GB 显存进行判断；但该模型实测能够运行，峰值显存为 3.48 GiB。M5 将其作为自适应 offload 与 RAM 感知分类的回归场景；当前结果不能再描述为产品预期的最终行为。
+同样，自适应 offload 能力落地后，35B（MoE）也**不再一律拒绝**：`lmps` 沿卸载梯度生成分档候选——`offload-0` → `resource-insufficient`，`offload 0.25/0.50` → `gpu-resident` 且可推荐。`benchmark --yes` 实测峰值（≈0.25 GiB）对 `totalMemoryBytes` 估算（≈21.4 GiB）做校准，审计行含 `calibration`（`ratio≈0.012`、`note:'calibrated'`、`confidence:'measured'`）。
 
-### 诚实标注
+> 以上 27B/35B 数字为 2026-09-12 在 RTX 5060 Ti 16 GB + 外接硬盘上的真机实测（LM Studio 本地会话）；实测峰值仅反映服务端报告的 GPU 驻留峰值，不代表主机内存总用量。
 
-- 9B 首次基线命中了冷磁盘缓存（峰值 271 MB / 加载 23.5 s）；上表使用干净复测值。
-- 27B/35B 的拒绝保留为 M5 回归证据；它们暴露的是资源模型缺口，而不是期望的产品行为。
+### 测量条件与诚实标注
 
-- 截图：[配置档案](docs/screenshots/screenshot-profiles.png) · [优化向导·接受](docs/screenshots/screenshot-optimize-9b.png) · [优化向导·拒绝](docs/screenshots/screenshot-optimize-27b-rejected.png) · [硬件](docs/screenshots/screenshot-hardware.png)。
+- 9B 首次基线命中冷磁盘缓存（峰值 271 MB / 加载 23.5 s）；上表基线与优化后使用干净复测值。
+- 27B/35B 数值为 2026-09-12 会话的真机实测，反映所声明的配置下可复现的行为，而非性能保证。
+
+- 截图：[配置档案](docs/screenshots/screenshot-profiles.png) · [优化向导·接受](docs/screenshots/screenshot-optimize-9b.png) · [硬件](docs/screenshots/screenshot-hardware.png)。
 
 ## 文档
 
