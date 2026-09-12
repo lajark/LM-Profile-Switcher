@@ -141,6 +141,28 @@ describe('lmps optimize (M2-002)', () => {
     expect(harness.store.list().length).toBe(1);
   });
 
+  it('renders measured evidence for feedback-matched candidates', async () => {
+    const harness = makeCliHarness();
+    harness.store.create(baselineProfile());
+    const measured = candidate({
+      score: {
+        total: 0.409,
+        breakdown: { vramEfficiency: 0.5, latency: 0.25, throughput: 0.0625, quality: 0.9 },
+        confidence: 'high',
+        measured: true,
+        adjustedTotal: 0.85,
+        measuredEvidence: { decodeTokensPerSecond: 9.9, ttftMs: 1700, samples: 3, recordedAt: NOW },
+      },
+    });
+    const { seam } = stubSeam(recommendation({ candidates: [measured] }));
+    harness.deps.recommendation = seam;
+
+    const result = await runCli(['optimize', 'rag-prime'], harness.deps);
+    expect(result.exitCode).toBe(0);
+    expect(result.text).toContain('measured 9.9 tok/s · 3 samples');
+    expect(harness.store.list().length).toBe(1);
+  });
+
   it('--yes saves the head candidate as a rule-recommended profile and audits', async () => {
     const harness = makeCliHarness();
     harness.store.create(baselineProfile());

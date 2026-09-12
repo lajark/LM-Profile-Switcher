@@ -13,6 +13,7 @@ export type { CalibrationVerdict, CalibrationNote } from '@lmps/optimizer';
 export * from './benchmark.js';
 export * from './errors.js';
 export * from './lock.js';
+export * from './measured.js';
 export * from './ports.js';
 export * from './recommendation.js';
 export * from './redact.js';

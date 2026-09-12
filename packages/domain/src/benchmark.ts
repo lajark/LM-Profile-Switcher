@@ -32,6 +32,28 @@ export const BenchmarkMetricsSchema = z
   })
   .passthrough();
 
+/**
+ * The measured configuration snapshot (measured-feedback loop): which profile
+ * parameters the run actually exercised. Optional and additive so legacy
+ * records (written before this field existed) still validate unchanged; older
+ * readers that never consume it are unaffected because the benchmark log is
+ * append-only audit data, not a stored profile.
+ */
+export const BenchmarkConfigSchema = z
+  .object({
+    /** Profile id the run was launched from; null when the caller had none. */
+    profileId: z.string().nullable().optional(),
+    gpuOffload: z.union([z.enum(['auto', 'max', 'off']), z.number().min(0).max(1)]).nullable().optional(),
+    contextLength: z.number().int().min(1).nullable().optional(),
+    evalBatchSize: z.number().int().min(1).nullable().optional(),
+    flashAttention: z.boolean().nullable().optional(),
+    temperature: z.number().min(0).nullable().optional(),
+    topP: z.number().min(0).max(1).nullable().optional(),
+  })
+  .strict();
+
+export type BenchmarkConfig = z.infer<typeof BenchmarkConfigSchema>;
+
 const BenchmarkResultDefinition = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION),
   id: z.string().min(1),
@@ -40,6 +62,8 @@ const BenchmarkResultDefinition = z.object({
   taskType: z.string().min(1),
   status: z.enum(['completed', 'failed', 'canceled']),
   metrics: BenchmarkMetricsSchema,
+  /** The measured configuration snapshot; absent on legacy records. */
+  config: BenchmarkConfigSchema.nullable().optional(),
   hardwareFingerprint: z.string().nullable().optional(),
   lmStudioVersion: z.string().nullable().optional(),
   runtimeVersion: z.string().nullable().optional(),

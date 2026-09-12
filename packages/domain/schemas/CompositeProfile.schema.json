@@ -647,5 +647,5 @@
   "additionalProperties": {},
   "title": "Composite Profile",
   "description": "One stored selection of model, task, runtime, generation and behavior.",
-  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 5742e312c946e1d9bd1106f18d5e27bd6ea5466b2279ee1fe0cbe586415ce624"
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 94745ca69347662dcbb5dd2a3f60bbcb5c08ecd65a818f78c220afae7dab6955"
 }

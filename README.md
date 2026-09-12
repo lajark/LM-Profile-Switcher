@@ -11,6 +11,7 @@ Independent, local-first companion for [LM Studio](https://lmstudio.ai): hardwar
 - **Schema-validated profiles** — versioned `HardwareProfile` / `ModelProfile` / `TaskProfile` / `RuntimeProfile` / `GenerationProfile` / `BehaviorProfile` contracts, persisted as plain JSON/YAML under `LMPS_HOME` (default `~/.lmps`) with atomic writes and write-ahead backups.
 - **Hardware-aware recommendations** — local hardware probe (GPU via `nvidia-smi`, generic fallback), deterministic candidate optimizer with a VRAM safety margin, ranked per task kind with bilingual rationale.
 - **Benchmark Lite** — bounded, cancellable, fingerprint-bound objective benchmarks (load time, TTFT, prefill, decode tokens/s, peak VRAM) that cleanly restore the previous model afterwards.
+- **Measured-feedback loop** — every `benchmark` run records the exact configuration it tested (model, quantization, task type, and six tunable parameters plus the hardware fingerprint) into `logs/benchmarks.ndjson`. On the next `optimize`, candidates whose exact configuration was measured on this host are matched value-for-value against that history and promoted above unmeasured candidates; within the measured group they rank by real decode throughput (70%) blended with inverse TTFT (30%). The static score stays as the cold-start prior, so a real number on this machine always outranks any estimate.
 - **Safe activation transaction** — an orchestrated state machine with health check and automatic rollback; one shared `activation.lock` serializes the CLI, tray, Benchmark, hook, and proxy activation paths.
 - **Desktop app (Tauri 2)** — a React/Web GUI hosted by a thin Rust shell: profile editor, optimization wizard, benchmark view, hardware panel, and a system tray that drives the same activation transaction as the CLI.
 - **Local automation (loopback only)** —
@@ -57,25 +58,27 @@ The optimizer picked the low-latency candidate: context 8192→4096, temperature
 
 ### Qwen3.8-27B-Q4_K_M (15.7 GB, at the VRAM limit) — adaptive offload candidates + measured calibration
 
-| Metric | Baseline (`max` offload) |
-| --- | ---: |
-| Load time (ms) | ≈37105 (cold) / ≈12437 (warm) |
-| TTFT (ms) | ≈1740 |
-| Decode (tok/s) | ≈10.2 |
-| Measured peak VRAM (GiB) | ≈0.25 |
+Each "baseline" below is the author-tuned running configuration (**`max` offload, 8192 context, temp 0.7**), not an LM Studio factory default. The table compares it against the optimizer's recommendable offload tier, measured in the same session with the same protocol (3 samples × 64 tokens). The measured peak reflects only the server-reported GPU-resident portion, not total host-memory use.
 
-With adaptive-offload support landed, `lmps optimize` **no longer rejects 27B outright**: it generates offload-tier candidates along a GPU-offload ladder (`0 / 0.25 / 0.50 / 0.75 / off`) and classifies resource-fit — `offload-0` becomes `resource-insufficient` (almost nothing on GPU) while `offload 0.25/0.50/0.75` are `gpu-resident` and recommendable. `benchmark --yes` persists the measured peak (≈0.25 GiB, far below the ≈19.2 GiB `totalMemoryBytes` estimate) as `memoryPeakBytes`, and `optimize --yes` writes a `calibration` audit row (`ratio≈0.013`, `note:'calibrated'`, `confidence:'measured'` — since the measurement is below the estimate, it does not falsely report degradation).
+| 27B metric | `max` (baseline) | offload 0.75 |
+| --- | ---: | ---: |
+| Load time (ms) | ≈36865 (cold) | ≈11000 (warm) |
+| TTFT (ms) | ≈1700 | ≈2160 |
+| Decode (tok/s) | **≈9.9** | ≈8.0 |
+| Measured peak VRAM (GiB) | ≈0.25 | ≈0.25 |
+
+With adaptive-offload support landed, `lmps optimize` **no longer rejects 27B outright**: it generates offload-tier candidates along a GPU-offload ladder (`0 / 0.25 / 0.50 / 0.75 / off`) and classifies resource-fit — `offload-0` becomes `resource-insufficient` (almost nothing on GPU) while `offload 0.25/0.50/0.75` are `gpu-resident` and recommendable. On this 16 GB host the optimizer's recommendable tiers are not permitted to exceed what `max` already does, so a **higher offload ratio does not raise decode throughput**; the honest result is that the explicit tier lands at or slightly below the `max` baseline (~−20% decode here). The value of `optimize` for this over-VRAM model is runnability/resource-fit, not speed. `benchmark --yes` persists the measured peak (≈0.25 GiB, far below the ≈19.2 GiB `totalMemoryBytes` estimate) as `memoryPeakBytes`, and `optimize --yes` writes a `calibration` audit row (`ratio≈0.013`, `note:'calibrated'`, `confidence:'measured'`).
 
 ### Qwen3.6-35B-A3B-Q4_K_M (19.7 GB MoE, beyond VRAM) — adaptive offload candidates + measured calibration
 
-| Metric | Baseline (`max` offload) |
-| --- | ---: |
-| Load time (ms) | ≈45090 |
-| TTFT (ms) | ≈584 |
-| Decode (tok/s) | ≈30.9 |
-| Measured peak VRAM (GiB) | ≈0.25 |
+| 35B metric | `max` (baseline) | offload 0.5 |
+| --- | ---: | ---: |
+| Load time (ms) | ≈45090 (cold) | ≈24000 (warm) |
+| TTFT (ms) | ≈596 | ≈710 |
+| Decode (tok/s) | **≈27.2** | ≈24.6 |
+| Measured peak VRAM (GiB) | ≈0.25 | ≈0.25 |
 
-Similarly, with adaptive-offload support landed, the 35B (MoE) is **no longer rejected outright**: the offload ladder produces `offload-0` → `resource-insufficient` and `offload 0.25/0.50` → `gpu-resident` (recommendable). `benchmark --yes` calibrates the measured peak (≈0.25 GiB) against the ≈21.4 GiB `totalMemoryBytes` estimate, and the audit row carries `calibration` (`ratio≈0.012`, `note:'calibrated'`, `confidence:'measured'`).
+Similarly, with adaptive-offload support landed, the 35B (MoE) is **no longer rejected outright**: the offload ladder produces `offload-0` → `resource-insufficient` and `offload 0.25/0.50` → `gpu-resident` (recommendable). As with the 27B, on this host a higher offload tier does not improve decode — the explicit tier lands slightly below the `max` baseline (~−10% here); `optimize`'s value is runnability/resource-fit for an over-VRAM model, not speed. `benchmark --yes` calibrates the measured peak (≈0.25 GiB) against the ≈21.4 GiB `totalMemoryBytes` estimate, and the audit row carries `calibration` (`ratio≈0.012`, `note:'calibrated'`, `confidence:'measured'`).
 
 > The 27B/35B figures above are real-machine measurements from 2026-09-12 on an RTX 5060 Ti 16 GB + external drive (local LM Studio session). The measured peak reflects only the server-reported GPU-resident portion, not total host-memory use.
 
@@ -83,6 +86,9 @@ Similarly, with adaptive-offload support landed, the 35B (MoE) is **no longer re
 
 - The 9B first baseline run hit a cold disk cache (peak 271 MB / load 23.5 s); a clean re-run went into the table.
 - The 27B/35B figures are real-machine measurements from the 2026-09-12 session; they are indicative of behavior under the stated setup rather than a performance guarantee.
+- The 27B/35B `max` baseline is an author-tuned running configuration, not an LM Studio factory default; the optimizer's recommendable offload tiers cannot be more aggressive than `max`, so decode did not improve at higher offload on this host (see each table).
+- Fix (2026-09-12): numeric offload tiers previously sent a `gpu_offload` key to REST v1 `/load`, which LM Studio rejects with `400 unrecognized_keys`, crashing benchmark; numeric tiers now load via `lms load --gpu <ratio>` (measure still uses the REST chat endpoint), while `max`/`off`/`auto` keep the REST loader.
+- **Measured ranking (2026-09-12)**: when a configuration has been benchmarked on this host, `optimize` no longer sorts it by the static heuristic score — the measured candidate is promoted to the top of the list and ranked by its real decode throughput and TTFT. The static score remains the cold-start prior for unmeasured configurations. This closes the loop: after `benchmark --yes`, the next `optimize` surfaces the genuinely fastest measured configuration rather than the highest statically-scored one.
 
 - Screenshots: [profiles](docs/screenshots/screenshot-profiles.png) · [optimize accepted](docs/screenshots/screenshot-optimize-9b.png) · [hardware](docs/screenshots/screenshot-hardware.png).
 

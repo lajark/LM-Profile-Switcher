@@ -15,5 +15,5 @@ export type { AggregateOptions, SampleMetrics } from './metrics.js';
 export { isBenchmarkValidFor } from './validity.js';
 export type { BenchmarkIdentity, Validity } from './validity.js';
 
-export { buildBenchmarkResult } from './result.js';
+export { buildBenchmarkResult, configSnapshotOf } from './result.js';
 export type { BuildBenchmarkResultInput } from './result.js';

@@ -47,6 +47,7 @@ describe('optimizer architecture guard (M2-001 → M2-002)', () => {
       'calibration.ts',
       'candidate.ts',
       'catalog.ts',
+      'feedback.ts',
       'index.ts',
       'notes.ts',
       'offload-ladder.ts',

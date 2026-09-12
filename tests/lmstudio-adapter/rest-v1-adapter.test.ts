@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createRestV1Adapter, isLmStudioError } from '@lmps/lmstudio-adapter';
+import { createRestV1Adapter, createRestBenchmarkRuntime, isLmStudioError } from '@lmps/lmstudio-adapter';
 import { liveHostModel, makeFakeEnv, loadedModel, restModelsBody } from './fixtures.js';
 
 function makeProfile(modelKey: string, runtime: Record<string, unknown> = {}) {
@@ -210,5 +210,74 @@ describe('createRestV1Adapter', () => {
     });
     const adapter = createRestV1Adapter(env);
     await expect(adapter.getActiveState()).rejects.toMatchObject({ kind: 'unreachable', subsystem: 'rest' });
+  });
+});
+
+describe('createRestBenchmarkRuntime load — numeric offload tiers', () => {
+  it('loads a numeric offload tier via the CLI loader (REST v1 has no gpu_offload key)', async () => {
+    const profile = makeProfile('qwen/qwen3.8-27b', { contextLength: 8192, gpuOffload: 0.75 });
+    const cliArgs: string[] = [];
+    let restLoadSeen = false;
+    const env = makeFakeEnv({
+      runLmsHandler: (args) => {
+        cliArgs.push(args.join(' '));
+        return { exitCode: 0, stdout: '', stderr: '', timedOut: false };
+      },
+      httpHandler: (path) => {
+        if (path === '/api/v1/models') return { status: 200, body: { models: [] } };
+        if (path === '/api/v1/models/load') {
+          restLoadSeen = true;
+          return { status: 200, body: { instance_id: 'i1', status: 'ok' } };
+        }
+        return { status: 404, rawText: '{"error":"not found"}' };
+      },
+    });
+    const runtime = createRestBenchmarkRuntime(env);
+    const { loadConfig } = await runtime.load(profile);
+    expect(cliArgs).toEqual(['load qwen/qwen3.8-27b --context-length 8192 --gpu 0.75']);
+    expect(restLoadSeen).toBe(false);
+    expect(loadConfig).toEqual({ model: 'qwen/qwen3.8-27b' });
+  });
+
+  it('keeps non-numeric offload (max) on the REST loader', async () => {
+    const profile = makeProfile('qwen/qwen3.8-27b', { contextLength: 8192, gpuOffload: 'max' });
+    const cliCalled: string[] = [];
+    const env = makeFakeEnv({
+      runLmsHandler: (args) => {
+        cliCalled.push(args.join(' '));
+        return { exitCode: 0, stdout: '', stderr: '', timedOut: false };
+      },
+      httpHandler: (path) => {
+        if (path === '/api/v1/models') return { status: 200, body: { models: [] } };
+        if (path === '/api/v1/models/load') {
+          return { status: 200, body: { instance_id: 'i1', status: 'ok', load_config: { model: profile.model.modelKey } } };
+        }
+        return { status: 404, rawText: '{"error":"not found"}' };
+      },
+    });
+    const runtime = createRestBenchmarkRuntime(env);
+    const { loadConfig } = await runtime.load(profile);
+    expect(cliCalled).toEqual([]);
+    expect(loadConfig).toEqual({ model: 'qwen/qwen3.8-27b' });
+  });
+
+  it('surfaces a failing CLI load as a process/CLI error', async () => {
+    const profile = makeProfile('qwen/qwen3.8-27b', { gpuOffload: 0.5 });
+    const env = makeFakeEnv({
+      runLmsHandler: () => ({ exitCode: 1, stdout: '', stderr: 'load failed', timedOut: false }),
+      httpHandler: () => ({ status: 200, body: { models: [] } }),
+    });
+    const runtime = createRestBenchmarkRuntime(env);
+    await expect(runtime.load(profile)).rejects.toMatchObject({ kind: 'process', subsystem: 'cli' });
+  });
+
+  it('surfaces a CLI load timeout as a timeout error', async () => {
+    const profile = makeProfile('qwen/qwen3.8-27b', { gpuOffload: 0.5 });
+    const env = makeFakeEnv({
+      runLmsHandler: () => ({ exitCode: 0, stdout: '', stderr: '', timedOut: true }),
+      httpHandler: () => ({ status: 200, body: { models: [] } }),
+    });
+    const runtime = createRestBenchmarkRuntime(env);
+    await expect(runtime.load(profile)).rejects.toMatchObject({ kind: 'timeout', subsystem: 'cli' });
   });
 });

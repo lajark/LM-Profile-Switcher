@@ -10,10 +10,11 @@
  * Output is validated against the strict contract before returning, so a
  * producer bug surfaces as a throw instead of a malformed machine document.
  */
-import { StrictRecommendationSchema, type Candidate, type CapabilityMatrix, type CompositeProfile, type HardwareProfile, type LoadEstimate, type Recommendation, type Rule } from '@lmps/domain';
+import { StrictRecommendationSchema, type BenchmarkResult, type Candidate, type CapabilityMatrix, type CompositeProfile, type HardwareProfile, type LoadEstimate, type Recommendation, type Rule } from '@lmps/domain';
 
 import { filterByHardConstraints, generateCandidateDrafts } from './candidate.js';
 import type { CandidateDraft } from './candidate.js';
+import { applyMeasuredFeedback } from './feedback.js';
 import { MAX_CANDIDATES } from './offload-ladder.js';
 import { computeSafetyMargin, type SafetyMargin } from './safe-margin.js';
 import { buildRationale, diffAgainst, scoreCandidate } from './scoring.js';
@@ -32,6 +33,8 @@ interface DraftAssessment {
  * @param ruleVersion the `RulesDocument.version` the rule came from
  * @param hardware probed host hardware (VRAM availability)
  * @param generatedAt deterministic clock (from the service runner context)
+ * @param measuredResults historical benchmark records for the measured-feedback
+ *   loop (most recent wins); empty keeps the pure static ranking
  */
 export function generateRecommendation(
   baseline: CompositeProfile,
@@ -42,6 +45,7 @@ export function generateRecommendation(
   generatedAt: string,
   ruleVersion: string,
   extraDrafts: CandidateDraft[] = [],
+  measuredResults: readonly BenchmarkResult[] = [],
 ): Recommendation {
   const warnings: string[] = [];
 
@@ -87,7 +91,8 @@ export function generateRecommendation(
     assessments.push({ draft, estimate, safety, forceLow: lowConfidenceIds.has(draft.id) });
   }
 
-  const candidates: Candidate[] = assessments.map(({ draft, estimate, safety, forceLow }): Candidate => {
+  const candidates = applyMeasuredFeedback(
+    assessments.map(({ draft, estimate, safety, forceLow }): Candidate => {
       const score = scoreCandidate(draft.profile, rule, estimate, safety, forceLow);
       return {
         schemaVersion: 2,
@@ -115,9 +120,10 @@ export function generateRecommendation(
         diff: diffAgainst(draft.profile, baseline),
         rationale: buildRationale(rule, safety, score),
       };
-    })
-    .sort((a, b) => b.score.total - a.score.total || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .slice(0, MAX_CANDIDATES);
+    }),
+    measuredResults,
+    hardware.hardwareFingerprint ?? null,
+  ).slice(0, MAX_CANDIDATES);
 
   const recommendation: Recommendation = {
     schemaVersion: 2,

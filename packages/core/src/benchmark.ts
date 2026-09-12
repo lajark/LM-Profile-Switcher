@@ -11,6 +11,7 @@
 import {
   aggregateSamples,
   buildBenchmarkResult,
+  configSnapshotOf,
   SEED_BENCHMARK_SUITE,
   type BenchmarkSuite,
   type SampleMetrics,
@@ -208,6 +209,9 @@ async function finish(
       loadMs,
       memoryPeaks: peaks.filter((peak): peak is number => peak !== null),
     }),
+    // Measured-feedback loop: record which configuration the run exercised so
+    // the optimizer can attribute the numbers back to matching candidates.
+    config: configSnapshotOf(profile),
     hardwareFingerprint: baseline?.hardwareFingerprint ?? null,
     lmStudioVersion: baseline?.versions?.lmStudio ?? null,
     runtimeVersion: baseline?.versions?.runtime ?? null,

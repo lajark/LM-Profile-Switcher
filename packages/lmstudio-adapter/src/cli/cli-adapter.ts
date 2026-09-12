@@ -177,6 +177,27 @@ export function estimateArgs(profile: CompositeProfile): string[] {
 }
 
 /**
+ * Arg vector for `lms load` applying the profile's runtime configuration
+ * (context length + GPU offload). The REST v1 `/load` contract does not accept a
+ * `gpu_offload` key (verified 2026-09-12, `400 unrecognized_keys`), so numeric
+ * offload ratios cannot be expressed over REST; the benchmark/activation paths
+ * that need an offload tier fall back to the CLI loader. `auto`/unset omits the
+ * flag (let the engine decide), matching `gpuOffloadToCliValue`.
+ */
+export function loadArgs(profile: CompositeProfile): string[] {
+  const args = ['load', profile.model.modelKey];
+  const contextLength = profile.runtime.contextLength;
+  if (typeof contextLength === 'number' && contextLength > 0) {
+    args.push('--context-length', String(contextLength));
+  }
+  const gpu = gpuOffloadToCliValue(profile.runtime.gpuOffload);
+  if (gpu !== null) {
+    args.push('--gpu', gpu);
+  }
+  return args;
+}
+
+/**
  * Lenient parser for the human `lms status` output observed on the real host
  * (2026-09-05), e.g. `Server:  OFF` / `(i) To start the server...`. `ON` and
  * `running` mean the local API server is up; `OFF`/`stopped`/`not running`

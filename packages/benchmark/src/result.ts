@@ -3,7 +3,7 @@
  * record and runs it through the strict schema so a malformed result can never
  * reach the audit log or a validation stamp.
  */
-import { DomainError, SCHEMA_VERSION, StrictBenchmarkResultSchema, type BenchmarkResult } from '@lmps/domain';
+import { DomainError, SCHEMA_VERSION, StrictBenchmarkResultSchema, type BenchmarkConfig, type BenchmarkResult, type CompositeProfile } from '@lmps/domain';
 
 export interface BuildBenchmarkResultInput {
   id: string;
@@ -22,6 +22,8 @@ export interface BuildBenchmarkResultInput {
   modelFileHash: string | null;
   promptSuiteId: string | null;
   promptSuiteVersion: string | null;
+  /** Measured configuration snapshot (measured-feedback loop); null when unknown. */
+  config?: BenchmarkConfig | null;
 }
 
 export function buildBenchmarkResult(input: BuildBenchmarkResultInput): BenchmarkResult {
@@ -33,6 +35,7 @@ export function buildBenchmarkResult(input: BuildBenchmarkResultInput): Benchmar
     taskType: input.taskType,
     status: input.status,
     metrics: input.metrics,
+    config: input.config ?? null,
     hardwareFingerprint: input.hardwareFingerprint,
     lmStudioVersion: input.lmStudioVersion,
     runtimeVersion: input.runtimeVersion,
@@ -52,4 +55,22 @@ export function buildBenchmarkResult(input: BuildBenchmarkResultInput): Benchmar
     });
   }
   return result;
+}
+
+/**
+ * Pure projection of the profile parameters a benchmark run exercised
+ * (measured-feedback loop): exactly the fields the optimizer's evidence matcher
+ * compares candidates against. Fields the profile defers to LM Studio defaults
+ * on stay `null` so a match never invents a value that was not measured.
+ */
+export function configSnapshotOf(profile: CompositeProfile): BenchmarkConfig {
+  return {
+    profileId: profile.id,
+    gpuOffload: profile.runtime.gpuOffload ?? null,
+    contextLength: profile.runtime.contextLength ?? null,
+    evalBatchSize: profile.runtime.evalBatchSize ?? null,
+    flashAttention: profile.runtime.flashAttention ?? null,
+    temperature: profile.generation.temperature ?? null,
+    topP: profile.generation.topP ?? null,
+  };
 }

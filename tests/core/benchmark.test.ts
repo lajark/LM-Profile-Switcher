@@ -109,6 +109,16 @@ describe('createBenchmarkService', () => {
     expect(result.runtimeVersion).toBe('0.3.27');
     expect(result.promptSuiteId).toBe('default');
     expect(result.promptSuiteVersion).toBe('2026.09.1');
+    // Measured-feedback loop: the record carries the measured configuration.
+    expect(result.config).toEqual({
+      profileId: 'rag-prime',
+      gpuOffload: 'max',
+      contextLength: 8192,
+      evalBatchSize: null,
+      flashAttention: null,
+      temperature: 0.7,
+      topP: null,
+    });
     expect(released()).toBe(true);
     expect(written).toEqual([result]);
     expect(StrictBenchmarkResultSchema.safeParse(result).success).toBe(true);

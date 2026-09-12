@@ -15,12 +15,14 @@ import {
   createFileLock,
   createRecommendationService,
   captureSnapshot,
+  parseBenchmarkLogLines,
   type ActivationLock,
   type ActivationRuntime,
   type BenchmarkLogSink,
   type BenchmarkRuntime,
   type CapabilityPort,
   type HardwarePort,
+  type MeasuredResultsPort,
   type RunnerContext,
   type TransactionLogSink,
 } from '@lmps/core';
@@ -486,6 +488,7 @@ export interface RecommendationSeamOptions {
  */
 export function createRecommendationSeam(fs: Fsys, options: RecommendationSeamOptions): RecommendationSeam {
   const logPath = join(options.rootDir, 'logs', 'optimizations.ndjson');
+  const benchmarkLogPath = join(options.rootDir, 'logs', 'benchmarks.ndjson');
 
   function pickActiveMatrix(result: CapabilityProbeResult): CapabilityMatrix {
     const active = result.matrices.find((matrix) =>
@@ -514,10 +517,19 @@ export function createRecommendationSeam(fs: Fsys, options: RecommendationSeamOp
     profile: async () => probeHardware(options.probeEnv),
   };
 
+  // Measured-feedback loop: historical benchmark records from the append-only
+  // audit log back the candidate ranking; a missing or unreadable log degrades
+  // to the pure static ranking.
+  const measured: MeasuredResultsPort = {
+    list: async () =>
+      fs.exists(benchmarkLogPath) ? parseBenchmarkLogLines(fs.readFileUtf8(benchmarkLogPath)) : [],
+  };
+
   const service = createRecommendationService(runnerContext, {
     estimate: createCliEstimatePort(options.lmEnv),
     capability,
     hardware,
+    measured,
   });
 
   return {

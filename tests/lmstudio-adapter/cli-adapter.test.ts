@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { createCliAdapter, parseLmsLs, parseLmsStatus } from '@lmps/lmstudio-adapter';
-import { makeFakeEnv } from './fixtures.js';
+import { createCliAdapter, loadArgs, parseLmsLs, parseLmsStatus } from '@lmps/lmstudio-adapter';
+import { makeFakeEnv, NOW } from './fixtures.js';
 
 describe('parseLmsStatus', () => {
   it('reads the human Server: ON/OFF line as the running state', () => {
@@ -88,3 +88,49 @@ describe('createCliAdapter', () => {
     await expect(adapter.listModels()).rejects.toMatchObject({ kind: 'process' });
   });
 });
+
+describe('loadArgs', () => {
+  it('maps a numeric offload tier and context to lms load flags', () => {
+    expect(loadArgs(makeLmsProfile('qwen/qwen3.8-27b', { contextLength: 8192, gpuOffload: 0.75 }))).toEqual([
+      'load',
+      'qwen/qwen3.8-27b',
+      '--context-length',
+      '8192',
+      '--gpu',
+      '0.75',
+    ]);
+  });
+
+  it('maps max/off to the CLI fraction and omits the flag for auto', () => {
+    expect(loadArgs(makeLmsProfile('qwen/qwen3.6-35b-a3b', { gpuOffload: 'max' }))).toEqual([
+      'load',
+      'qwen/qwen3.6-35b-a3b',
+      '--gpu',
+      '1',
+    ]);
+    expect(loadArgs(makeLmsProfile('qwen/qwen3.6-35b-a3b', { gpuOffload: 'off' }))).toEqual([
+      'load',
+      'qwen/qwen3.6-35b-a3b',
+      '--gpu',
+      '0',
+    ]);
+    expect(loadArgs(makeLmsProfile('qwen/qwen3.6-35b-a3b', { gpuOffload: 'auto' }))).toEqual([
+      'load',
+      'qwen/qwen3.6-35b-a3b',
+    ]);
+  });
+});
+
+function makeLmsProfile(modelKey: string, runtime: Record<string, unknown>): Parameters<typeof loadArgs>[0] {
+  return {
+    schemaVersion: 2,
+    id: `profile-${modelKey.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`,
+    displayName: { 'zh-CN': '测试', en: 'test' },
+    model: { modelKey },
+    task: { type: 'chat' },
+    runtime,
+    generation: {},
+    behavior: { mode: 'exclusive' },
+    metadata: { createdAt: NOW, updatedAt: NOW },
+  };
+}

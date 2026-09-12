@@ -12,6 +12,7 @@ import type { CompositeProfile } from '@lmps/domain';
 
 import type { LmStudioEnv } from '../env.js';
 import { LmStudioError } from '../errors.js';
+import { loadArgs } from '../cli/cli-adapter.js';
 import type { ModelIdentity } from '../model-names.js';
 import { parseModelIdentity } from '../model-names.js';
 import { restChatCompletionStream } from './chat.js';
@@ -25,6 +26,9 @@ import {
 export interface RestV1Discovery {
   listModels(): Promise<ModelIdentity[]>;
 }
+
+/** CLI-load transport budget for a benchmark run (numeric offload tiers). */
+const BENCHMARK_LOAD_CLI_TIMEOUT_MS = 5 * 60 * 1000;
 
 function isLoaded(profile: CompositeProfile, models: ReadonlyArray<{ id: string; loaded: boolean }>): boolean {
   return models.some((model) => model.id === profile.model.modelKey && model.loaded);
@@ -120,9 +124,29 @@ export function createRestBenchmarkRuntime(env: LmStudioEnv): BenchmarkRuntime {
     } catch {
       preLoadInstanceIds = new Set();
     }
-    // Loads against the REST v1 endpoint directly: `base.load` is the
-    // activation signature (profile, estimate) and benchmark has no estimate.
     const started = env.nowMs();
+    // REST v1 `/load` has no `gpu_offload` key (verified 2026-09-12:
+    // `400 unrecognized_keys`), so a numeric offload tier cannot be expressed
+    // over REST — it loads via the CLI loader (`lms load --gpu <ratio>`). The
+    // LLM is then resident under that config and `measure` reaches it over the
+    // same REST chat endpoint. `max`/`off`/`auto` carry no numeric ratio and
+    // stay on the REST loader as before.
+    if (typeof profile.runtime.gpuOffload === 'number') {
+      const result = await env.runLms(loadArgs(profile), BENCHMARK_LOAD_CLI_TIMEOUT_MS);
+      if (result.exitCode !== 0 || result.timedOut) {
+        throw new LmStudioError(`lms load exited ${result.exitCode}${result.timedOut ? ' (timeout)' : ''}`, {
+          subsystem: 'cli',
+          kind: result.timedOut ? 'timeout' : 'process',
+          detail: profile.model.modelKey,
+        });
+      }
+      return {
+        loadConfig: { model: profile.model.modelKey },
+        loadMs: Math.round(env.nowMs() - started),
+      };
+    }
+    // Numeric-offload-free profiles load through REST v1 directly: `base.load`
+    // is the activation signature (profile, estimate) and benchmark has none.
     const response = await restLoadModel(env, profileToRestLoadParams(profile));
     return {
       loadConfig: response.loadConfig ?? { model: profile.model.modelKey },

@@ -16,6 +16,7 @@ import {
   createFileLock,
   createRecommendationService,
   createSessionLock,
+  parseBenchmarkLogLines,
   type ActivationLock,
   type ActivationRuntime,
   type ActivationRunner,
@@ -24,6 +25,7 @@ import {
   type BenchmarkService,
   type EstimatePort,
   type HardwarePort,
+  type MeasuredResultsPort,
   type RecommendationService,
   type RunnerContext,
   type TransactionLogSink,
@@ -218,11 +220,20 @@ export function createSidecarRecommendationSeam(
   fs: Fsys,
   options: SidecarSeamOptions,
 ): SidecarRecommendationSeam {
+  // Measured-feedback loop: the same append-only benchmark audit log the CLI
+  // reads backs the desktop ranking; a missing or unreadable log degrades to
+  // the pure static ranking.
+  const benchmarkLogPath = `${options.rootDir}/logs/benchmarks.ndjson`;
+  const measured: MeasuredResultsPort = {
+    list: async () =>
+      fs.exists(benchmarkLogPath) ? parseBenchmarkLogLines(fs.readFileUtf8(benchmarkLogPath)) : [],
+  };
   return {
     service: createRecommendationService(runnerContext, {
       estimate: createCliEstimatePort(options.lmEnv),
       capability: { probe: pickActiveMatrixGuarded(options.lmEnv) },
       hardware: { profile: () => probeHardware(createDefaultProbeEnv()) },
+      measured,
     }),
     audit: (entry) => appendNdjson(fs, `${options.rootDir}/logs/optimizations.ndjson`, entry),
   };

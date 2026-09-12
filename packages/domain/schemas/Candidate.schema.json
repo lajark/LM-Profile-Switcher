@@ -980,6 +980,45 @@
         "measured": {
           "default": false,
           "type": "boolean"
+        },
+        "measuredEvidence": {
+          "type": "object",
+          "properties": {
+            "decodeTokensPerSecond": {
+              "type": "number",
+              "minimum": 0
+            },
+            "ttftMs": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "samples": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "recordedAt": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "decodeTokensPerSecond",
+            "ttftMs",
+            "samples",
+            "recordedAt"
+          ],
+          "additionalProperties": false
+        },
+        "adjustedTotal": {
+          "type": "number",
+          "minimum": 0
         }
       },
       "required": [
@@ -1057,5 +1096,5 @@
   "additionalProperties": {},
   "title": "Candidate",
   "description": "One safe, scored candidate configuration for a baseline profile.",
-  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 5742e312c946e1d9bd1106f18d5e27bd6ea5466b2279ee1fe0cbe586415ce624"
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 94745ca69347662dcbb5dd2a3f60bbcb5c08ecd65a818f78c220afae7dab6955"
 }

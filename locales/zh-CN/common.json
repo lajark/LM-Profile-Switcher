@@ -139,6 +139,7 @@
   "optimize.ramHeadroom": "内存余量 {{value}}",
   "optimize.measuredPeak": "实测峰值 {{value}}",
   "optimize.degraded": "已降级",
+  "optimize.measured": "实测 {{tps}} tok/s · {{samples}} 样本",
   "resourceFit.gpuResident": "GPU 常驻",
   "resourceFit.hybridMemory": "混合内存",
   "resourceFit.hostMemory": "主机内存",

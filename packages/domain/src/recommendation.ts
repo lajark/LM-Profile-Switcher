@@ -74,8 +74,26 @@ const CandidateScoreSchema = z
      * otherwise `low` (rough estimate, unknown capability, thin margin, …).
      */
     confidence: z.enum(['high', 'low']),
-    /** Whether the score reflects measured calibration (M2-003). Always false in M2-002. */
+    /** Whether measured feedback was applied to this candidate's ranking. */
     measured: z.boolean().default(false),
+    /**
+     * Measured-feedback evidence (measured-feedback loop): the benchmark record
+     * this candidate was matched against. Present only when `measured` is true.
+     */
+    measuredEvidence: z
+      .object({
+        decodeTokensPerSecond: z.number().min(0),
+        ttftMs: z.number().min(0).nullable(),
+        samples: z.number().int().min(0),
+        recordedAt: isoDateTime('measuredEvidence.recordedAt'),
+      })
+      .optional(),
+    /**
+     * Effective ranking value used by the sort: the measured blend for
+     * measured-feedback candidates, otherwise equal to `total`. `total` above
+     * always stays the pure static score so both views remain readable.
+     */
+    adjustedTotal: z.number().min(0).optional(),
   })
   .passthrough();
 
@@ -117,7 +135,7 @@ const RecommendationDefinition = z.object({
   taskKind: z.enum(TASK_KINDS),
   /** Rule-pack version the matched rule came from (`RulesDocument.version`). */
   ruleVersion: z.string().min(1),
-  /** Safe candidates only, sorted by `score.total` descending. */
+  /** Safe candidates only, sorted by the effective ranking value (`adjustedTotal ?? total`) descending; measured-feedback candidates rank above unmeasured ones. */
   candidates: z.array(CandidateSchema).min(0),
   /** Head candidate index; null when no candidate is safe to recommend. */
   selectedIndex: z.number().int().min(0).nullable(),

@@ -11,6 +11,7 @@
 - **Schema 校验的 Profile**：版本化的 `HardwareProfile` / `ModelProfile` / `TaskProfile` / `RuntimeProfile` / `GenerationProfile` / `BehaviorProfile` 领域契约，以纯 JSON/YAML 持久化在 `LMPS_HOME`（缺省 `~/.lmps`）下，支持原子写入与写前备份。
 - **硬件感知的推荐**：本机硬件探测（GPU 优先 `nvidia-smi`、通用回退），确定性候选优化器带显存安全余量，按任务类别排序并附中英双语理由。
 - **Benchmark Lite**：有界、可取消、绑定机器指纹的客观基准（加载时间 / TTFT / Prefill / Decode tokens·s⁻¹ / 峰值显存），结束后自动恢复原模型。
+- **实测回流闭环**：每次 `benchmark` 运行都会把被测的精确配置（模型、量化、任务类型、六项可调参数以及硬件指纹）写入 `logs/benchmarks.ndjson`。下一次 `optimize` 时，配置与该历史记录逐值匹配的候选会被提升到未实测候选之前；实测组内按真实 decode 吞吐（70%）与逆 TTFT（30%）加权排序。静态评分仅作为冷启动先验保留——本机实测数字永远压过任何估算。
 - **安全激活事务**：带健康检查与自动回滚的状态机；CLI、托盘、Benchmark、Hook 与 Proxy 共用同一把 `activation.lock` 串行化激活。
 - **桌面端（Tauri 2）**：React/Web GUI 由轻量 Rust 壳承载——Profile 编辑器、优化向导、基准视图、硬件面板，以及驱动与 CLI 同一激活事务的系统托盘。
 - **本机自动化（仅回环）**：
@@ -57,25 +58,27 @@ corepack pnpm run lmps -- --json profile list
 
 ### Qwen3.8-27B-Q4_K_M（15.7 GB，临近显存上限）—— 自适应 offload 候选 + 实测校准
 
-| 指标 | 基线（`max` offload） |
-| --- | ---: |
-| 加载时间 (ms) | ≈37105（首次）/ ≈12437（已缓存） |
-| TTFT (ms) | ≈1740 |
-| Decode (tok/s) | ≈10.2 |
-| 实测峰值显存 (GiB) | ≈0.25 |
+下表中的"基线"是作者手动调出的运行配置（**`max` offload、context 8192、temperature 0.7**），不是 LM Studio 出厂默认。表格把它与 optimizer 推荐的可驻留 offload 挡位做同会话、同协议（3 样本 × 64 tokens）对比；实测峰值仅反映服务端报告的 GPU 驻留部分，不代表主机内存总用量。
 
-自适应 offload 能力落地后，`lmps optimize` **不再对 27B 一律拒绝**：它会沿 GPU offload 梯度（`0 / 0.25 / 0.50 / 0.75 / off`）生成分档候选并做 resource-fit 分类——`offload-0` 因几乎不进 GPU 判为 `resource-insufficient`，`offload 0.25/0.50/0.75` 判为 `gpu-resident` 且可推荐。`benchmark --yes` 实测峰值（≈0.25 GiB，远低于 `totalMemoryBytes` 估算的 ≈19.2 GiB）作为 `memoryPeakBytes` 落库，`optimize --yes` 审计行写入 `calibration`（`ratio≈0.013`、`note:'calibrated'`、`confidence:'measured'`——实测低于估算，因此不误报降级）。
+| 27B 指标 | `max`（基线） | offload 0.75 |
+| --- | ---: | ---: |
+| 加载时间 (ms) | ≈36865（冷） | ≈11000（热） |
+| TTFT (ms) | ≈1700 | ≈2160 |
+| Decode (tok/s) | **≈9.9** | ≈8.0 |
+| 实测峰值显存 (GiB) | ≈0.25 | ≈0.25 |
+
+自适应 offload 能力落地后，`lmps optimize` **不再对 27B 一律拒绝**：它沿 GPU offload 梯度（`0 / 0.25 / 0.50 / 0.75 / off`）生成分档候选并做 resource-fit 分类——`offload-0` 因几乎不进 GPU 判为 `resource-insufficient`，`offload 0.25/0.50/0.75` 判为 `gpu-resident` 且可推荐。在 16 GB 本机上，optimizer 的可推荐挡位并不能比 `max` 更激进驻 GPU，因此**更高 offload 比例并不会提升 decode 吞吐**；本机实测显式挡位解码反而与 `max` 基线持平或略低（此处约 −20%）。对这类超显存模型，`optimize` 的价值在于**可运行性与资源适配**，而非单纯提速。`benchmark --yes` 把实测峰值（≈0.25 GiB，远低于 `totalMemoryBytes` 估算的 ≈19.2 GiB）作为 `memoryPeakBytes` 落库，`optimize --yes` 写入 `calibration` 审计行（`ratio≈0.013`、`note:'calibrated'`、`confidence:'measured'`）。
 
 ### Qwen3.6-35B-A3B-Q4_K_M（19.7 GB MoE，超出显存）—— 自适应 offload 候选 + 实测校准
 
-| 指标 | 基线（`max` offload） |
-| --- | ---: |
-| 加载时间 (ms) | ≈45090 |
-| TTFT (ms) | ≈584 |
-| Decode (tok/s) | ≈30.9 |
-| 实测峰值显存 (GiB) | ≈0.25 |
+| 35B 指标 | `max`（基线） | offload 0.5 |
+| --- | ---: | ---: |
+| 加载时间 (ms) | ≈45090（冷） | ≈24000（热） |
+| TTFT (ms) | ≈596 | ≈710 |
+| Decode (tok/s) | **≈27.2** | ≈24.6 |
+| 实测峰值显存 (GiB) | ≈0.25 | ≈0.25 |
 
-同样，自适应 offload 能力落地后，35B（MoE）也**不再一律拒绝**：`lmps` 沿卸载梯度生成分档候选——`offload-0` → `resource-insufficient`，`offload 0.25/0.50` → `gpu-resident` 且可推荐。`benchmark --yes` 实测峰值（≈0.25 GiB）对 `totalMemoryBytes` 估算（≈21.4 GiB）做校准，审计行含 `calibration`（`ratio≈0.012`、`note:'calibrated'`、`confidence:'measured'`）。
+同样，自适应 offload 能力落地后，35B（MoE）也**不再一律拒绝**：`lmps` 沿卸载梯度生成分档候选——`offload-0` → `resource-insufficient`，`offload 0.25/0.50` → `gpu-resident` 且可推荐。与 27B 相同，本机上更高 offload 挡位并不提升 decode——显式挡位略低于 `max` 基线（此处约 −10%）；`optimize` 对这类超显存模型的价值同样是**可运行性与资源适配**，而非提速。`benchmark --yes` 将实测峰值（≈0.25 GiB）对 `totalMemoryBytes` 估算（≈21.4 GiB）校准，审计行含 `calibration`（`ratio≈0.012`、`note:'calibrated'`、`confidence:'measured'`）。
 
 > 以上 27B/35B 数字为 2026-09-12 在 RTX 5060 Ti 16 GB + 外接硬盘上的真机实测（LM Studio 本地会话）；实测峰值仅反映服务端报告的 GPU 驻留峰值，不代表主机内存总用量。
 
@@ -83,6 +86,9 @@ corepack pnpm run lmps -- --json profile list
 
 - 9B 首次基线命中冷磁盘缓存（峰值 271 MB / 加载 23.5 s）；上表基线与优化后使用干净复测值。
 - 27B/35B 数值为 2026-09-12 会话的真机实测，反映所声明的配置下可复现的行为，而非性能保证。
+- 27B/35B 的 `max` 基线是作者手动调出的运行配置，不是 LM Studio 出厂默认；optimizer 推荐的 offload 挡位无法比 `max` 更激进驻 GPU，故本机实测 decode 未因更高 offload 而提升（见各表）。
+- 功能修复（2026-09-12）：数值 offload 挡位此前经 REST v1 `/load` 提交的 `gpu_offload` 键会被 LM Studio 以 `400 unrecognized_keys` 拒绝，导致 benchmark 崩溃；已改为对数值挡位走 `lms load --gpu <ratio>` 加载（measure 仍走 REST chat），`max`/`off`/`auto` 维持 REST 加载。
+- **实测排序（2026-09-12）**：当某个配置已在本机完成 benchmark，`optimize` 不再按静态启发式评分排序——实测候选被提升到列表顶部，按真实 decode 吞吐与 TTFT 排序。静态评分仅作为未实测配置的冷启动先验。闭环效果：`benchmark --yes` 之后，下一次 `optimize` 会优先展示本机实测最快的配置，而非静态评分最高的配置。
 
 - 截图：[配置档案](docs/screenshots/screenshot-profiles.png) · [优化向导·接受](docs/screenshots/screenshot-optimize-9b.png) · [硬件](docs/screenshots/screenshot-hardware.png)。
 

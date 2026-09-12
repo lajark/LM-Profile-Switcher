@@ -10,7 +10,7 @@
  * dropped and a stable warning code is recorded. No profile is loaded or saved
  * here; saving the winner is the CLI command's job under explicit `--yes`.
  */
-import { StrictRecommendationSchema, type CompositeProfile, type LoadEstimate, type Recommendation, type Rule } from '@lmps/domain';
+import { StrictRecommendationSchema, type BenchmarkResult, type CompositeProfile, type LoadEstimate, type Recommendation, type Rule } from '@lmps/domain';
 import { filterByHardConstraints, generateCandidateDrafts, generateRecommendation, MAX_ESTIMATE_CALLS, planLadderFallback, SEED_RULE_CATALOG, type CandidateDraft, type RuleCatalog } from '@lmps/optimizer';
 
 import { ActivationError } from './errors.js';
@@ -20,6 +20,17 @@ export interface RecommendationPorts {
   estimate: EstimatePort;
   capability: CapabilityPort;
   hardware: HardwarePort;
+  /**
+   * Measured-feedback loop (optional): historical benchmark records for this
+   * host, oldest first. When absent or failing, recommendations rank by the
+   * static score only — evidence must never break a recommendation.
+   */
+  measured?: MeasuredResultsPort;
+}
+
+/** Historical benchmark records backing the measured-feedback loop. */
+export interface MeasuredResultsPort {
+  list(): Promise<BenchmarkResult[]>;
 }
 
 export interface RecommendationService {
@@ -122,8 +133,22 @@ export function createRecommendationService(
         }
       }
 
-      const recommendation = generateRecommendation(profile, rule, estimates, capability, hardware, ctx.now(), catalog.version, extraDrafts);
+      const recommendation = generateRecommendation(profile, rule, estimates, capability, hardware, ctx.now(), catalog.version, extraDrafts, await measuredResults(ports));
       return { ...recommendation, warnings: [...estimateWarnings, ...recommendation.warnings] };
     },
   };
+}
+
+/**
+ * Loads the measured evidence through the optional port; any failure degrades
+ * to "no evidence" so the static ranking path is never disturbed.
+ */
+async function measuredResults(ports: RecommendationPorts): Promise<BenchmarkResult[]> {
+  if (ports.measured === undefined) return [];
+  try {
+    const results = await ports.measured.list();
+    return Array.isArray(results) ? results : [];
+  } catch {
+    return [];
+  }
 }
