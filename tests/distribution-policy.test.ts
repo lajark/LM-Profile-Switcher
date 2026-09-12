@@ -13,7 +13,7 @@ describe('distribution policy', () => {
     // project-spec.json is internal engineering tooling (LOCAL-ONLY) and is
     // not shipped with the public repository; only the policy file is public.
     expect(policy).toContain('repository_visibility: "public"');
-    expect(policy).toContain('release_visibility: "none"');
+    expect(policy).toContain('release_visibility: "github-prerelease"');
   });
 
   it('keeps local workspace, reports, and release staging out of Git by default', () => {

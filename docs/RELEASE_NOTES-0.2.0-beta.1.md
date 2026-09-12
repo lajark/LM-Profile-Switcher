@@ -1,6 +1,6 @@
 # LM Profile Switcher 0.2.0-beta.1 (Windows x86_64) — Release Notes / 发布说明
 
-- Status / 状态: **Development / Pre-release (UNSIGNED)** — 未签名、仅本地验证，未上传任何公共 Release。
+- Status / 状态: **GitHub Pre-release (UNSIGNED)** — 2026-09-12 已发布 Windows x86_64 预发布；Gitee 仅镜像源码，不承载下载制品。
 - Target / 目标: Windows x86_64, NSIS currentUser installer（开发/预发布构建）。
 - Source commit / 来源提交: 见 `release-manifest.json` 的 `sourceCommit`（本候选从选定 release commit `67089b0` 构建并溯源）。
 - Signing / 签名: 无代码签名证书 → 安装包为 **unsigned**；macOS 分发仍 blocked（无硬件/凭据）。依 `PROJECT_DISTRIBUTION_POLICY.md` §5.3。
@@ -16,4 +16,5 @@
 
 ## Safety / 说明
 - 本地优先、无遥测/云端；数据留在本机。
-- 未上传播放：本候选仅用于本地/CI 验证，不构成公开发布。
+- **校准勘误（M6-001）**：0.2.0-beta.1 的 Benchmark 在加载后和推理后复用了加载前硬件快照，并将绝对 VRAM 使用量与 GPU+系统内存 Total Memory 估算比较。因此历史 calibration 仅作问题记录，不是有效的资源证据，也不会自动迁移到新推荐。升级到 0.2.1-beta.1 后必须重新 Benchmark；在重新测量前不要据此提高置信度、放宽安全余量或判断模型可运行。
+- 原始审计记录与发布制品保留，勘误不删除历史证据。修复版本目标为 `0.2.1-beta.1`，仅在 M6-002～M6-007 验收且获授权后发布；macOS、签名和公证不以 Windows 结果代替。

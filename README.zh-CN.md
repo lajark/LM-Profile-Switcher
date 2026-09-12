@@ -44,6 +44,8 @@ corepack pnpm run lmps -- --json profile list
 
 测试于 **2026-09-10**（9B 首表）与 **2026-09-12**（9B 复测 + 27B/35B）在本机真实会话中进行：RTX 5060 Ti 16 GB（驱动 596.36）、Intel Core Ultra 5 225H（14C/14T）、31.4 GiB 内存、Windows 11。LM Studio 服务位于 `127.0.0.1:1234`；9B 运行在 `8k 上下文 / max 显存卸载`，27B/35B 按下方自适应 offload 梯度测评（Q4_K_M 量化）。基准默认 3 样本 × 64 tokens，通过 `lmps benchmark` 执行；以下数字取自 CLI 实测结果 JSON（原始数据由维护者本地留存）。
 
+> **校准勘误（M6-001，2026-09-12）**：0.2.0-beta.1 的 Benchmark 在加载后和推理后复用了加载前硬件快照，并将绝对显存使用量与 GPU+系统内存估算比较。因此下方 27B/35B 校准数字仅作历史诊断，不是有效资源证据；不得据此提高置信度或放宽安全默认值。升级到 0.2.1-beta.1 后请重新执行 `benchmark --yes`，修复后的契约会报告同步采样的显存/系统内存增量，之后再依赖校准或实测推荐。
+
 ### Qwen3.5-9B-Q4_K_M（5.2 GB，全量驻留 GPU）
 
 **2026-09-12 复测**（2 样本 × 64 tokens）：
@@ -63,7 +65,7 @@ corepack pnpm run lmps -- --json profile list
 没有 `lmps` 时，27B 要么被拒绝、要么靠手工调参。`lmps optimize` 把它变成一次**可运行、可测量的配置搜索**：
 
 - **不再拒绝超显存模型**：GPU offload 梯度（`0 / 0.25 / 0.50 / 0.75 / off`）生成分档候选并做资源适配分类——`offload-0` → `resource-insufficient`，`offload 0.25/0.50/0.75` → `gpu-resident` 且可推荐。用户看到的是每个挡位「为什么适合/不适合」，而不是一个含糊的拒绝。
-- **实测校准揭示内存真相**：`benchmark --yes` 实测峰值 **≈0.25 GiB**（服务端报告的 GPU 驻留部分）对比 ≈19.2 GiB 主机内存估算——审计行记录 `ratio≈0.013`、`note:'calibrated'`、`confidence:'measured'`。这就是「我猜它用 19 GB」与「我量过它」的区别——且会回流给优化器（见下方实测排序）。
+- **历史校准警告**：≈0.25 GiB 对比 ≈19.2 GiB 及其 `ratio≈0.013` 审计行来自上述无效的 0.2.0-beta.1 测量契约，仅为可追溯记录；必须获得修复后的 v2 证据，才能信任实测回流。
 - **诚实的速度说明**：在这台 16 GB 主机上，优化器可推荐挡位无法比 `max` 更激进驻 GPU，因此更高 offload **不会**提升 decode：显式挡位落在 `max` 基线或略低（≈9.9 → ≈8.0 tok/s）。对超显存模型，价值是可运行性 + 测量，而非提速。
 
 | 27B 指标 | `max`（基线） | offload 0.75 |
@@ -75,7 +77,7 @@ corepack pnpm run lmps -- --json profile list
 
 ### Qwen3.6-35B-A3B-Q4_K_M（19.7 GB MoE，超出显存）—— 从「装不上」到可运行 + 实测校准
 
-35B 同样如此：先前硬性拒绝，现在是一次分档、可测量的配置搜索。梯度产出 `offload-0` → `resource-insufficient`、`offload 0.25/0.50` → `gpu-resident`；实测峰值 ≈0.25 GiB 对比 ≈21.4 GiB 估算，审计链记录 `calibration`（`ratio≈0.012`、`confidence:'measured'`）。与 27B 相同，本机更高 offload 不提升 decode（≈27.2 → ≈24.6 tok/s）——可运行性 + 校准，而非提速。
+35B 同样如此：先前硬性拒绝，现在是一次分档配置搜索。梯度产出 `offload-0` → `resource-insufficient`、`offload 0.25/0.50` → `gpu-resident`；≈0.25 GiB 对比 ≈21.4 GiB 的校准比较在 0.2.0-beta.1 契约下无效，仅作历史记录。与 27B 相同，本机更高 offload 不提升 decode（≈27.2 → ≈24.6 tok/s）——说明可运行性，不构成校准或速度承诺。
 
 | 35B 指标 | `max`（基线） | offload 0.5 |
 | --- | ---: | ---: |

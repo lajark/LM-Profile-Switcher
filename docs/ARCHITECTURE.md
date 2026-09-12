@@ -10,7 +10,13 @@ The product uses a **TypeScript Core + CLI-first architecture**, with a **React/
 - CLI、Optimizer、Adapter 和 i18n 可在同一运行时复用；
 - AI 编程工具对 TypeScript 单元测试和重构支持成熟。
 
-Tauri WebView 承载 React/Web GUI，但不直接执行 Node 业务逻辑，因此桌面端通过打包的 Core Service Sidecar 与 Core 通信。Sidecar 打包方式必须先做技术 Spike，以实际验证 `@lmstudio/sdk` 的兼容性，不能假设“零成本”。
+Tauri WebView 承载 React/Web GUI，但不直接执行 Node 业务逻辑，因此桌面端通过打包的 Core Service Sidecar 与 Core 通信。M0-006 已完成技术 Spike 并由 ADR-0003 接受 stdio JSON-RPC 作为桌面生产传输；后续改动必须通过对应测试 seam 验证，不得重新引入未决传输选型。
+
+Benchmark calibration follows the synchronized host-snapshot contract in
+[ADR-0004](adr/0004-resource-usage-evidence.md): a pre-load baseline and fresh
+post-load/post-sample observations produce versioned VRAM/system-RAM deltas.
+Legacy absolute `memoryPeakBytes` remains readable but is not a Total Memory
+calibration input.
 
 ## 2. Repository Shape
 
@@ -64,13 +70,9 @@ Responsibilities:
 - bind only to local IPC or loopback;
 - shut down with the desktop unless configured as a background service.
 
-The transport is an implementation decision from task `M0-006`. Candidate transports:
+The production desktop transport is **stdio JSON-RPC**, accepted by ADR-0003 after the M0-006 packaging and lifecycle spike. The Rust shell owns the child-process supervisor and forwards the authenticated request stream; the TypeScript sidecar owns protocol dispatch and Core wiring. Loopback HTTP remains an explicit local adapter/proxy surface, not the desktop control channel.
 
-1. stdio JSON-RPC;
-2. local named pipe / Unix domain socket;
-3. loopback HTTP with random ephemeral port and token.
-
-The Spike must compare packaging, cancellation, streaming status, crash recovery, and Windows support.
+The transport boundary is kept behind a testable startup seam so tests can exercise spawn, ready/auth handshake, request cancellation, shutdown, crash/restart and process-tree cleanup without opening a network listener. M6-003 makes the entry itself testable: startup settings resolve through the pure `resolveSidecarSettings` module (index.ts stays a thin wiring composition) and the sidecar owns the activation lock with its real pid plus a fail-closed liveness probe, so a crashed sidecar's still-valid lease is reclaimed on restart instead of blocking for the lease window. WebDriver browser-mode tests may replace this seam with deterministic mocked IPC; Windows-shell E2E uses the packaged sidecar. Native tray behavior remains covered by Rust tests and manual acceptance.
 
 ## 5. LM Studio Adapter Router
 
@@ -123,6 +125,8 @@ A selective port becomes locally owned maintenance work and must have local test
 All activation entry points call the same use case. The transaction captures prior state, target state, estimates, steps, applied configuration, errors, and rollback.
 
 The state machine is deterministic and testable with failure injection at each state.
+
+CLI, Core Service, Benchmark, Hook and Proxy activation paths acquire the same filesystem lease (`activation.lock`) through their respective wiring seams. M6-003 verified the cross-process behavior over real child processes — lock contention, the stable `ACTIVATION_LOCK_BUSY` error with a successful retry after release, crash cleanup (a still-valid lease from a dead pid is reclaimed via a fail-closed liveness probe) and the absence of orphan processes; no caller may copy the transaction rules.
 
 ## 9. Architecture Fitness Tests
 

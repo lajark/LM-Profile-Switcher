@@ -44,6 +44,8 @@ corepack pnpm run lmps -- --json profile list
 
 Measured on **2026-09-10** (9B, first table) and **2026-09-12** (9B re-run + 27B/35B) in real sessions on this host: RTX 5060 Ti 16 GB (driver 596.36), Intel Core Ultra 5 225H (14C/14T), 31.4 GiB RAM, Windows 11. LM Studio server at `127.0.0.1:1234`; the 9B runs at `8k context / max GPU offload`, while the 27B/35B runs use the adaptive offload ladder described below (Q4_K_M quantizations). Benchmarks use 3 samples × 64 tokens via `lmps benchmark` by default; the numbers below come from the CLI-measured result JSON.
 
+> **Calibration erratum (M6-001, 2026-09-12):** the 0.2.0-beta.1 benchmark implementation reused the pre-load hardware snapshot after loading and inference, and compared absolute VRAM usage with a GPU+system-memory estimate. The 27B/35B calibration values below are therefore historical diagnostics only, not valid resource evidence. Do not use them to raise confidence or relax safety defaults. After upgrading to 0.2.1-beta.1, run `benchmark --yes` again before relying on calibration or measured recommendations; the corrected contract reports synchronized VRAM/system-RAM deltas.
+
 ### Qwen3.5-9B-Q4_K_M (5.2 GB, fully GPU-resident)
 
 Re-measured **2026-09-12** (2 samples × 64 tokens):
@@ -63,7 +65,7 @@ The takeaway for a fully GPU-resident 9B: `lmps` itself adds negligible overhead
 Without `lmps`, this 27B would be rejected or tuned by hand. `lmps optimize` turns it into a **runnable, measurable configuration search**:
 
 - **It no longer rejects over-VRAM models.** The GPU-offload ladder (`0 / 0.25 / 0.50 / 0.75 / off`) generates tiered candidates and classifies resource-fit: `offload-0` → `resource-insufficient`, `offload 0.25/0.50/0.75` → `gpu-resident` and recommendable. The user sees *why* each tier is or isn't a fit instead of a cryptic refusal.
-- **Measured calibration surfaces the truth about memory.** `benchmark --yes` measured the real peak at **≈0.25 GiB** (the GPU-resident portion the server reports) against the ≈19.2 GiB host-memory estimate — the audit row records `ratio≈0.013`, `note:'calibrated'`, `confidence:'measured'`. This is the difference between "I think it uses 19 GB" and "I measured it" — and it feeds back into the optimizer (see Measured ranking below).
+- **Historical calibration warning.** The ≈0.25 GiB versus ≈19.2 GiB comparison and its `ratio≈0.013` audit row were produced under the invalid 0.2.0-beta.1 measurement contract described above. They are retained for traceability only; corrected v2 evidence is required before measured feedback is trusted.
 - **Honest speed note:** on this 16 GB host the optimizer's tiers cannot exceed what `max` already does, so a higher offload ratio does **not** raise decode: the explicit tier lands at or slightly below the `max` baseline (≈9.9 → ≈8.0 tok/s). For an over-VRAM model the value is runnability + measurement, not speed.
 
 | 27B metric | `max` (baseline) | offload 0.75 |
@@ -75,7 +77,7 @@ Without `lmps`, this 27B would be rejected or tuned by hand. `lmps optimize` tur
 
 ### Qwen3.6-35B-A3B-Q4_K_M (19.7 GB MoE, beyond VRAM) — from "won't load" to runnable + measured calibration
 
-Same story at 35B: previously a hard rejection, now a tiered, measured configuration search. The ladder produces `offload-0` → `resource-insufficient`, `offload 0.25/0.50` → `gpu-resident`; measured peak ≈0.25 GiB against a ≈21.4 GiB estimate with `calibration` (`ratio≈0.012`, `confidence:'measured'`) recorded in the audit trail. As with the 27B, higher offload does not raise decode (≈27.2 → ≈24.6 tok/s) on this host — runnability + calibration, not speed.
+Same story at 35B: previously a hard rejection, now a tiered configuration search. The ladder produces `offload-0` → `resource-insufficient`, `offload 0.25/0.50` → `gpu-resident`; the ≈0.25 GiB versus ≈21.4 GiB calibration comparison is historical and invalid under the 0.2.0-beta.1 contract. As with the 27B, higher offload does not raise decode (≈27.2 → ≈24.6 tok/s) on this host — runnability, not a calibration or speed promise.
 
 | 35B metric | `max` (baseline) | offload 0.5 |
 | --- | ---: | ---: |
