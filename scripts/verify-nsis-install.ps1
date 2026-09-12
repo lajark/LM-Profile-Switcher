@@ -16,6 +16,8 @@ param(
   [string]$Installer,
   [string]$UpgradeInstaller,
   [string]$ExpectedVersion,
+  [string]$RollbackInstaller,
+  [string]$RollbackVersion,
   [string]$ProductName = 'LM Profile Switcher',
   [string]$InstallDir = (Join-Path $env:LOCALAPPDATA $ProductName),
   [string]$LMPSHome = (Join-Path (Get-Location) '.workspace\tmp\m3-004-install\home'),
@@ -33,6 +35,22 @@ function Assert($cond, $msg) {
 }
 
 function Write-Step($text) { Write-Host "==> $text" -ForegroundColor Cyan }
+
+# Registered uninstall DisplayVersion under HKCU for the product (or $null).
+function Get-DisplayVersion {
+  $uninstallBase = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+  $reg = Get-ChildItem $uninstallBase -ErrorAction SilentlyContinue |
+    Where-Object { $_.GetValue('DisplayName') -like "*$ProductName*" } | Select-Object -First 1
+  if ($reg -eq $null) { return $null }
+  return $reg.GetValue('DisplayVersion')
+}
+
+# Reads the installed lmps-desktop.exe FileVersion, or $null when absent.
+function Get-ExeVersion {
+  $exe = Join-Path $InstallDir 'lmps-desktop.exe'
+  if (-not (Test-Path $exe)) { return $null }
+  return (Get-Item $exe).VersionInfo.FileVersion
+}
 
 $results = [ordered]@{}
 $results.product = $ProductName
@@ -70,6 +88,7 @@ try {
   $uninstaller = Get-ChildItem -Path $InstallDir -Filter 'Uninstall*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
   $layout.uninstallerExe = if ($uninstaller) { $uninstaller.Name } else { $null }
   $results.layout = $layout
+  $results.baseDisplayVersion = Get-DisplayVersion
   Assert $layout.lmpsDesktopExe 'lmps-desktop.exe not in install dir'
   Assert $layout.lmpsSidecarExe 'lmps-sidecar.exe not in install dir (externalBin must be deployed)'
   Assert ($null -ne $layout.uninstallerExe) 'uninstaller missing in install dir'
@@ -81,11 +100,30 @@ try {
     $p = Start-Process -FilePath $UpgradeInstaller -ArgumentList '/S' -Wait -PassThru
     Start-Sleep -Seconds 3
     $upgrade = @{ exitCode = $p.ExitCode; expectedVersion = $ExpectedVersion }
-    if (Test-Path $exe) { $upgrade.desktopVersionAfter = (Get-Item $exe).VersionInfo.FileVersion }
+    $upgrade.exeAfter = Get-ExeVersion
+    $upgrade.registryDisplayVersionAfter = Get-DisplayVersion
     $results.upgrade = $upgrade
     Assert ($p.ExitCode -eq 0) "overlay upgrade exited $($p.ExitCode)"
-    Assert ($upgrade.desktopVersionAfter -eq $ExpectedVersion) "upgraded exe version is $($upgrade.desktopVersionAfter), expected $ExpectedVersion"
-    Write-Step "upgrade OK: installed exe reports $ExpectedVersion"
+    Assert ($upgrade.exeAfter -eq $ExpectedVersion) "upgraded exe version is $($upgrade.exeAfter), expected $ExpectedVersion"
+    Assert ($upgrade.registryDisplayVersionAfter -eq $ExpectedVersion) "upgraded registry DisplayVersion is $($upgrade.registryDisplayVersionAfter), expected $ExpectedVersion"
+    Write-Step "upgrade OK: installed exe + registry report $ExpectedVersion"
+  }
+
+  # ------------------------------------------------------ rollback (downgrade)
+  if ($RollbackInstaller) {
+    Assert (Test-Path $RollbackInstaller) "rollback installer not found: $RollbackInstaller"
+    Assert ($null -ne $RollbackVersion) 'rollback requires -RollbackVersion'
+    Write-Step "overlay rollback install: $RollbackInstaller"
+    $p = Start-Process -FilePath $RollbackInstaller -ArgumentList '/S' -Wait -PassThru
+    Start-Sleep -Seconds 3
+    $rollback = @{ exitCode = $p.ExitCode; expectedVersion = $RollbackVersion }
+    $rollback.exeAfter = Get-ExeVersion
+    $rollback.registryDisplayVersionAfter = Get-DisplayVersion
+    $results.rollback = $rollback
+    Assert ($p.ExitCode -eq 0) "rollback exited $($p.ExitCode)"
+    Assert ($rollback.exeAfter -eq $RollbackVersion) "rollback exe version is $($rollback.exeAfter), expected $RollbackVersion"
+    Assert ($rollback.registryDisplayVersionAfter -eq $RollbackVersion) "rollback registry DisplayVersion is $($rollback.registryDisplayVersionAfter), expected $RollbackVersion"
+    Write-Step "rollback OK: installed exe + registry report $RollbackVersion"
   }
 
   # ------------------------------------------------- isolated sidecar handshake
