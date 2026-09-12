@@ -21,7 +21,43 @@ permissions:
   contents: write
 
 jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install Rust toolchain (MSVC)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Install NSIS (Tauri NSIS bundler dependency)
+        run: choco install nsis -y --no-progress
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+      - name: Build frontend + Tauri app (NSIS installer)
+        # `tauri build` runs beforeBuildCommand (Vite) and produces the NSIS
+        # currentUser installer under src-tauri/target/release/bundle/nsis/.
+        # Rebuild the sidecar SEA binary first so the installer embeds current code.
+        run: |
+          corepack pnpm --filter @lmps/desktop run sidecar:sea
+          corepack pnpm --filter @lmps/desktop run tauri:build
+      - name: Upload NSIS installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nsis-installer
+          path: apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          retention-days: 3
+
   verify-and-assemble:
+    needs: build-windows-installer
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -36,21 +72,37 @@ jobs:
         run: corepack enable
       - name: Install dependencies
         run: corepack pnpm install --frozen-lockfile
+      - name: Resolve release version
+        # dispatch input wins; tag triggers use the tag name minus the v prefix
+        run: |
+          VS="${{ inputs.version }}"
+          if [ -z "$VS" ]; then VS="${GITHUB_REF_NAME#v}"; fi
+          echo "VERSION=$VS" >> "$GITHUB_ENV"
+          echo "release version: $VS"
+      - name: Download NSIS installer from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: nsis-installer
+          path: .ci-nsis
+      - name: Stage NSIS installer where release-pack expects it
+        run: |
+          mkdir -p apps/desktop/src-tauri/target/release/bundle/nsis
+          mv .ci-nsis/*.exe apps/desktop/src-tauri/target/release/bundle/nsis/
       - name: Verify source gates
         run: corepack pnpm run check
       - name: Coverage baseline ratchet
         run: corepack pnpm run coverage:run && corepack pnpm run coverage:ratchet
       - name: Version consistency
         # release-pack reads version from tauri.conf.json (single source); the
-        # dispatch input must match it — refused otherwise.
+        # resolved version must match it — refused otherwise.
         run: |
           GOT=$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")
-          if [ "$GOT" != "${{ inputs.version }}" ] && [ "$GOT" != "${GITHUB_REF_NAME#v}" ]; then
-            echo "version mismatch: tauri.conf=$GOT input=${{ inputs.version }}"; exit 1
+          if [ "$GOT" != "$VERSION" ]; then
+            echo "version mismatch: tauri.conf=$GOT resolved=$VERSION"; exit 1
           fi
           echo "version ok: $GOT"
       - name: Assemble allowlisted artifacts (release-pack)
-        run: node scripts/release-pack.mjs --version "${{ inputs.version }}"
+        run: node scripts/release-pack.mjs --version "$VERSION"
       - name: Publish Draft (allowlisted assets only)
         if: ${{ !cancelled() && !failure() }}
         uses: softprops/action-gh-release@v2
@@ -58,13 +110,13 @@ jobs:
           draft: true
           prerelease: true
           files: |
-            artifacts/releases/${{ inputs.version }}/windows-x86_64/*.exe
-            artifacts/releases/${{ inputs.version }}/release-manifest.json
-            artifacts/releases/${{ inputs.version }}/checksums.sha256
-            artifacts/releases/${{ inputs.version }}/RELEASE_NOTES-*.md
-            artifacts/releases/${{ inputs.version }}/THIRD_PARTY_NOTICES.generated.md
-            artifacts/releases/${{ inputs.version }}/dependency-licenses.json
-            artifacts/releases/${{ inputs.version }}/LICENSE
-            artifacts/releases/${{ inputs.version }}/sbom.cdx.json
+            artifacts/releases/${{ env.VERSION }}/windows-x86_64/*.exe
+            artifacts/releases/${{ env.VERSION }}/release-manifest.json
+            artifacts/releases/${{ env.VERSION }}/checksums.sha256
+            artifacts/releases/${{ env.VERSION }}/RELEASE_NOTES-*.md
+            artifacts/releases/${{ env.VERSION }}/THIRD_PARTY_NOTICES.generated.md
+            artifacts/releases/${{ env.VERSION }}/dependency-licenses.json
+            artifacts/releases/${{ env.VERSION }}/LICENSE
+            artifacts/releases/${{ env.VERSION }}/sbom.cdx.json
           fail_on_unmatched_files: true
           generate_release_notes: false
