@@ -14,25 +14,29 @@
  * optimizer runs can treat the result as `measured:true` evidence. Failed or
  * canceled runs are never stamped.
  */
-import { isBenchmarkError } from '@lmps/core';
 import type { BenchmarkResult } from '@lmps/domain';
 
 import { capabilityUnsupported, CliError } from '../errors.js';
 import { EXIT } from '../exit-codes.js';
 import { parseCommandArgs } from '../options.js';
 import type { CliDeps, CommandOutput } from '../seams.js';
+import {
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_SAMPLES,
+  humanSummary,
+  mapGuardFailure,
+  MAX_TOKENS_MAX,
+  MAX_TOKENS_MIN,
+  parseInRange,
+  SAMPLES_MAX,
+  SAMPLES_MIN,
+  stampBenchmarked,
+} from './benchmark-common.js';
 
 const SPEC = {
   flags: { yes: 'boolean', samples: 'string', 'max-tokens': 'string', 'allow-battery': 'boolean' },
   maxPositional: 1,
 } as const;
-
-const DEFAULT_SAMPLES = 3;
-const SAMPLES_MIN = 1;
-const SAMPLES_MAX = 10;
-const DEFAULT_MAX_TOKENS = 64;
-const MAX_TOKENS_MIN = 1;
-const MAX_TOKENS_MAX = 512;
 
 export interface BenchmarkContext {
   signal?: AbortSignal;
@@ -75,117 +79,11 @@ export async function runBenchmarkCommand(
     throw mapGuardFailure(error);
   }
 
-  const validated = runYes(deps, parsed.flags.yes === true, result, id);
+  const validated = parsed.flags.yes === true ? stampBenchmarked(deps, result, id) : null;
   const text = `${humanSummary(deps, result)}${validated === null ? '' : `\n${deps.t('benchmark.saved')}`}`;
   return {
     text,
     data: { result, validated: validated !== null },
     exitCode: result.status === 'canceled' ? EXIT.USER_CANCELLED : EXIT.SUCCESS,
   };
-}
-
-/** Battery/lock/preflight benchmark errors map to user-level exit 4 (USAGE). */
-function mapGuardFailure(error: unknown): unknown {
-  if (!isBenchmarkError(error)) return error;
-  switch (error.code) {
-    case 'BENCHMARK_BATTERY_GUARD':
-      return new CliError('USAGE', 'benchmark refused on battery', { params: { key: 'benchmark.batteryGuard' } });
-    case 'BENCHMARK_LOCK_BUSY':
-      return new CliError('USAGE', 'lock is busy', { params: { key: 'error.lockBusy' } });
-    case 'BENCHMARK_PREFLIGHT':
-      return new CliError('USAGE', 'benchmark preflight failed', { params: { key: 'benchmark.preflight' } });
-    default:
-      // Timeout/OOM/crash become result-level codes inside the service; a stray
-      // throw here is a wiring bug and must surface as INTERNAL.
-      return error;
-  }
-}
-
-/**
- * `--yes` stamps the profile validation with the just-measured evidence. A
- * result that is not `completed` never marks the profile as benchmarked.
- * Returns the benchmark id when stamped so the caller can report it. The stamp
- * targets `profileId` — the transaction id in `result` identifies the run, not
- * the profile document.
- */
-function runYes(deps: CliDeps, yes: boolean, result: BenchmarkResult, profileId: string): string | null {
-  if (!yes || result.status !== 'completed') return null;
-  deps.store.update(profileId, {
-    validation: {
-      source: 'benchmarked',
-      benchmarkId: result.id,
-      testedAt: deps.now(),
-      hardwareFingerprint: result.hardwareFingerprint,
-      lmStudioVersion: result.lmStudioVersion,
-      runtimeVersion: result.runtimeVersion,
-      adapterCapabilityVersion: result.adapterCapabilityVersion,
-      // M5-003: persist the measured peak so `optimize` can calibrate against it.
-      memoryPeakBytes: result.metrics.memoryPeakBytes ?? null,
-    },
-  });
-  return result.id;
-}
-
-function humanSummary(deps: CliDeps, result: BenchmarkResult): string {
-  const lines: string[] = [];
-  lines.push(deps.t('benchmark.title'));
-  lines.push(deps.t('benchmark.status', { status: statusText(deps, result) }));
-  lines.push(`  ${metricLine(deps, 'benchmark.loadMs', formatMs(result.metrics.loadMs))}`);
-  lines.push(`  ${metricLine(deps, 'benchmark.ttft', formatMs(result.metrics.ttftMs))}`);
-  lines.push(`  ${metricLine(deps, 'benchmark.prefill', formatRate(result.metrics.prefillTokensPerSecond))}`);
-  lines.push(`  ${metricLine(deps, 'benchmark.decode', formatRate(result.metrics.decodeTokensPerSecond))}`);
-  lines.push(`  ${metricLine(deps, 'benchmark.memoryPeak', formatBytes(result.metrics.memoryPeakBytes))}`);
-  lines.push(`  ${deps.t('benchmark.samples', { count: String(result.metrics.samples) })}`);
-  if (result.hardwareFingerprint !== null) {
-    lines.push(`  ${deps.t('benchmark.fingerprint', { fingerprint: result.hardwareFingerprint })}`);
-  }
-  lines.push(`  ${deps.t('benchmark.promptSuite', { version: result.promptSuiteVersion ?? '' })}`);
-  return lines.join('\n');
-}
-
-function statusText(deps: CliDeps, result: BenchmarkResult): string {
-  if (result.status === 'canceled') return deps.t('benchmark.canceled');
-  if (result.status === 'failed') {
-    return result.errorCode === null || result.errorCode === ''
-      ? deps.t('benchmark.failed')
-      : deps.t('benchmark.failedWithCode', { code: result.errorCode });
-  }
-  return deps.t('benchmark.completed');
-}
-
-type MetricKey = 'benchmark.loadMs' | 'benchmark.ttft' | 'benchmark.prefill' | 'benchmark.decode' | 'benchmark.memoryPeak';
-
-function metricLine(deps: CliDeps, key: MetricKey, value: string): string {
-  return `${deps.t(key)}: ${value}`;
-}
-
-function formatMs(value: number | null | undefined): string {
-  return value === null || value === undefined ? 'n/a' : `${value.toFixed(0)} ms`;
-}
-
-function formatRate(value: number | null | undefined): string {
-  return value === null || value === undefined ? 'n/a' : `${value.toFixed(1)} tok/s`;
-}
-
-function formatBytes(value: number | null | undefined): string {
-  if (value === null || value === undefined) return 'n/a';
-  return `${(value / (1024 ** 3)).toFixed(2)} GiB`;
-}
-
-function parseInRange(
-  raw: string | boolean | undefined,
-  fallback: number,
-  min: number,
-  max: number,
-  flag: string,
-): number {
-  if (raw === undefined || typeof raw !== 'string') return fallback;
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value < min || value > max) {
-    throw new CliError('USAGE', `${flag} must be an integer in [${min}, ${max}]`, {
-      detail: `invalid ${flag} value: ${raw}`,
-      params: { key: 'benchmark.invalidRange', values: { flag, min: String(min), max: String(max) } },
-    });
-  }
-  return value;
 }

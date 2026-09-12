@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit manually.
 // Source of truth: locales/zh-CN/common.json, locales/en/common.json.
 // Regenerate with `corepack pnpm run i18n:generate`.
-// __CHECKSUM__: d2f7c3a8d35b40a4c621b5f341bbc45035a5372cccc4c43fb91e19f8143ea6ab
+// __CHECKSUM__: 06ac87a7f92ec0ff726058a6ea8c7fa7d363d62c1b550bcad1f6e3abd4a5230e
 
 export const DEFAULT_NAMESPACE = 'common';
 
@@ -42,6 +42,8 @@ export const resourceKeys = [
   'benchmark.batteryGuard',
   'benchmark.preflight',
   'benchmark.invalidRange',
+  'benchmarkAll.header',
+  'benchmarkAll.skipped',
   'error.modelNotFound',
   'error.capabilityUnsupported',
   'error.usage',
@@ -381,6 +383,8 @@ export interface CommonResources {
   'benchmark.batteryGuard': string;
   'benchmark.preflight': string;
   'benchmark.invalidRange': string;
+  'benchmarkAll.header': string;
+  'benchmarkAll.skipped': string;
   'error.modelNotFound': string;
   'error.capabilityUnsupported': string;
   'error.usage': string;

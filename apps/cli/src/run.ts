@@ -13,6 +13,7 @@ import { DEFAULT_LOCALE, LocaleResourceError, normalizeLocale, type Locale } fro
 import { isProfileStoreError } from '@lmps/profile-store';
 
 import { runApplyCommand } from './commands/apply.js';
+import { runBenchmarkAllCommand } from './commands/benchmark-all.js';
 import { runBenchmarkCommand } from './commands/benchmark.js';
 import { runCurrentCommand } from './commands/current.js';
 import { runDoctorCommand } from './commands/doctor.js';
@@ -38,7 +39,7 @@ export interface RunCliResult {
   exitCode: ExitCode;
 }
 
-const KNOWN_COMMANDS = new Set(['profile', 'apply', 'models', 'current', 'snapshot', 'hardware', 'lang', 'doctor', 'optimize', 'benchmark', 'hook', 'proxy']);
+const KNOWN_COMMANDS = new Set(['profile', 'apply', 'models', 'current', 'snapshot', 'hardware', 'lang', 'doctor', 'optimize', 'benchmark', 'benchmark-all', 'hook', 'proxy']);
 
 export async function runCli(argv: readonly string[], deps: CliDeps, signal?: AbortSignal): Promise<RunCliResult> {
   const startedAtMs = Date.now();
@@ -141,6 +142,8 @@ async function dispatchCommand(
       return runApplyCommand(deps, args, context);
     case 'benchmark':
       return runBenchmarkCommand(deps, args, context);
+    case 'benchmark-all':
+      return runBenchmarkAllCommand(deps, args, context);
     case 'models':
       return runModelsCommand(deps, args);
     case 'current':

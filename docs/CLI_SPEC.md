@@ -121,6 +121,16 @@ lmps profile export <id> [--format json|yaml] [-o <file>]
 - 机器 `data`：`{ result, validated: boolean }`（`result` 即 domain `BenchmarkResult` 契约，Schema 见 `schemas/BenchmarkResult.schema.json`）。人类失败路径多用 i18n key；退出码见下表（6 行为 seam 未接线）。
 - 接线（M2-003）：互斥锁复用 `<LMPS_HOME>/locks/activation.lock`（与 `apply` 同 path）；硬件/指纹/版本经本机探针；推理路径始终走 REST（`POST /api/v0/chat/completions`，流式）；`LMPS_ADAPTER=mock` 时用确定性 mock runtime。
 
+### benchmark-all（M5-003 批量编排）
+
+`lmps benchmark-all <id...> [--yes] [--samples N] [--max-tokens N] [--allow-battery]`：对多个已存储 Profile **顺序**运行与 `benchmark` 完全相同的有界基准测试（每个复用单 Profile 的有界语义：samples 1–10、max-tokens 1–512、per-sample 超时预算），并共享一个 batch 级 `AbortSignal`。用于一次为多个候选/Profile 采集实测证据并把校准回填到各 Profile（供随后的 `optimize` 逐候选择校准）。
+
+- **可取消批量**：Ctrl+C（或外部 `signal`）取消整个批——进行中的单个 run 以 `status:'canceled'` 落结果，尚未开始的 Profile 全部 `skipped`（逐条 `canceled`），batch 不再执行后续。
+- **顺序 + 有界**：严格按传入 id 顺序逐个跑，绝不并发（避免同机多模型驻留）；每项沿用 `benchmark` 的样本/令牌/超时钳制。
+- **校准回填**：`--yes` 时，仅对 `status:'completed'` 的单项把 `validation{source:'benchmarked', benchmarkId, testedAt, hardwareFingerprint, lmStudioVersion, runtimeVersion, adapterCapabilityVersion, memoryPeakBytes}` 写入对应 Profile；failed/canceled 永不盖章。
+- 退出码：任一项取消或批次中断 → exit 2；测量失败结果本身 → exit 0；电池/锁/前置守卫 → exit 4；未知 id → exit 4；null seam → exit 6。
+- 机器 `data`：`{ results:[{profileId,result,validated}], skipped:[{profileId,reason}], canceled }`（`validated` 为该单项是否因 `--yes` 盖章）。
+
 ### hook（M4-001）
 
 `lmps hook <status|token|rules|enable|disable>`：本地 Hook 的**配置管理面**。Hook 是 core-service 常驻 loopback API 的规则面——`app(可选 task) → profileId` 映射、持久化 Bearer token、总开关与审计日志。**CLI 不做常驻 serve**（宿主 = core-service，`hook.switch` 由服务端解析规则），本命令族只读写 `<LMPS_HOME>/hooks/` 下的 LOCAL-ONLY 文件。
