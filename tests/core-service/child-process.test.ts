@@ -11,7 +11,6 @@
 // activation-lock contention/retry, crash-residue reclaim, and secret/path
 // redaction in logs and stderr.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { once } from 'node:events';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -48,13 +47,6 @@ function processExists(pid: number): boolean {
   } catch {
     return false;
   }
-}
-
-/** A pid that is guaranteed (modulo instant reuse) to belong to a dead process. */
-async function deadPid(): Promise<number> {
-  const child = spawn(process.execPath, ['-e', ''], { stdio: 'ignore' });
-  await once(child, 'exit');
-  return child.pid as number;
 }
 
 interface SidecarHarness {
@@ -388,8 +380,10 @@ describe('cross-process activation lock over real sidecar processes (M6-003)', (
 
   it('reclaims a live lease from a dead pid (crash residue) so a restarted sidecar is not blocked', async () => {
     const token = 'lock-token-2';
-    const dead = await deadPid();
-    const residue = { owner: String(dead), acquiredAt: new Date().toISOString(), leaseMs: 30 * 60_000 };
+    // A pid above the platform's pid range cannot belong to any process: the
+    // liveness probe deterministically reports it as gone (ESRCH on POSIX, no
+    // tasklist row on Windows), so the still-valid lease is reclaimed.
+    const residue = { owner: '2147483647', acquiredAt: new Date().toISOString(), leaseMs: 30 * 60_000 };
     mkdirSync(join(home, 'locks'), { recursive: true });
     writeFileSync(join(home, 'locks', 'activation.lock'), JSON.stringify(residue, null, 2));
 

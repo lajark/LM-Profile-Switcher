@@ -16,6 +16,7 @@ const WIRING_MODULE = 'index.ts';
 /** Modules allowed to import node: built-ins (their job). */
 const NODE_ALLOWED_BASENAMES = new Set([
   'index.ts',
+  'process-liveness.ts',
   'stdio-rpc.ts',
   'pipe-rpc.ts',
   'http-rpc.ts',
@@ -65,6 +66,7 @@ describe('core-service architecture guard (M0-006)', () => {
     expect(names).toEqual([
       'handlers.ts',
       'index.ts',
+      'process-liveness.ts',
       'protocol.ts',
       'proxy.ts',
       'settings.ts',

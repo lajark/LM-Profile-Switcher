@@ -15,7 +15,6 @@
  * by the restart instead of blocking it until lease expiry.
  */
 import { randomBytes } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
 
 import { SCHEMA_VERSION } from '@lmps/domain';
 import {
@@ -26,6 +25,7 @@ import {
 import { createDefaultFsys, createDefaultProfileStore } from '@lmps/profile-store';
 
 import { createHandlers } from './handlers.js';
+import { isOwnerAlive } from './process-liveness.js';
 import { Dispatcher } from './protocol.js';
 import { resolveSidecarSettings, type SidecarEnv } from './settings.js';
 import { startTransport, type TransportKind } from './transports/index.js';
@@ -37,33 +37,6 @@ import {
   createSidecarBenchmarkSeam,
   createSidecarRecommendationSeam,
 } from './wiring.js';
-
-/**
- * Crash-cleanup liveness probe for lease owners (M6-003). The owner label is a
- * numeric pid; a live lease whose pid is gone is reclaimable residue from a
- * crashed process. Fail-closed: any probe failure is treated as "assume alive"
- * so a live peer's lease is never stolen. On Windows `process.kill(pid, 0)`
- * would terminate the target (signals are not supported), so liveness goes
- * through `tasklist` and only a positive match proves the process exists.
- */
-function isOwnerAlive(ownerLabel: string): boolean {
-  const pid = Number(ownerLabel);
-  if (!Number.isInteger(pid) || pid <= 0) return true; // unknown owner → never steal
-  try {
-    if (process.platform === 'win32') {
-      const probe = spawnSync('tasklist', ['/FI', `PID eq ${pid}`, '/NH'], {
-        encoding: 'utf8',
-        windowsHide: true,
-      });
-      if (probe.status !== 0) return true; // probe failed → assume alive
-      return (probe.stdout ?? '').includes(String(pid));
-    }
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return true;
-  }
-}
 
 /**
  * Session token for the transport. Explicit argv/env wins (the desktop shell
