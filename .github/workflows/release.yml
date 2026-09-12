@@ -42,6 +42,10 @@ jobs:
         run: choco install nsis -y --no-progress
       - name: Install dependencies
         run: corepack pnpm install --frozen-lockfile
+      - name: Build workspace packages (tsc -b emits @lmps/* dist)
+        # The frontend imports @lmps/* through each package's `exports` map,
+        # which resolves to ./dist/* — a fresh checkout has none. Build first.
+        run: corepack pnpm run build
       - name: Build frontend + Tauri app (NSIS installer)
         # `tauri build` runs beforeBuildCommand (Vite) and produces the NSIS
         # currentUser installer under src-tauri/target/release/bundle/nsis/.
