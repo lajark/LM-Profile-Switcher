@@ -42,5 +42,5 @@ export { generateRecommendation } from './recommendation.js';
 export { matchMeasuredEvidence, measuredBlend, applyMeasuredFeedback } from './feedback.js';
 export type { MeasuredEvidence } from './feedback.js';
 export { calibrateEstimate, MEASUREMENT_TOLERANCE } from './calibration.js';
-export type { CalibrationVerdict, CalibrationNote } from './calibration.js';
+export type { CalibrationVerdict, CalibrationNote, CalibrationRelation } from './calibration.js';
 export { RATIONALE_NOTE, CONFIDENCE_LABEL, HEADROOM_NOTE, HYBRID_MEMORY_NOTE } from './notes.js';

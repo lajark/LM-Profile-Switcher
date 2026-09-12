@@ -651,6 +651,87 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "resourceUsage": {
+                    "type": "object",
+                    "properties": {
+                      "schemaVersion": {
+                        "type": "number",
+                        "const": 1
+                      },
+                      "method": {
+                        "type": "string",
+                        "const": "host-snapshot-delta"
+                      },
+                      "sampleCount": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "completeness": {
+                        "type": "string",
+                        "enum": [
+                          "complete",
+                          "partial",
+                          "unavailable"
+                        ]
+                      },
+                      "peakDelta": {
+                        "type": "object",
+                        "properties": {
+                          "vramBytes": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "systemRamBytes": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "totalBytes": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "vramBytes",
+                          "systemRamBytes",
+                          "totalBytes"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "schemaVersion",
+                      "method",
+                      "sampleCount",
+                      "completeness",
+                      "peakDelta"
+                    ],
+                    "additionalProperties": {}
                   }
                 },
                 "additionalProperties": {}
@@ -1166,5 +1247,5 @@
   "additionalProperties": {},
   "title": "Recommendation",
   "description": "Scored candidate set for a baseline profile under one task rule (PRD FR-07).",
-  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 94745ca69347662dcbb5dd2a3f60bbcb5c08ecd65a818f78c220afae7dab6955"
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 14c95dccf181abf7bc02b92288615d137b556db1fce72b86979b687235099d34"
 }

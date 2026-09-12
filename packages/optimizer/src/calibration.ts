@@ -1,26 +1,34 @@
 /**
- * Estimate-vs-measurement calibration (M5-003, PRD FR-07): a pure module that
- * compares an original engineer estimate (`LoadEstimate`) against measured
- * evidence (`BenchmarkResult.metrics.memoryPeakBytes`) and returns a *separate*
- * read-only verdict. It never mutates the estimate, never writes measured numbers
- * back into `provider:'exact'` data, and never touches the safety defaults
- * (`safe`/`recommendable`/`resourceFit`) — calibration is advisory only. The key
- * invariant is transparent here: when measured peak exceeds the estimate the
- * verdict reports `degraded` + the overrun, it does NOT hide the gap.
+ * Versioned estimate-vs-measurement calibration (M6-002, PRD FR-08).
  *
- * Pure module: no Node built-ins, no I/O, no CJK.
+ * Only complete ResourceUsageEvidence v1 can be compared with an estimated
+ * whole-model footprint. Legacy absolute-VRAM memoryPeakBytes remains visible
+ * for compatibility but never participates in Total Memory calibration.
+ * Observations below an estimate are advisory and keep estimated confidence;
+ * only observations above the estimate can lower confidence/flag degradation.
+ * This module is pure and never mutates or overwrites the original estimate.
  */
-import type { BenchmarkResult, LoadEstimate } from '@lmps/domain';
+import type { BenchmarkResult, LoadEstimate, ResourceUsageEvidence } from '@lmps/domain';
 
 /** Fraction above the estimate that counts as a silent degradation (10%). */
 export const MEASUREMENT_TOLERANCE = 0.1;
 
-export type CalibrationNote =
-  | 'calibrated' // measured peak matched the estimate within tolerance
-  | 'degraded' // measured peak exceeded the estimate beyond tolerance
-  | 'unavailable'; // no usable completed measurement
+export type CalibrationNote = 'calibrated' | 'degraded' | 'unavailable';
+export type CalibrationRelation =
+  | 'observed-below-estimate'
+  | 'within-tolerance'
+  | 'observed-above-estimate'
+  | 'unavailable';
 
 export interface CalibrationVerdict {
+  /** Version of the calibration interpretation, independent of result schema. */
+  calibrationVersion: 2;
+  /** Resource evidence schema version used for the comparison, or null. */
+  evidenceVersion: 1 | null;
+  /** Evidence quality gate; only complete can be applied. */
+  evidenceQuality: ResourceUsageEvidence['completeness'];
+  relation: CalibrationRelation;
+  rebenchmarkRequired: boolean;
   applied: boolean;
   comparedPeakBytes: number | null;
   estimatedTotalBytes: number | null;
@@ -38,32 +46,80 @@ function estimatedTotal(estimate: LoadEstimate): number | null {
   return estimate.vramTotalBytes + estimate.systemRamBytes;
 }
 
+function unavailable(
+  measuredPeakBytes: number | null,
+  evidence: ResourceUsageEvidence | undefined,
+): CalibrationVerdict {
+  return {
+    calibrationVersion: 2,
+    evidenceVersion: evidence?.schemaVersion === 1 ? 1 : null,
+    evidenceQuality: evidence?.completeness ?? 'unavailable',
+    relation: 'unavailable',
+    rebenchmarkRequired: true,
+    applied: false,
+    comparedPeakBytes: measuredPeakBytes,
+    estimatedTotalBytes: null,
+    ratio: null,
+    degraded: false,
+    overrunBytes: null,
+    confidence: 'estimated',
+    note: 'unavailable',
+  };
+}
+
+function completeEvidence(result: BenchmarkResult): ResourceUsageEvidence | null {
+  const evidence = result.metrics.resourceUsage;
+  if (
+    evidence === undefined ||
+    evidence.schemaVersion !== 1 ||
+    evidence.method !== 'host-snapshot-delta' ||
+    evidence.completeness !== 'complete'
+  ) return null;
+  const { vramBytes, systemRamBytes, totalBytes } = evidence.peakDelta;
+  if (
+    ![vramBytes, systemRamBytes, totalBytes].every(
+      (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0,
+    )
+  ) {
+    return null;
+  }
+  return evidence;
+}
+
 /**
- * Calibrate an estimate against a completed measurement. Returns a verdict that
- * is advisory only; the original `estimate` object is never changed and its
- * `provider:'exact'` data stays authoritative.
+ * Calibrates only complete v1 delta evidence. A legacy record or partial
+ * evidence returns an explicit rebenchmark requirement and is never applied.
  */
 export function calibrateEstimate(estimate: LoadEstimate, measured: BenchmarkResult): CalibrationVerdict {
-  const measuredPeak = measured.metrics.memoryPeakBytes;
-  if (measured.status !== 'completed' || typeof measuredPeak !== 'number') {
-    return { applied: false, comparedPeakBytes: null, estimatedTotalBytes: null, ratio: null, degraded: false, overrunBytes: null, confidence: 'estimated', note: 'unavailable' };
-  }
+  const legacyPeak = typeof measured.metrics.memoryPeakBytes === 'number' ? measured.metrics.memoryPeakBytes : null;
+  const resourceEvidence = measured.metrics.resourceUsage;
+  if (measured.status !== 'completed') return unavailable(legacyPeak, resourceEvidence);
+  const evidence = completeEvidence(measured);
+  if (evidence === null) return unavailable(legacyPeak, resourceEvidence);
 
+  const observed = evidence.peakDelta.totalBytes;
   const est = estimatedTotal(estimate);
-  if (est === null || est <= 0) {
-    return { applied: false, comparedPeakBytes: measuredPeak, estimatedTotalBytes: null, ratio: null, degraded: false, overrunBytes: null, confidence: 'estimated', note: 'unavailable' };
-  }
+  if (observed === null || est === null || est <= 0) return unavailable(legacyPeak, evidence);
 
-  const ratio = measuredPeak / est;
-  const degraded = measuredPeak > est * (1 + MEASUREMENT_TOLERANCE);
+  const ratio = observed / est;
+  const above = observed > est;
+  const degraded = observed > est * (1 + MEASUREMENT_TOLERANCE);
+  const relation: CalibrationRelation = degraded || above ? 'observed-above-estimate' : observed < est ? 'observed-below-estimate' : 'within-tolerance';
   return {
+    calibrationVersion: 2,
+    evidenceVersion: evidence.schemaVersion,
+    evidenceQuality: evidence.completeness,
+    relation,
+    rebenchmarkRequired: false,
     applied: true,
-    comparedPeakBytes: measuredPeak,
+    comparedPeakBytes: observed,
     estimatedTotalBytes: est,
     ratio: Math.round(ratio * 10000) / 10000,
     degraded,
-    overrunBytes: degraded ? measuredPeak - est : null,
-    confidence: degraded ? 'low' : 'measured',
+    overrunBytes: degraded ? observed - est : null,
+    // A low observation cannot endorse a stronger recommendation. Overrun
+    // evidence lowers confidence; otherwise the estimate remains the gate.
+    confidence: degraded || above ? 'low' : 'estimated',
     note: degraded ? 'degraded' : 'calibrated',
   };
 }

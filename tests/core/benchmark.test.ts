@@ -124,6 +124,65 @@ describe('createBenchmarkService', () => {
     expect(StrictBenchmarkResultSchema.safeParse(result).success).toBe(true);
   });
 
+  it('refreshes hardware after load and after every inference sample', async () => {
+    const GIB_LOCAL = 1024 ** 3;
+    const snapshot = (gpuAvailable: number, ramAvailable: number): HardwareProfile => ({
+      schemaVersion: 2,
+      os: 'Windows 11',
+      gpus: [{ name: 'RTX', vramTotalBytes: 16 * GIB_LOCAL, vramAvailableBytes: gpuAvailable }],
+      memory: { totalBytes: 32 * GIB_LOCAL, availableBytes: ramAvailable },
+      power: { onBattery: false },
+      versions: { lmStudio: 'v0.3.27', runtime: '0.3.27' },
+      hardwareFingerprint: 'fp-refresh',
+      probedAt: NOW,
+    });
+    // baseline, after load, after sample 1, after sample 2
+    const snapshots = [
+      snapshot(14 * GIB_LOCAL, 24 * GIB_LOCAL),
+      snapshot(13 * GIB_LOCAL, 23 * GIB_LOCAL),
+      snapshot(12 * GIB_LOCAL, 22 * GIB_LOCAL),
+      snapshot(11 * GIB_LOCAL, 21 * GIB_LOCAL),
+    ];
+    let calls = 0;
+    const hardware: HardwarePort = {
+      profile: async () => {
+        const value = snapshots[calls];
+        calls += 1;
+        if (value === undefined) throw new Error('unexpected hardware sample');
+        return value;
+      },
+    };
+    const { ports } = makePorts(makeRuntime(), hardware, true);
+    const result = await createBenchmarkService(makeContext(), ports).run(makeProfile('refresh'), { samples: 2 });
+    expect(calls).toBe(4);
+    expect(result.metrics.resourceUsage).toEqual({
+      schemaVersion: 1,
+      method: 'host-snapshot-delta',
+      sampleCount: 2,
+      completeness: 'complete',
+      peakDelta: { vramBytes: 3 * GIB_LOCAL, systemRamBytes: 3 * GIB_LOCAL, totalBytes: 6 * GIB_LOCAL },
+    });
+  });
+
+  it('records a conservative failed result when a post-load sample fails', async () => {
+    const base = await makeHardware().profile();
+    let calls = 0;
+    const hardware: HardwarePort = {
+      profile: async () => {
+        calls += 1;
+        if (calls === 2) throw new Error('probe unavailable');
+        return base;
+      },
+    };
+    const { ports, written } = makePorts(makeRuntime(), hardware, true);
+    const result = await createBenchmarkService(makeContext(), ports).run(makeProfile('sample-failure'), { samples: 1 });
+    expect(result.status).toBe('failed');
+    expect(result.errorCode).toBe('BENCHMARK_CRASH');
+    expect(result.metrics.resourceUsage).toMatchObject({ completeness: 'unavailable', sampleCount: 0 });
+    expect(calls).toBe(2);
+    expect(written).toEqual([result]);
+  });
+
   it('refuses on battery without --allow-battery and still releases the lock', async () => {
     const runtime = makeRuntime();
     const { ports, written, released } = makePorts(runtime, makeHardware(true), true);

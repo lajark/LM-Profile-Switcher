@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 import { isoDateTime } from './iso-date.js';
 import { SCHEMA_VERSION } from './version.js';
+import { ResourceUsageEvidenceSchema } from './resource-usage.js';
 
 const PROFILE_ID_RE = /^[a-z0-9][a-z0-9._-]{1,63}$/;
 
@@ -147,8 +148,10 @@ export const ValidationInfoSchema = z
     adapterCapabilityVersion: z.string().nullable().optional(),
     testedAt: isoDateTime('testedAt').nullable().optional(),
     benchmarkId: z.string().nullable().optional(),
-    /** M5-003: measured peak memory footprint (bytes) captured by `benchmark --yes`. Advisory only — never overwrites the origin load estimate. */
+    /** Legacy absolute VRAM peak from `benchmark --yes`; deprecated for Total Memory calibration. */
     memoryPeakBytes: z.number().int().min(0).nullable().optional(),
+    /** M6-002 synchronized resource delta evidence; legacy records omit it. */
+    resourceUsage: ResourceUsageEvidenceSchema.optional(),
   })
   .passthrough();
 

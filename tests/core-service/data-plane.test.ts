@@ -302,7 +302,18 @@ describe('optimize data plane (M3-002)', () => {
     const store = makeStore();
     store.create({
       ...validProfile('alpha'),
-      validation: { source: 'benchmarked', testedAt: FAKE_NOW, memoryPeakBytes: 9 * 1024 ** 3 },
+      validation: {
+        source: 'benchmarked',
+        testedAt: FAKE_NOW,
+        memoryPeakBytes: 9 * 1024 ** 3,
+        resourceUsage: {
+          schemaVersion: 1,
+          method: 'host-snapshot-delta',
+          sampleCount: 3,
+          completeness: 'complete',
+          peakDelta: { vramBytes: 5 * 1024 ** 3, systemRamBytes: 4 * 1024 ** 3, totalBytes: 9 * 1024 ** 3 },
+        },
+      },
     });
     const seam = stubRecommendation(recommendation());
     const plane = makePlane({ store, recommendation: seam });
@@ -335,6 +346,20 @@ describe('optimize data plane (M3-002)', () => {
     const body = res.result as { calibration: { measuredPeakBytes: number | null; candidates: unknown[] } };
     expect(body.calibration.measuredPeakBytes).toBeNull();
     expect(body.calibration.candidates).toEqual([]);
+  });
+
+  it('preview marks legacy absolute-VRAM evidence for re-benchmark', async () => {
+    const store = makeStore();
+    store.create({
+      ...validProfile('alpha'),
+      validation: { source: 'benchmarked', testedAt: FAKE_NOW, memoryPeakBytes: 9 * 1024 ** 3 },
+    });
+    const plane = makePlane({ store, recommendation: stubRecommendation(recommendation()) });
+
+    const res = await dispatch(plane, 'optimize.preview', { profileId: 'alpha' });
+    expect(res.error).toBeUndefined();
+    const body = res.result as { calibration: { candidates: Array<{ verdict: { rebenchmarkRequired: boolean } }> } };
+    expect(body.calibration.candidates[0]?.verdict.rebenchmarkRequired).toBe(true);
   });
 
   it('save applies the head candidate, persists a rule-recommended profile and audits', async () => {
@@ -370,7 +395,18 @@ describe('optimize data plane (M3-002)', () => {
     const store = makeStore();
     store.create({
       ...validProfile('alpha'),
-      validation: { source: 'benchmarked', testedAt: FAKE_NOW, memoryPeakBytes: 9 * 1024 ** 3 },
+      validation: {
+        source: 'benchmarked',
+        testedAt: FAKE_NOW,
+        memoryPeakBytes: 9 * 1024 ** 3,
+        resourceUsage: {
+          schemaVersion: 1,
+          method: 'host-snapshot-delta',
+          sampleCount: 3,
+          completeness: 'complete',
+          peakDelta: { vramBytes: 5 * 1024 ** 3, systemRamBytes: 4 * 1024 ** 3, totalBytes: 9 * 1024 ** 3 },
+        },
+      },
     });
     const seam = stubRecommendation(recommendation());
     const plane = makePlane({ store, recommendation: seam });

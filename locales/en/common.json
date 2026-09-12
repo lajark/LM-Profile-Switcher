@@ -139,6 +139,7 @@
   "optimize.ramHeadroom": "RAM headroom {{value}}",
   "optimize.measuredPeak": "measured peak {{value}}",
   "optimize.degraded": "degraded",
+  "optimize.rebenchmark": "calibration evidence is stale; run Benchmark again",
   "optimize.measured": "measured {{tps}} tok/s · {{samples}} samples",
   "resourceFit.gpuResident": "GPU-resident",
   "resourceFit.hybridMemory": "Hybrid-memory",

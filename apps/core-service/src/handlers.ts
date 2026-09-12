@@ -168,7 +168,7 @@ function uniqueRuleProfileIds(document: {
   return ids;
 }
 
-/** BasicMemoryPeak projection shape exposed to the desktop view. */
+/** Resource calibration projection shape exposed to the desktop view. */
 export interface CalibrationProjection {
   measuredPeakBytes: number | null;
   /** Per-candidate advisory verdicts keyed by candidate id; empty when unmeasured. */
@@ -176,24 +176,20 @@ export interface CalibrationProjection {
 }
 
 /**
- * M5-003: compare each candidate's load estimate against the baseline's
- * measured peak (validation.memoryPeakBytes) and report an advisory verdict.
- * Calibration never mutates the estimate; it only surfaces `degraded` when the
- * measured peak exceeds the estimate beyond the tolerance. Empty projection when
- * the baseline carries no completed measurement, so the view can stay silent.
+ * M6-002: compare candidate estimates against synchronized resource evidence.
+ * Legacy memoryPeakBytes is retained for display but produces an unavailable
+ * verdict that explicitly requires a re-benchmark.
  */
 function buildCalibrationProjection(
   baseline: CompositeProfile,
   recommendation: Recommendation,
 ): CalibrationProjection {
-  const measuredPeakBytes = baseline.validation?.memoryPeakBytes ?? null;
-  if (measuredPeakBytes === null || typeof measuredPeakBytes !== 'number') {
+  const validation = baseline.validation;
+  const measuredPeakBytes = validation?.memoryPeakBytes ?? null;
+  if (validation === undefined || (measuredPeakBytes === null && validation.resourceUsage === undefined)) {
     return { measuredPeakBytes: null, candidates: [] };
   }
-  const asBenchmark = {
-    status: 'completed' as const,
-    metrics: { memoryPeakBytes: measuredPeakBytes },
-  } as BenchmarkResult;
+  const asBenchmark = benchmarkFromValidation(validation);
   const candidates: CalibrationProjection['candidates'] = recommendation.candidates.map(
     (candidate: Candidate) => ({
       candidateId: candidate.id,
@@ -201,6 +197,16 @@ function buildCalibrationProjection(
     }),
   );
   return { measuredPeakBytes, candidates };
+}
+
+function benchmarkFromValidation(validation: NonNullable<CompositeProfile['validation']>): BenchmarkResult {
+  return {
+    status: 'completed',
+    metrics: {
+      memoryPeakBytes: validation.memoryPeakBytes ?? null,
+      resourceUsage: validation.resourceUsage,
+    },
+  } as BenchmarkResult;
 }
 
 // ---------------------------------------------------------------------------
@@ -613,10 +619,9 @@ export function createHandlers(options: SidecarHandlerOptions): Handlers {
       }),
 
     /**
-     * M5-003: advisory per-candidate calibration projection. Compares each
-     * candidate's load estimate against the baseline's measured peak and reports
-     * `degraded` transparently — never overwrites the estimate. Empty when the
-     * baseline carries no completed measurement.
+     * M6-002: advisory per-candidate calibration projection. Compares each
+     * candidate's load estimate against complete synchronized resource evidence;
+     * legacy or partial evidence is surfaced as requiring a re-benchmark.
      */
     'optimize.preview': async (params, signal) =>
       guard(async () => {
@@ -654,7 +659,7 @@ export function createHandlers(options: SidecarHandlerOptions): Handlers {
         };
         // Duplicate id → STORE_ALREADY_EXISTS surfaces as-is; no rollback.
         const created = requireStore().create(saved);
-        // M5-009: advisory calibration verdict for the saved (head) candidate.
+        // M6-002: advisory calibration verdict for the saved (head) candidate.
         const projection = buildCalibrationProjection(baseline, recommendation);
         const headCalibration = projection.candidates.find((entry) => entry.candidateId === head.id)?.verdict;
         seam.audit({

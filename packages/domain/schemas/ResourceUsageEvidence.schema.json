@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "method": {
+      "type": "string",
+      "const": "host-snapshot-delta"
+    },
+    "sampleCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "completeness": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "partial",
+        "unavailable"
+      ]
+    },
+    "peakDelta": {
+      "type": "object",
+      "properties": {
+        "vramBytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "systemRamBytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "totalBytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "vramBytes",
+        "systemRamBytes",
+        "totalBytes"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "method",
+    "sampleCount",
+    "completeness",
+    "peakDelta"
+  ],
+  "additionalProperties": {},
+  "title": "Resource Usage Evidence",
+  "description": "Synchronized host-snapshot resource deltas from a benchmark.",
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 14c95dccf181abf7bc02b92288615d137b556db1fce72b86979b687235099d34"
+}

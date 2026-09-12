@@ -10,9 +10,8 @@
  * user-level exit 4; Ctrl+C cancel exits 2; a null seam exits 6.
  *
  * `--yes` stamps the profile `validation.source:'benchmarked'` (plus benchmark
- * id and the versions/fingerprint the run was captured under) so future
- * optimizer runs can treat the result as `measured:true` evidence. Failed or
- * canceled runs are never stamped.
+ * provenance and synchronized M6-002 resource evidence) so future optimizer
+ * runs can use the result. Failed or canceled runs are never stamped.
  */
 import type { BenchmarkResult } from '@lmps/domain';
 

@@ -11,6 +11,7 @@ export type { BenchmarkPrompt, BenchmarkSuite } from './suites.js';
 
 export { aggregateSamples } from './metrics.js';
 export type { AggregateOptions, SampleMetrics } from './metrics.js';
+export { buildResourceUsageEvidence } from './resource-usage.js';
 
 export { isBenchmarkValidFor } from './validity.js';
 export type { BenchmarkIdentity, Validity } from './validity.js';

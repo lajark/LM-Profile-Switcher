@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit manually.
 // Source of truth: locales/zh-CN/common.json, locales/en/common.json.
 // Regenerate with `corepack pnpm run i18n:generate`.
-// __CHECKSUM__: 28338c877ac8430ed269a7a4701253505389675392c783884f1f49194bb49620
+// __CHECKSUM__: fdff1f674d2228e493bf97e6f4d16fea6260ed4785605db6cb07f0e88cc903b0
 
 export const DEFAULT_NAMESPACE = 'common';
 
@@ -146,6 +146,7 @@ export const resourceKeys = [
   'optimize.ramHeadroom',
   'optimize.measuredPeak',
   'optimize.degraded',
+  'optimize.rebenchmark',
   'optimize.measured',
   'resourceFit.gpuResident',
   'resourceFit.hybridMemory',
@@ -488,6 +489,7 @@ export interface CommonResources {
   'optimize.ramHeadroom': string;
   'optimize.measuredPeak': string;
   'optimize.degraded': string;
+  'optimize.rebenchmark': string;
   'optimize.measured': string;
   'resourceFit.gpuResident': string;
   'resourceFit.hybridMemory': string;

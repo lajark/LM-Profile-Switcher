@@ -5,7 +5,7 @@
 import { stringifyYamlDocument } from '@lmps/domain';
 import { describe, expect, it } from 'vitest';
 
-import { ALPHA, PROFILE_DIR, profileJson, validProfile } from './fixtures';
+import { ALPHA, FAKE_NOW, PROFILE_DIR, profileJson, validProfile } from './fixtures';
 import { createMemStore } from './helpers';
 
 export function storeErrorCode<T>(fn: () => T): string {
@@ -125,6 +125,29 @@ describe('export', () => {
     const text = first.exportYaml('alpha');
     const { store: second } = createMemStore();
     expect(second.importFromYaml(text)).toEqual(ALPHA);
+  });
+
+  it('round-trips synchronized resource evidence without rewriting legacy fields', () => {
+    const evidenceProfile = {
+      ...ALPHA,
+      validation: {
+        source: 'benchmarked' as const,
+        testedAt: FAKE_NOW,
+        memoryPeakBytes: 6 * 1024 ** 3,
+        resourceUsage: {
+          schemaVersion: 1 as const,
+          method: 'host-snapshot-delta' as const,
+          sampleCount: 2,
+          completeness: 'complete' as const,
+          peakDelta: { vramBytes: 4 * 1024 ** 3, systemRamBytes: 2 * 1024 ** 3, totalBytes: 6 * 1024 ** 3 },
+        },
+      },
+    };
+    const { store: first } = createMemStore();
+    first.create(evidenceProfile);
+    const text = first.exportJson('alpha');
+    const { store: second } = createMemStore();
+    expect(second.importFromJson(text)).toEqual(evidenceProfile);
   });
 
   it('export throws STORE_NOT_FOUND for a missing profile', () => {

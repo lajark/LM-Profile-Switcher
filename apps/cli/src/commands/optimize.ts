@@ -101,15 +101,14 @@ function saveCandidate(
   };
   const created = deps.store.create(saved); // duplicate id → STORE_ALREADY_EXISTS → exit 4
 
-  // M5-009: persist the estimate-vs-measured calibration verdict for the saved
-  // candidate when the baseline carries a measured peak — advisory audit trail.
-  const measuredPeak = baseline.validation?.memoryPeakBytes ?? null;
+  // M6-002: preserve the synchronized resource evidence when projecting the
+  // baseline into the calibration seam. Legacy memoryPeakBytes alone remains
+  // visible but is intentionally classified as requiring a re-benchmark.
+  const validation = baseline.validation;
   const calibration =
-    typeof measuredPeak === 'number'
-      ? calibrateEstimate(selected.estimate, {
-          status: 'completed',
-          metrics: { memoryPeakBytes: measuredPeak },
-        } as BenchmarkResult)
+    validation !== undefined &&
+    (typeof validation.memoryPeakBytes === 'number' || validation.resourceUsage !== undefined)
+      ? calibrateEstimate(selected.estimate, benchmarkFromValidation(validation))
       : undefined;
 
   seam.audit({
@@ -129,7 +128,7 @@ function humanSummary(deps: CliDeps, baseline: CompositeProfile, recommendation:
   const lines: string[] = [];
   lines.push(deps.t('optimize.title', { id: recommendation.baselineProfileId }));
   lines.push(deps.t('optimize.ruleVersion', { version: recommendation.ruleVersion }));
-  const measuredPeak = baseline.validation?.memoryPeakBytes ?? null;
+  const validation = baseline.validation;
 
   recommendation.candidates.forEach((candidate, index) => {
     const score = deps.t('candidate.score', { score: candidate.score.total.toFixed(3) });
@@ -143,7 +142,7 @@ function humanSummary(deps: CliDeps, baseline: CompositeProfile, recommendation:
       candidate.safety.resourceFit === undefined
         ? ''
         : ` · ${deps.t(RESOURCE_FIT_KEYS[candidate.safety.resourceFit])}`;
-    lines.push(`  ${deps.t('candidate.head', { index: String(index + 1), id: candidate.id })} · ${score} · ${confidence}${headroom}${fit}${resourceDetail(deps, candidate)}${calibrationDetail(deps, candidate, measuredPeak)}${measuredDetail(deps, candidate)}`);
+    lines.push(`  ${deps.t('candidate.head', { index: String(index + 1), id: candidate.id })} · ${score} · ${confidence}${headroom}${fit}${resourceDetail(deps, candidate)}${calibrationDetail(deps, candidate, validation)}${measuredDetail(deps, candidate)}`);
     for (const diff of candidate.diff) {
       lines.push(
         `    ${deps.t('diff.field', {
@@ -192,17 +191,30 @@ function resourceDetail(deps: CliDeps, candidate: Candidate): string {
   return parts.length === 0 ? '' : ` · ${parts.join(' · ')}`;
 }
 
-/** M5-003: calibrate the candidate estimate against the baseline's measured peak (advisory). */
-function calibrationDetail(deps: CliDeps, candidate: Candidate, measuredPeak: number | null): string {
-  if (typeof measuredPeak !== 'number') return '';
-  const verdict = calibrateEstimate(candidate.estimate, {
-    status: 'completed',
-    metrics: { memoryPeakBytes: measuredPeak },
-  } as BenchmarkResult);
+/** M6-002: calibrate only from synchronized v2 evidence (legacy data warns). */
+function calibrationDetail(deps: CliDeps, candidate: Candidate, validation: CompositeProfile['validation']): string {
+  if (validation === undefined) return '';
+  const measuredPeak = validation.memoryPeakBytes ?? null;
+  if (typeof measuredPeak !== 'number' && validation.resourceUsage === undefined) return '';
+  const verdict = calibrateEstimate(candidate.estimate, benchmarkFromValidation(validation));
+  if (verdict.rebenchmarkRequired) {
+    return ` · ${deps.t('optimize.rebenchmark')}`;
+  }
   if (!verdict.applied) return '';
-  const parts = [deps.t('optimize.measuredPeak', { value: gitb(measuredPeak) })];
+  if (typeof verdict.comparedPeakBytes !== 'number') return '';
+  const parts = [deps.t('optimize.measuredPeak', { value: gitb(verdict.comparedPeakBytes) })];
   if (verdict.degraded) parts.push(deps.t('optimize.degraded'));
   return ` · ${parts.join(' · ')}`;
+}
+
+function benchmarkFromValidation(validation: NonNullable<CompositeProfile['validation']>): BenchmarkResult {
+  return {
+    status: 'completed',
+    metrics: {
+      memoryPeakBytes: validation.memoryPeakBytes ?? null,
+      resourceUsage: validation.resourceUsage,
+    },
+  } as BenchmarkResult;
 }
 
 const GIB = 1024 ** 3;

@@ -104,6 +104,39 @@ describe('lmps benchmark (M2-003)', () => {
     });
   });
 
+  it('--yes persists synchronized resource evidence alongside the legacy peak', async () => {
+    const harness = makeCliHarness();
+    seed(harness);
+    harness.deps.benchmark = stubSeam(async () =>
+      result({
+        metrics: {
+          ...result().metrics,
+          resourceUsage: {
+            schemaVersion: 1,
+            method: 'host-snapshot-delta',
+            sampleCount: 3,
+            completeness: 'complete',
+            peakDelta: {
+              vramBytes: 4 * 1024 ** 3,
+              systemRamBytes: 2 * 1024 ** 3,
+              totalBytes: 6 * 1024 ** 3,
+            },
+          },
+        },
+      }),
+    );
+
+    const outcome = await runCli(['benchmark', 'rag-prime', '--yes'], harness.deps);
+    expect(outcome.exitCode).toBe(0);
+    expect(harness.store.get('rag-prime').validation?.resourceUsage).toEqual({
+      schemaVersion: 1,
+      method: 'host-snapshot-delta',
+      sampleCount: 3,
+      completeness: 'complete',
+      peakDelta: { vramBytes: 4 * 1024 ** 3, systemRamBytes: 2 * 1024 ** 3, totalBytes: 6 * 1024 ** 3 },
+    });
+  });
+
   it('does not stamp validation for a failed run (still exit 0)', async () => {
     const harness = makeCliHarness();
     seed(harness);

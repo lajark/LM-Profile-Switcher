@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { isoDateTime } from './iso-date.js';
 import { SCHEMA_VERSION } from './version.js';
+import { ResourceUsageEvidenceSchema } from './resource-usage.js';
 
 export const BenchmarkMetricsSchema = z
   .object({
@@ -19,7 +20,10 @@ export const BenchmarkMetricsSchema = z
      */
     tokensPerSecond: z.number().min(0).nullable().optional(),
     latencyP50Ms: z.number().min(0).nullable().optional(),
+    /** Legacy absolute VRAM used; deprecated for Total Memory calibration. */
     memoryPeakBytes: z.number().int().min(0).nullable().optional(),
+    /** M6-002 synchronized VRAM/system-RAM delta evidence. */
+    resourceUsage: ResourceUsageEvidenceSchema.optional(),
     samples: z.number().int().min(0).default(0).optional(),
     /** Model load wall-clock, measured by the adapter (ms). */
     loadMs: z.number().min(0).nullable().optional(),

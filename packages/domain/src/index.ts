@@ -20,6 +20,7 @@ export * from './capability.js';
 export * from './estimate.js';
 export * from './resource-fit.js';
 export * from './benchmark.js';
+export * from './resource-usage.js';
 export * from './recommendation.js';
 export * from './transaction.js';
 

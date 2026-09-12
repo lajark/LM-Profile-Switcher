@@ -1,11 +1,12 @@
 /**
  * Deterministic aggregation of measured samples into BenchmarkMetrics (M2-003).
  * Pure functions: no I/O, no clock. TTFT/prefill/decode latencies and rates are
- * aggregated per-sample then summarized by median (p50); memory peak is the
- * maximum across the sample points. Any phase with no measurable sample stays
- * null rather than being invented.
+ * aggregated per-sample then summarized by median (p50); legacy absolute-VRAM
+ * memory peak is the maximum across the sample points. Synchronized
+ * VRAM/system-RAM deltas are supplied separately by the core orchestrator. Any
+ * phase with no measurable sample stays null rather than being invented.
  */
-import type { BenchmarkMetrics } from '@lmps/domain';
+import type { BenchmarkMetrics, ResourceUsageEvidence } from '@lmps/domain';
 
 /** One measured inference round-trip over the streaming seam. */
 export interface SampleMetrics {
@@ -21,8 +22,10 @@ export interface SampleMetrics {
 
 export interface AggregateOptions {
   loadMs?: number | null;
-  /** VRAM-used sample points; the maximum becomes memoryPeakBytes. */
+  /** Legacy absolute VRAM-used sample points; max becomes deprecated memoryPeakBytes. */
   memoryPeaks?: readonly number[];
+  /** Synchronized v1 resource deltas captured by the core orchestrator. */
+  resourceUsage?: ResourceUsageEvidence;
 }
 
 export function aggregateSamples(samples: readonly SampleMetrics[], options: AggregateOptions = {}): BenchmarkMetrics {
@@ -51,6 +54,7 @@ export function aggregateSamples(samples: readonly SampleMetrics[], options: Agg
     ttftMs,
     prefillTokensPerSecond,
     decodeTokensPerSecond,
+    ...(options.resourceUsage === undefined ? {} : { resourceUsage: options.resourceUsage }),
   };
 }
 

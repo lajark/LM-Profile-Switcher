@@ -155,7 +155,7 @@ export function OptimizeView({
     if (typeof est?.totalMemoryBytes === 'number') lines.push(t('optimize.memTotal', { value: gib(est.totalMemoryBytes) }));
     if (safety.ramReserveBytes != null) lines.push(t('optimize.ramReserve', { value: gib(safety.ramReserveBytes) }));
     if (safety.ramHeadroomBytes != null) lines.push(t('optimize.ramHeadroom', { value: gib(safety.ramHeadroomBytes) }));
-    const hasAnything = fitKey !== null || lines.length > 0 || verdict?.applied === true;
+    const hasAnything = fitKey !== null || lines.length > 0 || verdict?.applied === true || verdict?.rebenchmarkRequired === true;
     if (!hasAnything) return null;
     return (
       <div className="resource-detail">
@@ -177,6 +177,11 @@ export function OptimizeView({
               {t('optimize.measuredPeak', { value: gib(verdict.comparedPeakBytes) })}
             </span>
             {verdict.degraded && <span className="pill pill-low">{t('optimize.degraded')}</span>}
+          </div>
+        )}
+        {verdict?.rebenchmarkRequired === true && (
+          <div className="calibration-row">
+            <span className="pill pill-low">{t('optimize.rebenchmark')}</span>
           </div>
         )}
       </div>

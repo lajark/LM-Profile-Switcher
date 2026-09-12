@@ -70,7 +70,13 @@ export interface ProfileDocument {
   generation?: { temperature?: number | null; [k: string]: unknown };
   behavior?: { mode?: string | null; [k: string]: unknown };
   metadata?: { createdAt?: string; updatedAt?: string; [k: string]: unknown };
-  validation?: { source?: string; testedAt?: string | null; [k: string]: unknown };
+  validation?: {
+    source?: string;
+    testedAt?: string | null;
+    memoryPeakBytes?: number | null;
+    resourceUsage?: ResourceUsageEvidenceView;
+    [k: string]: unknown;
+  };
   [k: string]: unknown;
 }
 
@@ -133,8 +139,13 @@ export interface CandidateView {
   [k: string]: unknown;
 }
 
-/** M5-003: normalized calibration verdict mirror of `@lmps/optimizer`. */
+/** M6-002: normalized calibration verdict mirror of `@lmps/optimizer`. */
 export interface CalibrationVerdictView {
+  calibrationVersion: 2;
+  evidenceVersion: 1 | null;
+  evidenceQuality: 'complete' | 'partial' | 'unavailable';
+  relation: 'observed-below-estimate' | 'within-tolerance' | 'observed-above-estimate' | 'unavailable';
+  rebenchmarkRequired: boolean;
   applied: boolean;
   comparedPeakBytes: number | null;
   estimatedTotalBytes: number | null;
@@ -145,7 +156,7 @@ export interface CalibrationVerdictView {
   note: 'calibrated' | 'degraded' | 'unavailable';
 }
 
-/** M5-003: advisory calibration projection returned alongside a recommendation. */
+/** M6-002: advisory calibration projection returned alongside a recommendation. */
 export interface CalibrationProjectionView {
   measuredPeakBytes: number | null;
   candidates: Array<{ candidateId: string; verdict: CalibrationVerdictView }>;
@@ -174,12 +185,25 @@ export interface BenchmarkMetrics {
   tokensPerSecond?: number | null;
   latencyP50Ms?: number | null;
   memoryPeakBytes?: number | null;
+  resourceUsage?: ResourceUsageEvidenceView;
   samples?: number | null;
   loadMs?: number | null;
   ttftMs?: number | null;
   prefillTokensPerSecond?: number | null;
   decodeTokensPerSecond?: number | null;
   [k: string]: unknown;
+}
+
+export interface ResourceUsageEvidenceView {
+  schemaVersion: 1;
+  method: 'host-snapshot-delta';
+  sampleCount: number;
+  completeness: 'complete' | 'partial' | 'unavailable';
+  peakDelta: {
+    vramBytes: number | null;
+    systemRamBytes: number | null;
+    totalBytes: number | null;
+  };
 }
 
 export interface BenchmarkResultView {

@@ -128,7 +128,22 @@ describe('lmps optimize (M2-002)', () => {
 
   it('calibrates candidates against the baseline measured peak and surfaces degradation (M5-003)', async () => {
     const harness = makeCliHarness();
-    const baseline = { ...baselineProfile(), validation: { source: 'benchmarked', benchmarkId: 'b1', testedAt: NOW, memoryPeakBytes: 10 * 1024 ** 3 } };
+    const baseline = {
+      ...baselineProfile(),
+      validation: {
+        source: 'benchmarked',
+        benchmarkId: 'b1',
+        testedAt: NOW,
+        memoryPeakBytes: 10 * 1024 ** 3,
+        resourceUsage: {
+          schemaVersion: 1,
+          method: 'host-snapshot-delta',
+          sampleCount: 3,
+          completeness: 'complete',
+          peakDelta: { vramBytes: 6 * 1024 ** 3, systemRamBytes: 4 * 1024 ** 3, totalBytes: 10 * 1024 ** 3 },
+        },
+      },
+    };
     harness.store.create(baseline);
     const { seam } = stubSeam(recommendation());
     harness.deps.recommendation = seam;
@@ -139,6 +154,20 @@ describe('lmps optimize (M2-002)', () => {
     // Candidate estimate (VRAM 6 + RAM 2 = 8 GiB) is exceeded by the measured peak.
     expect(result.text).toContain('degraded');
     expect(harness.store.list().length).toBe(1);
+  });
+
+  it('warns when the baseline only has legacy absolute-VRAM evidence', async () => {
+    const harness = makeCliHarness();
+    harness.store.create({
+      ...baselineProfile(),
+      validation: { source: 'benchmarked', testedAt: NOW, memoryPeakBytes: 10 * 1024 ** 3 },
+    });
+    const { seam } = stubSeam(recommendation());
+    harness.deps.recommendation = seam;
+
+    const result = await runCli(['optimize', 'rag-prime'], harness.deps);
+    expect(result.exitCode).toBe(0);
+    expect(result.text).toContain('calibration evidence is stale; run Benchmark again');
   });
 
   it('renders measured evidence for feedback-matched candidates', async () => {
@@ -186,7 +215,21 @@ describe('lmps optimize (M2-002)', () => {
 
   it('--yes audits the calibration verdict when the baseline is measured (M5-009)', async () => {
     const harness = makeCliHarness();
-    const baseline = { ...baselineProfile(), validation: { source: 'benchmarked', testedAt: NOW, memoryPeakBytes: 10 * 1024 ** 3 } };
+    const baseline = {
+      ...baselineProfile(),
+      validation: {
+        source: 'benchmarked',
+        testedAt: NOW,
+        memoryPeakBytes: 10 * 1024 ** 3,
+        resourceUsage: {
+          schemaVersion: 1,
+          method: 'host-snapshot-delta',
+          sampleCount: 3,
+          completeness: 'complete',
+          peakDelta: { vramBytes: 6 * 1024 ** 3, systemRamBytes: 4 * 1024 ** 3, totalBytes: 10 * 1024 ** 3 },
+        },
+      },
+    };
     harness.store.create(baseline);
     const { seam, audit } = stubSeam(recommendation());
     harness.deps.recommendation = seam;

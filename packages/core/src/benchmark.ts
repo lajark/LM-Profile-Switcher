@@ -3,13 +3,14 @@
  * run for a single profile configuration. Pure module — every host coupling
  * (LM Studio, hardware probe, clock, lock, audit sink) enters through the
  * injected ports. Flow: lock → hardware baseline → battery guard → load →
- * memory sample → N× measure → memory sample → restore → construct result →
+ * fresh post-load snapshot → N× measure + fresh post-sample snapshots → restore → construct result →
  * log. Guard failures (battery, lock busy) throw a BenchmarkError that the CLI
  * maps to exit 4; measurement/battery/crash classification lands in the result
  * itself (`status:'failed'` + `errorCode`) so the audit record is still kept.
  */
 import {
   aggregateSamples,
+  buildResourceUsageEvidence,
   buildBenchmarkResult,
   configSnapshotOf,
   SEED_BENCHMARK_SUITE,
@@ -98,10 +99,24 @@ async function run(
   // aggregation filters them out and keeps the max of the measured ones.
   const peaks: Array<number | null> = [];
   const measured: SampleMetrics[] = [];
+  const observations: HardwareProfile[] = [];
   let status: BenchmarkResult['status'] = 'completed';
   let errorCode: string | null = null;
   let loadMs: number | null = null;
-  let baseline: HardwareProfile | null = null;
+  let baseline: HardwareProfile | null;
+  let samplingFailed = false;
+
+  const observeHardware = async (): Promise<HardwareProfile | null> => {
+    try {
+      const snapshot = await ports.hardware.profile();
+      observations.push(snapshot);
+      peaks.push(sampleMemoryPeak(snapshot));
+      return snapshot;
+    } catch {
+      samplingFailed = true;
+      return null;
+    }
+  };
 
   try {
     try {
@@ -111,22 +126,25 @@ async function run(
       // inventing provenance.
       status = 'failed';
       errorCode = 'BENCHMARK_CRASH';
-      peaks.push(sampleMemoryPeak(baseline));
-      return await finish(ctx, ports, profile, suite, id, startedAt, status, errorCode, loadMs, peaks, measured, baseline);
+      baseline = null;
     }
-    peaks.push(sampleMemoryPeak(baseline));
+    if (baseline !== null) peaks.push(sampleMemoryPeak(baseline));
 
-    if (baseline.power?.onBattery === true && !allowBattery) {
+    if (baseline !== null && baseline.power?.onBattery === true && !allowBattery) {
       throw new BenchmarkError('BENCHMARK_BATTERY_GUARD', 'benchmark refused on battery', {
         detail: 'power is on battery; pass --allow-battery to override',
       });
     }
 
-    if (isAborted(signal)) {
+    if (baseline === null) {
+      // No trustworthy baseline means no resource delta can be derived.
+    } else if (isAborted(signal)) {
       status = 'canceled';
       errorCode = 'BENCHMARK_CANCELED';
     } else {
       const loadOutcome = await loadConfiguration(ports, profile, signal);
+      // Always refresh after the load attempt; never reuse the baseline.
+      await observeHardware();
       if (typeof loadOutcome === 'string') {
         // A load failure is a benchmark-level failure: environment failures
         // (unreachable/auth) are rethrown out of loadConfiguration and only a
@@ -134,11 +152,9 @@ async function run(
         if (loadOutcome === 'BENCHMARK_CANCELED') status = 'canceled';
         else status = 'failed';
         errorCode = loadOutcome;
-        peaks.push(sampleMemoryPeak(baseline));
       } else {
         loadMs = loadOutcome.loadMs;
-        peaks.push(sampleMemoryPeak(baseline));
-        for (let i = 0; i < samples; i += 1) {
+        for (let i = 0; i < samples && !samplingFailed; i += 1) {
           if (isAborted(signal)) {
             status = 'canceled';
             errorCode = 'BENCHMARK_CANCELED';
@@ -155,6 +171,7 @@ async function run(
           if (typeof sample === 'string') {
             status = 'failed';
             errorCode = sample;
+            await observeHardware();
             break;
           }
           measured.push({
@@ -163,8 +180,13 @@ async function run(
             totalMs: sample.totalMs,
             promptTokens: prompt.approxPromptTokens,
           });
+          // Every inference sample gets a fresh post-sample snapshot.
+          await observeHardware();
         }
-        peaks.push(sampleMemoryPeak(baseline));
+        if (samplingFailed) {
+          status = 'failed';
+          errorCode = 'BENCHMARK_CRASH';
+        }
       }
     }
   } finally {
@@ -182,7 +204,22 @@ async function run(
     }
   }
 
-  return await finish(ctx, ports, profile, suite, id, startedAt, status, errorCode, loadMs, peaks, measured, baseline);
+  return await finish(
+    ctx,
+    ports,
+    profile,
+    suite,
+    id,
+    startedAt,
+    status,
+    errorCode,
+    loadMs,
+    peaks,
+    measured,
+    baseline,
+    observations,
+    measured.length,
+  );
 }
 
 async function finish(
@@ -198,6 +235,8 @@ async function finish(
   peaks: Array<number | null>,
   measured: SampleMetrics[],
   baseline: HardwareProfile | null,
+  observations: readonly HardwareProfile[],
+  sampleCount: number,
 ): Promise<BenchmarkResult> {
   const result = buildBenchmarkResult({
     id,
@@ -208,6 +247,7 @@ async function finish(
     metrics: aggregateSamples(measured, {
       loadMs,
       memoryPeaks: peaks.filter((peak): peak is number => peak !== null),
+      resourceUsage: buildResourceUsageEvidence(baseline, observations, sampleCount),
     }),
     // Measured-feedback loop: record which configuration the run exercised so
     // the optimizer can attribute the numbers back to matching candidates.
@@ -321,7 +361,7 @@ function sampleMemoryPeak(profile: HardwareProfile | null): number | null {
   let measured = false;
   for (const gpu of gpus) {
     if (typeof gpu.vramTotalBytes === 'number' && typeof gpu.vramAvailableBytes === 'number') {
-      peak = Math.max(peak, gpu.vramTotalBytes - gpu.vramAvailableBytes);
+      peak = Math.max(peak, Math.max(0, gpu.vramTotalBytes - gpu.vramAvailableBytes));
       measured = true;
     }
   }

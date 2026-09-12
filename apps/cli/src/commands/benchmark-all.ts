@@ -5,8 +5,8 @@
  * stored profile through the injected `BenchmarkSeam`, sharing one AbortSignal
  * across the whole batch so a Ctrl+C cancels the run in flight AND stops any
  * remaining profiles (the rest are reported as skipped). Each completed result
- * may `--yes` stamp its profile validation (incl. M5-003 `memoryPeakBytes`
- * calibration backfill), so a follow-up `optimize` can calibrate every
+ * may `--yes` stamp its profile validation (incl. M6-002 synchronized resource
+ * evidence), so a follow-up `optimize` can calibrate every
  * measured candidate.
  *
  * Exit-code contract mirrors the single-profile command: measurement failures

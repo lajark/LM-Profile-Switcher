@@ -2,7 +2,7 @@
  * Shared helpers for the single-profile `benchmark` command and the multi-profile
  * `benchmark-all` batch orchestration (M5-003). Kept here so both commands apply
  * identical bounds, exit-code mapping, per-profile `--yes` validation stamping
- * (including M5-003 `memoryPeakBytes` calibration backfill) and human metrics
+ * (including M6-002 synchronized resource evidence) and human metrics
  * rendering. Pure module: store/now/seam enter as params or via deps.
  */
 import { isBenchmarkError } from '@lmps/core';
@@ -55,7 +55,7 @@ export function mapGuardFailure(error: unknown): unknown {
 /**
  * `--yes` stamps a profile validation with the just-measured evidence; a result
  * that is not `completed` never marks the profile as benchmarked. Shared by the
- * single and batch commands so both backfill M5-003 `memoryPeakBytes`.
+ * single and batch commands so both persist the same v2 resource evidence.
  */
 export function stampBenchmarked(
   deps: CliDeps,
@@ -73,6 +73,7 @@ export function stampBenchmarked(
       runtimeVersion: result.runtimeVersion,
       adapterCapabilityVersion: result.adapterCapabilityVersion,
       memoryPeakBytes: result.metrics.memoryPeakBytes ?? null,
+      ...(result.metrics.resourceUsage === undefined ? {} : { resourceUsage: result.metrics.resourceUsage }),
     },
   });
   return result.id;

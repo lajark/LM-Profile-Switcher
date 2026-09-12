@@ -25,6 +25,7 @@ import { CandidateSchema, RecommendationSchema } from './recommendation.js';
 import { VirtualAliasesDocumentSchema } from './virtual-aliases.js';
 import { RulesDocumentSchema } from './rules.js';
 import { ActivationTransactionSchema } from './transaction.js';
+import { ResourceUsageEvidenceSchema } from './resource-usage.js';
 
 export interface DomainSchemaEntry {
   /** Stable artifact id; also the generated JSON Schema file basename. */
@@ -58,6 +59,7 @@ export const DOMAIN_SCHEMAS: readonly DomainSchemaEntry[] = [
   entry('HardwareProfile', 'Hardware Profile', 'Host environment snapshot (PRD FR-02).', HardwareProfileSchema),
   entry('LoadEstimate', 'Load Estimate', 'Expected resource usage for one model configuration.', LoadEstimateSchema),
   entry('BenchmarkResult', 'Benchmark Result', 'Objective benchmark of one model configuration.', BenchmarkResultSchema),
+  entry('ResourceUsageEvidence', 'Resource Usage Evidence', 'Synchronized host-snapshot resource deltas from a benchmark.', ResourceUsageEvidenceSchema),
   entry('ActivationTransaction', 'Activation Transaction', 'Auditable record of one activation attempt.', ActivationTransactionSchema),
   entry(
     'RulesDocument',

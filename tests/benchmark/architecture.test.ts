@@ -43,7 +43,7 @@ function srcFiles(): string[] {
 describe('benchmark architecture guard (M2-003)', () => {
   it('ships exactly the expected source modules', () => {
     const names = srcFiles().map((p) => relative(SRC_DIR, p)).sort();
-    expect(names).toEqual(['index.ts', 'metrics.ts', 'result.ts', 'suites.ts', 'validity.ts']);
+    expect(names).toEqual(['index.ts', 'metrics.ts', 'resource-usage.ts', 'result.ts', 'suites.ts', 'validity.ts']);
   });
 
   it('imports only the domain package', () => {
@@ -98,10 +98,11 @@ describe('benchmark architecture guard (M2-003)', () => {
       'BenchmarkIdentity',
       'Validity',
       'BuildBenchmarkResultInput',
+      'buildResourceUsageEvidence',
     ]) {
       expect(index).toContain(symbol);
     }
-    for (const module of ['metrics', 'result', 'suites', 'validity']) {
+    for (const module of ['metrics', 'resource-usage', 'result', 'suites', 'validity']) {
       expect(index).toContain(`./${module}.js`);
     }
   });

@@ -325,5 +325,5 @@
   "additionalProperties": {},
   "title": "Hardware Profile",
   "description": "Host environment snapshot (PRD FR-02).",
-  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 94745ca69347662dcbb5dd2a3f60bbcb5c08ecd65a818f78c220afae7dab6955"
+  "$comment": "GENERATED FILE - do not edit manually. __CHECKSUM__: 14c95dccf181abf7bc02b92288615d137b556db1fce72b86979b687235099d34"
 }
