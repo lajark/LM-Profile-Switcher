@@ -16,9 +16,16 @@
 
 ## Benchmark / 校准（v2 契约）
 
-- 0.2.1-beta.1 需以修复后的 v2 契约重新实测 9B/27B/35B；方法见 `docs/BENCHMARKS.md`。
-- **状态：外部阻塞（如实）**——真实会话需维护者本机以 `LMPS_LM_TOKEN` 执行（安全策略禁止 AI Agent 触碰该凭据；本候选未包含重测数字）。重测由维护者本地运行后将结果合并回 `docs/BENCHMARKS.md` 与本说明。
-- 0.2.0-beta.1 的历史校准仅作问题记录（M6-001 勘误），不参与推荐；未完成 v2 重测前，不得据此提高置信度、放宽安全余量或判断模型可运行。
+- **v2 真机重测已完成（2026-09-13）**：维护者本机以 `LMPS_LM_TOKEN` 按修复后的 v2 契约重新实测 9B/27B/35B（各 3 样本，`ResourceUsageEvidence` v1 `completeness=complete`）。
+
+| 模型 (Q4_K_M) | Decode (tok/s) | Prefill (tok/s) | TTFT (ms) | 加载 (ms) | VRAM 增量 (GiB) | 系统内存增量 (GiB) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Qwen3.5-9B (max/8k) | 63.05 | 231.88 | 144 | 22942 | 6.48 | 6.00 |
+| Qwen3.8-27B (max/8k) | 7.87 | 21.64 | 1479 | 34831 | 14.00 | 14.55 |
+| Qwen3.6-35B-A3B (max/8k) | 23.91 | 20.54 | 705 | 43480 | 12.91 | 16.95 |
+
+- 完整表格与测量方法见 `docs/BENCHMARKS.md`；原始记录 `.workspace/bench-v2-*.json`（LOCAL-ONLY）。
+- 0.2.0-beta.1 的历史校准仅作问题记录（M6-001 勘误），不参与推荐；v2 同步增量证据现为推荐回流依据。
 
 ## Installation / 安装
 

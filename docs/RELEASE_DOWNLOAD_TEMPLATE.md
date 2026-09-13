@@ -43,7 +43,7 @@ RTX 5060 Ti 16 GB / 32 GB RAM / Windows 11
 
 - 仅 Windows x86_64；当前无 macOS 二进制。
 - Beta 安装包未签名。
-- 27B/35B 校准须以 v2 测量契约重测（见 `docs/BENCHMARKS.md` 勘误）。
+- 实测数据基于 RTX 5060 Ti 16 GB / Windows 11 的 v2 契约重测（2026-09-13），见 `docs/BENCHMARKS.md`。
 
 ## Integrity & open-source compliance / 完整性合规
 
