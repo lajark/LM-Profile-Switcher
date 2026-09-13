@@ -87,8 +87,17 @@ export function createCliAdapter(env: LmStudioEnv): CliLms {
         kind: 'process',
       });
     }
-    const keys = parseLmsLs(result.stdout);
-    return keys.map(parseModelIdentity);
+    // The host-reported quant/params (lms 0.3.x) win over key heuristics;
+    // family still comes from the key because ls does not report it directly.
+    return parseLmsLsEntries(result.stdout).map((entry) => {
+      const heuristic = parseModelIdentity(entry.modelKey);
+      return {
+        modelKey: entry.modelKey,
+        family: heuristic.family,
+        quantization: entry.quantization ?? heuristic.quantization,
+        parametersB: entry.parametersB ?? heuristic.parametersB,
+      };
+    });
   }
 
   async function estimate(profile: CompositeProfile): Promise<LoadEstimate> {
@@ -215,28 +224,55 @@ export function parseLmsStatus(stdout: string): CliStatusResult | null {
   return { serverRunning: on, version: null };
 }
 
-/** Lenient parser for `lms ls --json`: an array or a wrapper with `data`/`models`. */
-export function parseLmsLs(stdout: string): string[] {
+/** Structured row from `lms ls --json` (lms 0.3.x); null fields when absent. */
+export interface LmsLsEntry {
+  modelKey: string;
+  quantization: string | null;
+  parametersB: number | null;
+}
+
+const LS_PARAMS_RE = /(\d+(?:\.\d+)?)\s*B/i;
+
+function readLsEntry(row: Record<string, unknown>): LmsLsEntry | null {
+  const modelKey =
+    asNonEmptyString(row.modelKey) ?? asNonEmptyString(row.id) ?? asNonEmptyString(row.path);
+  if (modelKey === null) return null;
+  const quantization = isRecord(row.quantization)
+    ? asNonEmptyString(row.quantization.name)
+    : asNonEmptyString(row.quantization);
+  const paramsString = asNonEmptyString(row.paramsString);
+  const paramsMatch = paramsString === null ? null : paramsString.match(LS_PARAMS_RE);
+  const parametersB = paramsMatch === null ? null : Number(paramsMatch[1]);
+  return { modelKey, quantization, parametersB: Number.isFinite(parametersB) ? parametersB : null };
+}
+
+/**
+ * Lenient parser for `lms ls --json` (lms 0.3.x): an array or a wrapper with
+ * `data`/`models`. Keeps the host-reported quantization and parameter count so
+ * the CLI discovery path does not discard fields the REST surface omits.
+ */
+export function parseLmsLsEntries(stdout: string): LmsLsEntry[] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(stdout) as unknown;
   } catch {
     return [];
   }
-  if (Array.isArray(parsed)) {
-    return parsed
-      .filter(isRecord)
-      .map((row) => asNonEmptyString(row.id) ?? asNonEmptyString(row.path))
-      .filter((key): key is string => key !== null);
-  }
-  if (isRecord(parsed)) {
-    const candidates = Array.isArray(parsed.data) ? parsed.data : Array.isArray(parsed.models) ? parsed.models : [];
-    return candidates
-      .filter(isRecord)
-      .map((row) => asNonEmptyString(row.id) ?? asNonEmptyString(row.path))
-      .filter((key): key is string => key !== null);
-  }
-  return [];
+  const rows: unknown[] = Array.isArray(parsed)
+    ? parsed
+    : isRecord(parsed)
+      ? Array.isArray(parsed.data)
+        ? parsed.data
+        : Array.isArray(parsed.models)
+          ? parsed.models
+          : []
+      : [];
+  return rows.filter(isRecord).map(readLsEntry).filter((entry): entry is LmsLsEntry => entry !== null);
+}
+
+/** Lenient parser for `lms ls --json`; returns the model keys only. */
+export function parseLmsLs(stdout: string): string[] {
+  return parseLmsLsEntries(stdout).map((entry) => entry.modelKey);
 }
 
 const MEMORY_VALUE_RE = /(\d+(?:\.\d+)?)\s*(B|KB|MB|GB|TB|KiB|MiB|GiB|TiB)\b/i;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createCliAdapter, loadArgs, parseLmsLs, parseLmsStatus } from '@lmps/lmstudio-adapter';
+import { createCliAdapter, loadArgs, parseLmsLs, parseLmsLsEntries, parseLmsStatus } from '@lmps/lmstudio-adapter';
 import { makeFakeEnv, NOW } from './fixtures.js';
 
 describe('parseLmsStatus', () => {
@@ -47,6 +47,49 @@ describe('parseLmsLs', () => {
   });
 });
 
+describe('parseLmsLsEntries', () => {
+  it('reads the real lms 0.3.x shape (modelKey + quantization.name + paramsString)', () => {
+    const stdout = JSON.stringify([
+      {
+        type: 'llm',
+        modelKey: 'qwen/qwen3.8-27b',
+        path: 'qwen/qwen3.8-27b',
+        paramsString: '27B',
+        quantization: { name: 'Q4_K_M', bits: 4 },
+      },
+      {
+        type: 'llm',
+        modelKey: 'meta/muse-glimmer',
+        path: 'meta/muse-glimmer',
+        paramsString: '28B',
+        quantization: null,
+      },
+    ]);
+    expect(parseLmsLsEntries(stdout)).toEqual([
+      { modelKey: 'qwen/qwen3.8-27b', quantization: 'Q4_K_M', parametersB: 27 },
+      { modelKey: 'meta/muse-glimmer', quantization: null, parametersB: 28 },
+    ]);
+  });
+
+  it('accepts a string quantization, unwraps data/models, and tolerates missing fields', () => {
+    const stdout = JSON.stringify({
+      models: [
+        { modelKey: 'vendor/embed', quantization: 'FP16' },
+        { id: 'legacy-7b.Q4_K_M.gguf' },
+      ],
+    });
+    expect(parseLmsLsEntries(stdout)).toEqual([
+      { modelKey: 'vendor/embed', quantization: 'FP16', parametersB: null },
+      { modelKey: 'legacy-7b.Q4_K_M.gguf', quantization: null, parametersB: null },
+    ]);
+  });
+
+  it('returns [] for garbage or empty payloads', () => {
+    expect(parseLmsLsEntries('garbage')).toEqual([]);
+    expect(parseLmsLsEntries('{}')).toEqual([]);
+  });
+});
+
 describe('createCliAdapter', () => {
   it('surfaces the server state from the human lms status output', async () => {
     const env = makeFakeEnv({
@@ -77,6 +120,35 @@ describe('createCliAdapter', () => {
     const models = await adapter.listModels();
     expect(models[0]).toMatchObject({ family: 'mistral', quantization: 'Q4_K_M', parametersB: 7 });
     expect(models[1]).toMatchObject({ family: 'codestral', parametersB: 22 });
+  });
+
+  it('trusts host-reported quantization/params over key heuristics (real lms 0.3.x)', async () => {
+    const env = makeFakeEnv({
+      runLmsHandler: (args) => ({
+        exitCode: 0,
+        stdout:
+          args.join(' ') === 'ls --json'
+            ? JSON.stringify([
+                {
+                  modelKey: 'qwen/qwen3.5-9b',
+                  paramsString: '9B',
+                  quantization: { name: 'Q4_K_M', bits: 4 },
+                },
+              ])
+            : '[]',
+        stderr: '',
+        timedOut: false,
+      }),
+    });
+    const adapter = createCliAdapter(env);
+    const models = await adapter.listModels();
+    // The key carries no quant tag, but the host reports Q4_K_M — host wins.
+    expect(models[0]).toEqual({
+      modelKey: 'qwen/qwen3.5-9b',
+      family: 'qwen3',
+      quantization: 'Q4_K_M',
+      parametersB: 9,
+    });
   });
 
   it('classifies binary absence as a process error', async () => {
