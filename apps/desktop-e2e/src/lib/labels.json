@@ -1,0 +1,123 @@
+{
+  "labels": {
+    "zh-CN": {
+      "nav": { "profiles": "配置档案", "optimize": "优化向导", "benchmark": "基准测试", "hardware": "硬件" },
+      "connected": "已连接",
+      "profiles": {
+        "title": "配置档案",
+        "new": "新建档案",
+        "apply": "应用",
+        "confirm": "确认",
+        "cancel": "取消",
+        "delete": "删除",
+        "activeBadge": "当前激活",
+        "applyConfirmPart": "应用为当前激活档案",
+        "activatedPart": "已激活",
+        "idempotentPart": "已是当前激活配置",
+        "recoveredPart": "切换失败，已恢复先前配置"
+      },
+      "editor": {
+        "id": "标识",
+        "zhName": "显示名称（中文）",
+        "enName": "显示名称（英文）",
+        "modelKey": "模型 key",
+        "taskType": "任务类型",
+        "contextLength": "上下文长度（tokens）",
+        "temperature": "温度",
+        "behaviorMode": "行为模式",
+        "save": "保存",
+        "displayNameRequired": "两种显示名称都必须填写"
+      },
+      "optimize": {
+        "select": "基准档案",
+        "preview": "预览候选",
+        "candidates": "候选配置",
+        "firstHead": "候选 1：chat-9b-loop-max",
+        "scorePart": "评分 0.86",
+        "highConfidence": "高置信",
+        "safe": "安全",
+        "diffPath": "字段",
+        "rationaleZh": "中文理由",
+        "rationaleEn": "理由（英文）",
+        "save": "保存推荐",
+        "savedPart": "已保存",
+        "none": "未能为这个档案推荐任何候选。",
+        "refusedNoSafe": "已拒绝保存：没有安全候选。"
+      },
+      "benchmark": {
+        "select": "待测档案",
+        "run": "运行基准",
+        "completed": "已完成",
+        "failed": "失败",
+        "metrics": "指标",
+        "decodeMetric": "解码速率（tok/s）",
+        "errorCodePart": "失败码 E2E_FIXTURE_FAILURE"
+      },
+      "hardware": { "title": "硬件", "os": "操作系统", "gpus": "GPU" },
+      "error": { "lmUnreachable": "无法连接 LM Studio——请先启动它再重试。" }
+    },
+    "en": {
+      "nav": { "profiles": "Profiles", "optimize": "Optimize", "benchmark": "Benchmark", "hardware": "Hardware" },
+      "connected": "Connected",
+      "profiles": {
+        "title": "Profiles",
+        "new": "New profile",
+        "apply": "Apply",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "activeBadge": "Active",
+        "applyConfirmPart": "as the active profile",
+        "activatedPart": "Activated",
+        "idempotentPart": "is already the active profile",
+        "recoveredPart": "previous profile"
+      },
+      "editor": {
+        "id": "Id",
+        "zhName": "Display name (Chinese)",
+        "enName": "Display name (English)",
+        "modelKey": "Model key",
+        "taskType": "Task type",
+        "contextLength": "Context length (tokens)",
+        "temperature": "Temperature",
+        "behaviorMode": "Behavior mode",
+        "save": "Save",
+        "displayNameRequired": "Both display names are required"
+      },
+      "optimize": {
+        "select": "Baseline profile",
+        "preview": "Preview candidates",
+        "candidates": "Candidates",
+        "firstHead": "#1 chat-9b-loop-max",
+        "scorePart": "score 0.86",
+        "highConfidence": "high",
+        "safe": "Safe",
+        "diffPath": "Field",
+        "rationaleZh": "中文理由",
+        "rationaleEn": "Rationale (English)",
+        "save": "Save recommendation",
+        "savedPart": "Saved",
+        "none": "No candidate could be recommended.",
+        "refusedNoSafe": "Saving refused: no safe candidate."
+      },
+      "benchmark": {
+        "select": "Profile to measure",
+        "run": "Run benchmark",
+        "completed": "Completed",
+        "failed": "Failed",
+        "metrics": "Metrics",
+        "decodeMetric": "Decode rate (tok/s)",
+        "errorCodePart": "E2E_FIXTURE_FAILURE"
+      },
+      "hardware": { "title": "Hardware", "os": "Operating system", "gpus": "GPUs" },
+      "error": { "lmUnreachable": "Cannot reach LM Studio — start it and retry." }
+    }
+  },
+  "profileNames": {
+    "chat": { "zh-CN": "聊天 9B（测试夹具）", "en": "Chat 9B (fixture)" },
+    "code": { "zh-CN": "代码 27B（测试夹具）", "en": "Code 27B (fixture)" }
+  },
+  "localeButton": { "zh-CN": "简体中文", "en": "English" },
+  "fixtureGpuName": "Fixture RTX 5060 Ti",
+  "fixtureOs": "Windows 11 (fixture)"
+}

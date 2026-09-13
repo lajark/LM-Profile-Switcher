@@ -1,0 +1,26 @@
+{
+  "name": "@lmps/desktop-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WebdriverIO desktop regression suites (M6-004). E2E-only; never imported by product code.",
+  "scripts": {
+    "e2e:browser": "wdio run ./wdio.browser.conf.ts",
+    "e2e:shell": "wdio run ./wdio.shell.conf.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/mocha": "10.0.10",
+    "@types/node": "26.2.0",
+    "@wdio/cli": "9.31.7",
+    "@wdio/globals": "9.31.3",
+    "@wdio/local-runner": "9.31.7",
+    "@wdio/mocha-framework": "9.31.7",
+    "@wdio/spec-reporter": "9.31.2",
+    "@wdio/types": "9.31.2",
+    "tsx": "4.23.13",
+    "typescript": "5.7.3",
+    "vite": "6.4.3",
+    "webdriverio": "9.31.7"
+  }
+}

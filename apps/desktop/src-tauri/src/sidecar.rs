@@ -289,7 +289,14 @@ async fn try_startup(app: &AppHandle) -> Result<Running, StartupError> {
     }
     // Documented adapter switches: LMPS_ADAPTER=mock drives the deterministic
     // benchmark demo; LMPS_LMS_BIN picks the `lms` CLI for the CLI adapter.
-    for key in ["LMPS_ADAPTER", "LMPS_LMS_BIN", "LMPS_LM_BIN"] {
+    // LMPS_HOME redirects the data root, which keeps automated shell tests in
+    // a throwaway directory instead of the operator's real profile store.
+    for key in [
+        "LMPS_ADAPTER",
+        "LMPS_LMS_BIN",
+        "LMPS_LM_BIN",
+        "LMPS_HOME",
+    ] {
         if let Ok(value) = std::env::var(key) {
             command = command.env(key, value);
         }

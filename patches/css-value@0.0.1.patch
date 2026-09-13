@@ -1,0 +1,12 @@
+diff --git a/package.json b/package.json
+index 086525a5adb7110e85db520f4d5f0d5023fce720..9e7ba6736de8aa3265d145b933a1e1b9b167f426 100644
+--- a/package.json	
++++ b/package.json	
+@@ -13,5 +13,6 @@
+     "mocha": "~1.9.0",
+     "should": "~1.2.2"
+   },
+-  "main": "index"
++  "main": "index",
++  "license": "MIT"
+ }
