@@ -33,7 +33,7 @@ export function containing(part: string): RegExp {
   return new RegExp(part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 }
 
-export async function clickNav(tab: 'profiles' | 'optimize' | 'benchmark' | 'hardware', locale: Locale): Promise<void> {
+export async function clickNav(tab: 'profiles' | 'optimize' | 'benchmark' | 'hardware' | 'help', locale: Locale): Promise<void> {
   await buttonByText(LABELS[locale].nav[tab]).click();
 }
 

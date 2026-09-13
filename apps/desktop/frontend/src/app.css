@@ -160,6 +160,15 @@ button.danger {
   margin-left: 12px;
 }
 
+/* Locale control stays one unit and right-aligns even when the tab bar wraps. */
+.tabs-locale {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
 .tabs button {
   border-radius: 999px;
 }
@@ -559,4 +568,40 @@ pre.result {
 
 .hardware-diagnostics {
   margin-top: 8px;
+}
+
+/* --- Help guide --- */
+
+.help-view {
+  max-width: 860px;
+  line-height: 1.65;
+}
+
+.help-view .font-controls button {
+  min-width: 44px;
+  font-weight: 600;
+}
+
+.help-section {
+  margin-bottom: 18px;
+}
+
+.help-section h3.subsection {
+  margin-bottom: 6px;
+}
+
+.help-section p {
+  margin: 0;
+}
+
+.help-section ol {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.help-section li {
+  padding-left: 2px;
 }

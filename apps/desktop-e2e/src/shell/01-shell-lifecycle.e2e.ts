@@ -37,10 +37,10 @@ describe('windows-shell: real shell + sidecar lifecycle', () => {
     await waitConnected(60_000);
   });
 
-  it('boots the production bundle with a connected sidecar and the four tabs', async () => {
+  it('boots the production bundle with a connected sidecar and the top-level tabs', async () => {
     expect(await browser.getTitle()).toBe('LM Profile Switcher');
     await expect(badge()).toHaveText(CONNECTED_RE);
-    for (const tab of ['profiles', 'optimize', 'benchmark', 'hardware'] as const) {
+    for (const tab of ['profiles', 'optimize', 'benchmark', 'hardware', 'help'] as const) {
       await expect(
         buttonEither(LABELS['zh-CN'].nav[tab], LABELS.en.nav[tab]),
       ).toBeDisplayed();

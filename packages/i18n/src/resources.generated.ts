@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit manually.
 // Source of truth: locales/zh-CN/common.json, locales/en/common.json.
 // Regenerate with `corepack pnpm run i18n:generate`.
-// __CHECKSUM__: fdff1f674d2228e493bf97e6f4d16fea6260ed4785605db6cb07f0e88cc903b0
+// __CHECKSUM__: 57543dc157a9f06979aa32b465ad25ddbe3521a469822d2f017fd6c0fe6437b5
 
 export const DEFAULT_NAMESPACE = 'common';
 
@@ -209,6 +209,7 @@ export const resourceKeys = [
   'desktop.nav.optimize',
   'desktop.nav.benchmark',
   'desktop.nav.hardware',
+  'desktop.nav.help',
   'desktop.profiles.title',
   'desktop.profiles.filter',
   'desktop.profiles.new',
@@ -225,6 +226,27 @@ export const resourceKeys = [
   'desktop.profiles.applyConfirm',
   'desktop.profiles.activeBadge',
   'desktop.footer.disclaimer',
+  'desktop.help.title',
+  'desktop.help.font.smaller',
+  'desktop.help.font.larger',
+  'desktop.help.intro.heading',
+  'desktop.help.intro.body',
+  'desktop.help.install.heading',
+  'desktop.help.install.step1',
+  'desktop.help.install.step2',
+  'desktop.help.install.step3',
+  'desktop.help.install.step4',
+  'desktop.help.usage.heading',
+  'desktop.help.usage.step1',
+  'desktop.help.usage.step2',
+  'desktop.help.usage.step3',
+  'desktop.help.usage.step4',
+  'desktop.help.usage.step5',
+  'desktop.help.usage.step6',
+  'desktop.help.data.heading',
+  'desktop.help.data.body',
+  'desktop.help.limits.heading',
+  'desktop.help.limits.body',
   'desktop.editor.title.create',
   'desktop.editor.title.edit',
   'desktop.editor.id',
@@ -552,6 +574,7 @@ export interface CommonResources {
   'desktop.nav.optimize': string;
   'desktop.nav.benchmark': string;
   'desktop.nav.hardware': string;
+  'desktop.nav.help': string;
   'desktop.profiles.title': string;
   'desktop.profiles.filter': string;
   'desktop.profiles.new': string;
@@ -568,6 +591,27 @@ export interface CommonResources {
   'desktop.profiles.applyConfirm': string;
   'desktop.profiles.activeBadge': string;
   'desktop.footer.disclaimer': string;
+  'desktop.help.title': string;
+  'desktop.help.font.smaller': string;
+  'desktop.help.font.larger': string;
+  'desktop.help.intro.heading': string;
+  'desktop.help.intro.body': string;
+  'desktop.help.install.heading': string;
+  'desktop.help.install.step1': string;
+  'desktop.help.install.step2': string;
+  'desktop.help.install.step3': string;
+  'desktop.help.install.step4': string;
+  'desktop.help.usage.heading': string;
+  'desktop.help.usage.step1': string;
+  'desktop.help.usage.step2': string;
+  'desktop.help.usage.step3': string;
+  'desktop.help.usage.step4': string;
+  'desktop.help.usage.step5': string;
+  'desktop.help.usage.step6': string;
+  'desktop.help.data.heading': string;
+  'desktop.help.data.body': string;
+  'desktop.help.limits.heading': string;
+  'desktop.help.limits.body': string;
   'desktop.editor.title.create': string;
   'desktop.editor.title.edit': string;
   'desktop.editor.id': string;

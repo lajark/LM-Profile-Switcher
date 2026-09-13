@@ -12,14 +12,16 @@ import { EditorView, type EditorState } from './views/EditorView';
 import { OptimizeView } from './views/OptimizeView';
 import { BenchmarkView } from './views/BenchmarkView';
 import { HardwareView } from './views/HardwareView';
+import { HelpView } from './views/HelpView';
 
-export type Tab = 'profiles' | 'optimize' | 'benchmark' | 'hardware';
+export type Tab = 'profiles' | 'optimize' | 'benchmark' | 'hardware' | 'help';
 
 const NAV_LABELS: Record<Tab, ResourceKey> = {
   profiles: 'desktop.nav.profiles',
   optimize: 'desktop.nav.optimize',
   benchmark: 'desktop.nav.benchmark',
   hardware: 'desktop.nav.hardware',
+  help: 'desktop.nav.help',
 };
 
 const STATUS_LABELS: Record<SidecarStatusName, ResourceKey> = {
@@ -94,7 +96,7 @@ export function App({ i18n }: AppProps) {
       </header>
 
       <nav className="tabs" aria-label={i18n.t('app.name')}>
-        {(['profiles', 'optimize', 'benchmark', 'hardware'] as const).map((item) => (
+        {(['profiles', 'optimize', 'benchmark', 'hardware', 'help'] as const).map((item) => (
           <button
             key={item}
             type="button"
@@ -109,18 +111,20 @@ export function App({ i18n }: AppProps) {
           </button>
         ))}
         <span className="tabs-spacer" />
-        <span className="locale-label">{i18n.t('desktop.locale.label')}</span>
-        {SUPPORTED_LOCALES.map((item) => (
-          <button
-            key={item}
-            type="button"
-            className={item === locale ? 'active' : undefined}
-            disabled={item === locale}
-            onClick={() => i18n.setLocale(item)}
-          >
-            {i18n.t(LOCALE_LABELS[item])}
-          </button>
-        ))}
+        <span className="tabs-locale">
+          <span className="locale-label">{i18n.t('desktop.locale.label')}</span>
+          {SUPPORTED_LOCALES.map((item) => (
+            <button
+              key={item}
+              type="button"
+              className={item === locale ? 'active' : undefined}
+              disabled={item === locale}
+              onClick={() => i18n.setLocale(item)}
+            >
+              {i18n.t(LOCALE_LABELS[item])}
+            </button>
+          ))}
+        </span>
       </nav>
 
       <main className="view">
@@ -156,6 +160,8 @@ export function App({ i18n }: AppProps) {
         )}
 
         {tab === 'hardware' && <HardwareView i18n={i18n} />}
+
+        {tab === 'help' && <HelpView i18n={i18n} />}
       </main>
 
       <footer className="footer-disclaimer">{i18n.t('desktop.footer.disclaimer')}</footer>

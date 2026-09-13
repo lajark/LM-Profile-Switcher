@@ -1,7 +1,7 @@
 {
   "labels": {
     "zh-CN": {
-      "nav": { "profiles": "配置档案", "optimize": "优化向导", "benchmark": "基准测试", "hardware": "硬件" },
+      "nav": { "profiles": "配置档案", "optimize": "优化向导", "benchmark": "基准测试", "hardware": "硬件", "help": "帮助" },
       "connected": "已连接",
       "profiles": {
         "title": "配置档案",
@@ -54,10 +54,11 @@
         "errorCodePart": "失败码 E2E_FIXTURE_FAILURE"
       },
       "hardware": { "title": "硬件", "os": "操作系统", "gpus": "GPU" },
+      "help": { "title": "帮助与使用指南", "install": "安装", "usage": "使用流程", "fontLarger": "增大字号" },
       "error": { "lmUnreachable": "无法连接 LM Studio——请先启动它再重试。" }
     },
     "en": {
-      "nav": { "profiles": "Profiles", "optimize": "Optimize", "benchmark": "Benchmark", "hardware": "Hardware" },
+      "nav": { "profiles": "Profiles", "optimize": "Optimize", "benchmark": "Benchmark", "hardware": "Hardware", "help": "Help" },
       "connected": "Connected",
       "profiles": {
         "title": "Profiles",
@@ -110,6 +111,7 @@
         "errorCodePart": "E2E_FIXTURE_FAILURE"
       },
       "hardware": { "title": "Hardware", "os": "Operating system", "gpus": "GPUs" },
+      "help": { "title": "Help and user guide", "install": "Installation", "usage": "How to use it", "fontLarger": "Increase font size" },
       "error": { "lmUnreachable": "Cannot reach LM Studio — start it and retry." }
     }
   },

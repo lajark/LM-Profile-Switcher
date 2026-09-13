@@ -8,7 +8,7 @@ import labelsJson from './labels.json' with { type: 'json' };
 export type Locale = 'zh-CN' | 'en';
 
 export interface LabelSet {
-  nav: { profiles: string; optimize: string; benchmark: string; hardware: string };
+  nav: { profiles: string; optimize: string; benchmark: string; hardware: string; help: string };
   connected: string;
   profiles: {
     title: string;
@@ -61,6 +61,7 @@ export interface LabelSet {
     errorCodePart: string;
   };
   hardware: { title: string; os: string; gpus: string };
+  help: { title: string; install: string; usage: string; fontLarger: string };
   error: { lmUnreachable: string };
 }
 
