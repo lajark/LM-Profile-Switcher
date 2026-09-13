@@ -103,8 +103,8 @@ try {
   if (models.length === 0) {
     throw new Error('no models on the host (LMPS_REAL_MODEL or discovered list empty)');
   }
-  const modelKey = requestedModel ?? models[0].key;
-  if (requestedModel !== null && !models.some((m) => m.key === requestedModel)) {
+  const modelKey = requestedModel ?? models[0].modelKey;
+  if (requestedModel !== null && !models.some((m) => m.modelKey === requestedModel)) {
     throw new Error(`LMPS_REAL_MODEL "${requestedModel}" not found on host`);
   }
 
