@@ -1,6 +1,6 @@
 [package]
 name = "lmps-desktop"
-version = "0.2.1-beta.1"
+version = "0.2.2-beta.1"
 description = "LMPS desktop shell: Tauri host supervising the Node core-service sidecar"
 authors = ["LM Profile Switcher"]
 edition = "2021"
