@@ -25,6 +25,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@lmps/domain": "workspace:*",
     "@tauri-apps/cli": "2.11.4",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",

@@ -67,4 +67,36 @@ describe('browser-mode: profile editor create and delete', () => {
     await card.waitForDisplayed();
     await expect(card.$('.//h3')).toHaveText(containing('Second E2E profile'));
   });
+
+  it('keeps runtime/generation/behavior sections present on a minimal create (v2 contract)', async () => {
+    const en = LABELS.en;
+    await switchLocale('en');
+
+    await buttonByText(en.profiles.new).click();
+    await inputByLabel(en.editor.id).setValue('e2e-minimal');
+    await inputByLabel(en.editor.zhName).setValue('最小字段档案'); // i18n-ignore
+    await inputByLabel(en.editor.enName).setValue('Minimal fields profile');
+    await inputByLabel(en.editor.modelKey).setValue('vendor/e2e-minimal-q4');
+    await inputByLabel(en.editor.taskType).setValue('quick-chat');
+    // Context length, temperature and behavior mode are intentionally left
+    // untouched; only gpuOffload keeps its 'auto' default.
+
+    // The create-mode preview serializes the live buildDocument() draft:
+    // all three sections must exist (the v2 composite schema rejects
+    // documents that omit them, and behavior.mode is a required enum).
+    await browser.$('.json-preview > summary').click();
+    const preview = await browser.$('.json-preview pre').getText();
+    expect(preview).toContain('"runtime": {');
+    expect(preview).toContain('"generation": {}');
+    expect(preview).toContain('"behavior": {');
+    expect(preview).toContain('"mode": "exclusive"');
+
+    await buttonByText(en.editor.save).click();
+
+    // The card appearing proves the domain-validating fake sidecar accepted
+    // the document (pre-fix it rejected minimal creates with PROFILE_INVALID).
+    const card = profileCard('e2e-minimal');
+    await card.waitForDisplayed({ timeout: 10_000 });
+    await expect(card.$('.//h3')).toHaveText(containing('Minimal fields profile'));
+  });
 });

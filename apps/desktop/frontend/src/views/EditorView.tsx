@@ -55,7 +55,7 @@ function emptyDraft(): Draft {
     gpuOffload: 'auto',
     gpuOffloadNumeric: '',
     temperature: '',
-    mode: '',
+    mode: 'exclusive',
   };
 }
 
@@ -116,7 +116,7 @@ export function EditorView({ i18n, state, onSaved, onCancel }: EditorViewProps) 
       gpuOffloadNumeric:
         typeof doc.runtime?.gpuOffload === 'number' ? String(doc.runtime.gpuOffload) : '',
       temperature: String(doc.generation?.temperature ?? ''),
-      mode: doc.behavior?.mode ?? '',
+      mode: doc.behavior?.mode ?? 'exclusive',
     });
   }, [source.state]);
 
@@ -142,15 +142,20 @@ export function EditorView({ i18n, state, onSaved, onCancel }: EditorViewProps) 
     const task: ProfileDocument['task'] = { type: draft.taskType.trim() };
     if (draft.taskKind !== '') task.kind = draft.taskKind;
 
-    const runtime: ProfileDocument['runtime'] = {};
+    const runtime: NonNullable<ProfileDocument['runtime']> = {};
     const contextLength = toInt(draft.contextLength);
     if (contextLength !== undefined && contextLength >= 1) runtime.contextLength = contextLength;
     const offload = gpuOffloadValue();
     if (offload !== undefined) runtime.gpuOffload = offload;
 
-    const generation: ProfileDocument['generation'] = {};
+    const generation: NonNullable<ProfileDocument['generation']> = {};
     const temperature = toFloat(draft.temperature);
     if (temperature !== undefined) generation.temperature = temperature;
+
+    // The v2 composite contract requires runtime/generation/behavior keys to
+    // be present and behavior.mode to be one of exclusive|coexist; the form
+    // defaults to exclusive (the safer switch mode), so mode is always set.
+    const behavior: NonNullable<ProfileDocument['behavior']> = { mode: draft.mode };
 
     const displayName: LocalizedText = { 'zh-CN': draft.zhName, en: draft.enName };
     const doc: ProfileDocument = {
@@ -159,14 +164,14 @@ export function EditorView({ i18n, state, onSaved, onCancel }: EditorViewProps) 
       displayName,
       model,
       task,
+      runtime,
+      generation,
+      behavior,
       metadata: { createdAt: nowIso(), updatedAt: nowIso(), ...(sourceDoc?.metadata ?? {}) },
     };
     if (draft.enDesc.trim() !== '') {
       doc.description = { ...(sourceDoc?.description ?? {}), en: draft.enDesc.trim() };
     }
-    if (Object.keys(runtime).length > 0) doc.runtime = runtime;
-    if (Object.keys(generation).length > 0) doc.generation = generation;
-    if (draft.mode !== '') doc.behavior = { mode: draft.mode };
     return doc;
   };
 
@@ -333,7 +338,6 @@ export function EditorView({ i18n, state, onSaved, onCancel }: EditorViewProps) 
         <label className="field">
           <span>{t('desktop.editor.behavior.mode')}</span>
           <select value={draft.mode} onChange={(event) => set('mode', event.target.value)}>
-            <option value="">{t('common.unknown')}</option>
             <option value="exclusive">exclusive</option>
             <option value="coexist">coexist</option>
           </select>

@@ -102,6 +102,9 @@ importers:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@lmps/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@tauri-apps/cli':
         specifier: 2.11.4
         version: 2.11.4

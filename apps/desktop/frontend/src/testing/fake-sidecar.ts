@@ -8,6 +8,7 @@
  * the production index.html build graph never imports this module.
  */
 import { mockIPC } from '@tauri-apps/api/mocks';
+import { CompositeProfileSchema } from '@lmps/domain';
 import type {
   ActivationApplyResult,
   ActivationStatus,
@@ -38,6 +39,17 @@ function rpcReject(code: string, message: string): Promise<never> {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+/**
+ * Validates writes with the same @lmps/domain composite contract the real
+ * sidecar enforces, so browser-mode E2E catches schema drift (e.g. missing
+ * runtime/generation/behavior sections) instead of only the Windows-shell run.
+ * Returns the Zod failure message, or null when the document is valid.
+ */
+function profileValidationError(value: unknown): string | null {
+  const parsed = CompositeProfileSchema.safeParse(value);
+  return parsed.success ? null : parsed.error.message;
 }
 
 class FakeSidecar {
@@ -89,6 +101,8 @@ class FakeSidecar {
       }
       case 'profiles.create': {
         const doc = asRecord(params.profile) as unknown as ProfileDocument;
+        const invalid = profileValidationError(params.profile);
+        if (invalid !== null) return rpcReject('PROFILE_INVALID', invalid);
         this.profiles.set(doc.id, structuredClone(doc));
         return { id: doc.id };
       }
@@ -97,6 +111,8 @@ class FakeSidecar {
         if (existing === undefined) return rpcReject('STORE_NOT_FOUND', `fixture: ${String(params.id)}`);
         const patch = asRecord(params.patch) as Partial<ProfileDocument>;
         const merged: ProfileDocument = { ...existing, ...structuredClone(patch), id: existing.id };
+        const invalid = profileValidationError(merged);
+        if (invalid !== null) return rpcReject('PROFILE_INVALID', invalid);
         this.profiles.set(existing.id, merged);
         return { id: existing.id };
       }

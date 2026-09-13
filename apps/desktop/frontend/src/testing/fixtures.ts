@@ -29,6 +29,7 @@ export function chatProfile(): ProfileDocument {
     task: { type: 'quick-chat', kind: 'quick-chat' },
     runtime: { contextLength: 32768, gpuOffload: 'max' },
     generation: { temperature: 0.7 },
+    behavior: { mode: 'exclusive' },
     metadata: { createdAt: FIXTURE_NOW, updatedAt: FIXTURE_NOW },
   };
 }
@@ -46,6 +47,7 @@ export function codeProfile(): ProfileDocument {
     task: { type: 'coding-assistant', kind: 'coding' },
     runtime: { contextLength: 16384, gpuOffload: 'auto' },
     generation: { temperature: 0.2 },
+    behavior: { mode: 'exclusive' },
     metadata: { createdAt: FIXTURE_NOW, updatedAt: FIXTURE_NOW },
   };
 }
