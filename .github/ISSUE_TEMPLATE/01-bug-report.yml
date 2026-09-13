@@ -1,0 +1,64 @@
+name: Bug report / 缺陷报告
+description: File a reproducible bug with environment and evidence / 提交可复现的缺陷（含环境与证据）
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **EN** Before filing, search existing issues. Bug reports are treated as data: include a reproducible step, not just a conclusion.
+        **中文** 提交前请先搜索已有 issue。缺陷报告需要可复现步骤与证据，而非仅结论。
+  - type: input
+    id: version
+    attributes:
+      label: Version / 版本
+      description: From `lmps --version` or the Release title (e.g. 0.2.0-beta.1)
+      placeholder: 0.2.0-beta.1
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment / 环境
+      description: OS, architecture, Node.js version, GPU/VRAM, LM Studio & engine version (redact anything you consider private)
+      placeholder: Windows 11 x64 · Node 20.x · RTX 5060 Ti 16 GB · LM Studio 0.3.x
+    validations:
+      required: true
+  - type: dropdown
+    id: entrypoint
+    attributes:
+      label: Entry point / 入口
+      options:
+        - CLI (lmps)
+        - Desktop GUI / 桌面
+        - System tray / 托盘
+        - Hook
+        - OpenAI-compatible proxy / 代理
+        - Other / 其他
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      description: Exact commands or UI clicks; include the profile/config shape if relevant (use placeholders for tokens/paths)
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / 预期行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / 实际行为
+      description: Paste the exact output/error. NEVER paste tokens, full prompts, user documents, or absolute private paths; redact them first.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence / 证据
+      description: Screenshot or redacted log (e.g. `lmps doctor --bundle`, `logs/transactions.ndjson` after redaction). Ensure no secrets.

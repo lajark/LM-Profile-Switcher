@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security / 安全
+    url: https://github.com/lajark/LM-Profile-Switcher/security/policy
+    about: Report a security vulnerability privately / 请通过私有漏洞报告渠道提交安全问题
+  - name: Contributing guide / 贡献指南
+    url: https://github.com/lajark/LM-Profile-Switcher/blob/main/CONTRIBUTING.md
+    about: Read the ground rules before opening a PR / 开 PR 前请先阅读基本原则

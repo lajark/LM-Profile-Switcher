@@ -1,0 +1,11 @@
+# Repository code owners (M6-006) / 仓库代码所有者
+
+# Default: the maintainer owns every path.
+* @lajark
+
+# Release automation and packaging are maintainer-only (community PRs never
+# get a Release; see CONTRIBUTING.md and docs/DISTRIBUTION_CHANNELS.md).
+/.github/workflows/release.yml @lajark
+scripts/release-pack.mjs @lajark
+scripts/policy-scan.mjs @lajark
+PROJECT_DISTRIBUTION_POLICY.md @lajark
