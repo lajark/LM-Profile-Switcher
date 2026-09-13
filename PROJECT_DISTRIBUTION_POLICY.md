@@ -30,9 +30,9 @@ existing_compliance_command: "corepack pnpm run compliance"
 当前事实（2026-09-12；发布状态于 2026-09-13 同步）：
 
 - 仓库已获用户明确授权公开，并推送到 GitHub（`lajark/LM-Profile-Switcher`）与 Gitee（`li_nanqi/lm-profile-switcher`）两个 public remote；公开历史由 `git filter-repo` 剥离内部工具配置、内部任务档案与 LOCAL-ONLY 材料后重写。
-- GitHub 已发布 `v0.2.0-beta.1`、`v0.2.1-beta.1` 两个未签名 Windows x86_64 NSIS Pre-release（含安装包及清单、校验和、SBOM、许可证与发布说明）；Gitee 仅镜像 `main` 源码与 tag，不承载 Release 制品（其预发布页仅源码归档，下载指向 GitHub）。
+- GitHub 已发布 `v0.2.0-beta.1`、`v0.2.1-beta.1`、`v0.2.2-beta.1` 三个未签名 Windows x86_64 NSIS Pre-release（含安装包及清单、校验和、SBOM、许可证与发布说明）；Gitee 仅镜像 `main` 源码与 tag，不承载 Release 制品（其预发布页仅源码归档，下载指向 GitHub）。
 - 本机 `artifacts/releases/0.1.0` 仍是旧源码提交生成的 Windows x86_64 历史暂存制品；它属于 LOCAL-ONLY 维护者证据，不代表当前版本或远端 Release。当前没有 macOS 制品。
-- `0.2.1-beta.1` 的 Windows x86_64 未签名 Pre-release 已发布（见 §10）。`v0.2.2-beta.1` 是 0.2.1 之后的源码 tag（编辑器最小字段创建缺陷修复、应用内帮助页、真实 LM Studio 在线冒烟闭环、CLI `lms ls` 字段解析增强），尚未重建 Windows x86_64 安装包候选——Release 资产只能在后续发布任务中经授权由 `release:pack` 从该 tag 重新组装；macOS arm64/x86_64、签名和公证继续列为外部阻塞，不以 Windows 结果替代。
+- `v0.2.2-beta.1` 已完成 Windows x86_64 候选与发布（2026-09-13，见 §10；安装包 SHA256 `14c9057e5ddf…`）。下一轮工作（如真实事务态 `apply` 在线验收、M2-003 真机 Benchmark）收口后再决定后续版本；macOS arm64/x86_64、签名和公证继续列为外部阻塞，不以 Windows 结果替代。
 - GitHub 与 Gitee 统一以 `main` 为唯一代码主线；不再建立或引用滞后的 `zh-CN` 代码分支。Gitee 的同步、描述与 Release 元数据变更仍需单独授权。
 - MIT 许可证不自动等同于仓库或 Release 已获准可见；未来可见性变更仍须按政策记录。
 - `corepack pnpm run check` 与 `corepack pnpm run compliance` 不是 Secret/路径分发扫描器；`policy:scan`（含 CI `--strict` 门）是本仓库的结构性分发守门。
@@ -238,7 +238,7 @@ Agent 在创建、移动、提交、打包或发布文件时必须：
 - [~] Windows 0.1.0 历史制品曾在本机完成安装/卸载/升级回滚验证；它不是当前源码制品，也没有远端 Release。
 - [x] `v0.2.0-beta.1` Windows x86_64 未签名 Pre-release 已发布并完成安装/升级/回滚验证（M5-005/M5-007）。
 - [x] `v0.2.1-beta.1` Windows x86_64 未签名 Pre-release 已发布（GitHub 8 项资产：安装包、manifest、校验和、SBOM、许可证、notices、LICENSE、发布说明；Gitee 仅源码归档）；发布记录见 commit `4ffb723` 与追踪矩阵 M6-007 行。
-- [ ] `v0.2.2-beta.1` 源码 tag（2026-09-13）：尚未从该 tag 重建 Windows x86_64 安装包候选，也未组装/上传 Release 资产；需要后续单独授权。
+- [x] `v0.2.2-beta.1` Windows x86_64 未签名 Pre-release 已发布（2026-09-13）：GitHub Release id `387829161`，8 项资产（安装包 25,715,248 B、manifest、checksums、SBOM、许可证、notices、LICENSE、发布说明）；候选 `release:pack` 源提交 `b358895`，安装包 SHA256 `14c9057e5ddf…`（本地/checksums/GitHub 下载三方一致）；0.2.1→0.2.2 升级→回滚→sidecar 握手→启动无孤儿→卸载 PASS（`reports/post-022/`）；tag `v0.2.2-beta.1`（版本提交 `948e554`）双端已推送；Gitee 仅源码归档。
 - [ ] macOS arm64/x86_64 制品、真机验证、签名和公证均未完成（外部阻塞）。
 - [ ] GitHub/Gitee description、topics 和 Release 勘误等远端元数据尚未授权执行（M6-006）。
 
