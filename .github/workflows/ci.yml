@@ -28,6 +28,8 @@ jobs:
         run: corepack pnpm run coverage:run && corepack pnpm run coverage:ratchet
       - name: Policy and secret scan
         run: corepack pnpm run policy:scan -- --strict
+      - name: Strict dependency audit (M6-005)
+        run: corepack pnpm run audit:deps:strict
 
   # M6-004 browser-mode desktop E2E (WebDriverIO + Chrome + in-memory fake
   # sidecar). Deliberately separate from, and non-blocking in addition to, the

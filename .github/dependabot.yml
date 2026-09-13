@@ -1,0 +1,47 @@
+# Dependabot governance (M6-005): weekly checks for pnpm, Cargo and GitHub
+# Actions; patch/minor updates grouped into one PR each, major updates get
+# their own PRs (they do not match the patch-and-minor group), and at most
+# three open PRs per ecosystem. Auto-merge is intentionally NOT configured
+# anywhere — every update PR is reviewed and must pass the CI gates before
+# being merged, and dependency updates never bypass rollback evidence.
+version: 2
+updates:
+  # pnpm workspace (npm ecosystem reads pnpm-lock.yaml automatically).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      patch-and-minor:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+          - "minor"
+
+  # Tauri desktop shell crates (Cargo.lock lives under src-tauri).
+  - package-ecosystem: "cargo"
+    directory: "/apps/desktop/src-tauri"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      patch-and-minor:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+          - "minor"
+
+  # GitHub Actions are pinned to full commit SHAs; Dependabot rewrites the
+  # SHA in place when an upstream action release is published.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      patch-and-minor:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+          - "minor"
