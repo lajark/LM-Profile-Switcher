@@ -42,7 +42,10 @@
 - 单元测试：`corepack pnpm run test`。
 - 构建：`corepack pnpm run build`（`hardware:probe` 与 `lmps` 依赖本次构建产物）。
 - 本机硬件探测：`corepack pnpm run hardware:probe`（输出脱敏机器 JSON 到 stdout；结果属 LOCAL-ONLY，不得入仓库；须先 `build`）。
-- 产品 CLI：`corepack pnpm run lmps -- [args]`（须先 `build`；如 `corepack pnpm run lmps -- --json profile list`）。人类输出双语走 i18n、`--json` 输出稳定机器信封；`models/current/snapshot` 未接线（M1-003/005 前恒 exit 6）。详细契约见 `docs/CLI_SPEC.md`。
+- LM Studio 真机能力探针：`corepack pnpm run probe:real`（REST/CLI/SDK 三源能力矩阵；须先 `build`；2026-09-05 server 离线态 exit 0 并如实记录 unreachable；输出脱敏写 `~/.lmps/realm/capability-matrix.json`，LOCAL-ONLY）。
+- LM Studio 真机冒烟：`corepack pnpm run smoke:real`（adapter 全链 list/current/readEffectiveConfig/load echo/unload；须先 `build` 且 LM Studio Developer Server 在线；门禁 `LMPS_REAL=1`，可选 env `LMPS_REAL_LM_URL`（默认 `http://127.0.0.1:1234`）、`LMPS_REAL_LM_TOKEN`（禁止回显）、`LMPS_REAL_LMS_BIN`（默认 `lms`）、`LMPS_REAL_MODEL`（默认首个已发现模型）；2026-09-13 在线 exit 0，记录脱敏写 `~/.lmps/realm/history.ndjson`，LOCAL-ONLY；失败退出路径存在已知 Node/libuv 进程拆解断言，不影响成功路径）。
+- Sidecar 真机冒烟：`corepack pnpm run sidecar:smoke:real`（SEA 对在线 REST/SDK 的探测；2026-09-05 exit 0，记录 `~/.lmps/realm/m0-006-sidecar-smoke.json`，LOCAL-ONLY）。
+- 产品 CLI：`corepack pnpm run lmps -- [args]`（须先 `build`；如 `corepack pnpm run lmps -- --json profile list`）。人类输出双语走 i18n、`--json` 输出稳定机器信封；`models`/`current`/`snapshot` 已随 M1-003 接线（2026-09-13 真机在线实测 exit 0：无加载时 `current` active 全 null、`snapshot` 为 `profileId:"none"` + captured 结构）。详细契约见 `docs/CLI_SPEC.md`。
 - 清理 TypeScript 构建输出：`corepack pnpm run clean`。
 - Provenance 校验：`corepack pnpm run provenance:check`。
 - 依赖许可证扫描：`corepack pnpm run license:check`；生成报告：`corepack pnpm run license:report`。
