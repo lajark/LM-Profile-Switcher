@@ -140,14 +140,18 @@ async function main(): Promise<void> {
       startedAt: new Date().toISOString(),
     });
   }
-  process.stdout.write(`${JSON.stringify({ event: 'ready', transport: settings.kind, address: server.address() })}\n`);
-
+  // Register graceful-shutdown handlers BEFORE announcing ready: a supervisor
+  // or test that receives the ready frame may signal immediately, and the
+  // default SIGTERM/SIGINT behavior would kill the process without a clean
+  // exit (a flaky CI race the M6-003 child-process test exposed).
   const shutdown = async (): Promise<void> => {
     await server.close();
     process.exit(0);
   };
   process.on('SIGTERM', () => void shutdown());
   process.on('SIGINT', () => void shutdown());
+
+  process.stdout.write(`${JSON.stringify({ event: 'ready', transport: settings.kind, address: server.address() })}\n`);
 
   await server.closed;
   process.exit(0);
