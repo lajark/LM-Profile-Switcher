@@ -26,8 +26,8 @@
     },
     {
       "role": "release-notes",
-      "source": "docs/RELEASE_NOTES-0.2.0-beta.1.md",
-      "dest": "RELEASE_NOTES-0.2.0-beta.1.md"
+      "source": "docs/RELEASE_NOTES-0.2.1-beta.1.md",
+      "dest": "RELEASE_NOTES-0.2.1-beta.1.md"
     }
   ],
   "excludedByDefault": [
