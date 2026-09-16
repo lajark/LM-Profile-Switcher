@@ -12,21 +12,21 @@ benchmarks them on your machine, and safely applies the profiles that actually w
 
 > Independent, unofficial community project — not affiliated with or endorsed by LM Studio.
 
-![LM Profile Switcher profiles overview](docs/screenshots/screenshot-profiles.png)
+![LM Profile Switcher model-first model list](docs/screenshots/m7-007-models-en.png)
 
 ## Download for Windows
 
 **Windows x86_64:** download the latest installer from
 [GitHub Releases](https://github.com/lajark/LM-Profile-Switcher/releases).
 
-Current public beta: `v0.2.0-beta.1`
+Current Windows beta: **v0.2.3-beta.1** — download the installer from [GitHub Releases](https://github.com/lajark/LM-Profile-Switcher/releases).
 
 - 100% local — no telemetry, no cloud account, no account needed
 - Per-user NSIS installer (Windows 10/11)
 - Ships `checksums.sha256`, `release-manifest.json`, SBOM, dependency licenses, third-party notices and release notes
 
 > The current beta installer is **unsigned**, so Windows SmartScreen may show a warning.
-> macOS distribution remains blocked (no build hardware / Apple credentials).
+> macOS is excluded from this optimization round. Historical macOS build, signing, and notarization blockers remain recorded for a future round.
 
 ## Why LM Profile Switcher?
 
@@ -49,6 +49,16 @@ Current public beta: `v0.2.0-beta.1`
 5. Apply the selected profile with health checks and rollback.
 
 ![Optimization wizard](docs/screenshots/screenshot-optimize-9b.png)
+
+![Benchmark workspace](docs/screenshots/m7-007-benchmark-en.png)
+
+The model-first screenshot is a read-only local LM Studio session. The Benchmark screenshot is a deterministic isolated Mock Adapter preview; its values are fixture output, not a performance claim.
+
+### Workflow preview
+
+The GIF below is an offline Mock Adapter UI preview of the model-first flow. It demonstrates navigation, optimization, Benchmark, and application states; it does not represent LM Studio performance.
+
+![Workflow preview (Mock Adapter)](docs/screenshots/m7-007-workflow.gif)
 
 ## Key features
 

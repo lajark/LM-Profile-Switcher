@@ -1,5 +1,5 @@
 /**
- * Sidecar wiring (M3-002) — the recommendation + benchmark seams the desktop
+ * Sidecar wiring (M3-002/M7-003) — the model-context, recommendation and benchmark seams the desktop
  * data plane runs on. Mirrors the CLI's apps/cli/src/deps.ts production recipes
  * (createRecommendationSeam / createBenchmarkSeam) trimmed for the sidecar host:
  * paths are built by string concatenation (Node's join is off-limits in this
@@ -15,6 +15,7 @@ import {
   createBenchmarkService,
   createFileLock,
   createRecommendationService,
+  createOptimizationLoopService,
   createSessionLock,
   parseBenchmarkLogLines,
   type ActivationLock,
@@ -26,7 +27,12 @@ import {
   type EstimatePort,
   type HardwarePort,
   type MeasuredResultsPort,
+  type ModelDefaultRecord,
+  type ModelDiscoveryRecord,
+  type ReadinessSnapshot,
   type RecommendationService,
+  type OptimizationLoopService,
+  type OptimizationPreflightPort,
   type RunnerContext,
   type TransactionLogSink,
 } from '@lmps/core';
@@ -35,6 +41,7 @@ import {
   HookRulesDocumentSchema,
   SCHEMA_VERSION,
   VirtualAliasesDocumentSchema,
+  type BenchmarkResult,
   type CapabilityMatrix,
   type HookRulesDocument,
   type VirtualAliasesDocument,
@@ -55,8 +62,10 @@ import {
   type AdapterSelection,
   type CapabilityProbeResult,
   type LmStudioEnv,
+  type MockAdapterOptions,
+  type MockBenchmarkOptions,
 } from '@lmps/lmstudio-adapter';
-import { writeFileAtomic, type Fsys, type ProfileStore } from '@lmps/profile-store';
+import { createProfileDefaultStore, writeFileAtomic, type Fsys, type ProfileDefaultStore, type ProfileStore } from '@lmps/profile-store';
 
 import { RpcMethodError } from './protocol.js';
 import {
@@ -66,6 +75,16 @@ import {
   type ProxyResult,
   type ProxyUpstream,
 } from './proxy.js';
+
+export interface SidecarModelContextSeam {
+  /** Reads adapter discovery, readiness/runtime state and benchmark evidence. */
+  read(): Promise<{
+    models: ModelDiscoveryRecord[];
+    benchmarks: BenchmarkResult[];
+    defaults?: ModelDefaultRecord[];
+    readiness: ReadinessSnapshot;
+  }>;
+}
 
 export interface SidecarRecommendationSeam {
   service: RecommendationService;
@@ -93,6 +112,10 @@ export interface SidecarActivationSeam {
 
 export interface SidecarBenchmarkSeam {
   service: BenchmarkService;
+}
+
+export interface SidecarOptimizationSeam {
+  service: OptimizationLoopService;
 }
 
 /**
@@ -174,6 +197,10 @@ export interface SidecarSeamOptions {
    * always block (never steal from a live peer).
    */
   isOwnerAlive?: (owner: string) => boolean;
+  /** Optional controls for the explicit Mock Adapter only. */
+  mockAdapter?: MockAdapterOptions;
+  /** Optional controls for the explicit Mock Benchmark runtime only. */
+  mockBenchmark?: MockBenchmarkOptions;
   now?: () => string;
 }
 
@@ -214,6 +241,73 @@ function pickActiveMatrixGuarded(lmEnv: LmStudioEnv): () => Promise<CapabilityMa
       if (mapped !== error) throw mapped;
       throw error;
     }
+  };
+}
+
+/**
+ * Reads the external model/readiness surfaces for the model-first data plane.
+ * Discovery failures are represented in the snapshot; they do not turn a
+ * stale local profile into a silently verified model.
+ */
+export function createSidecarModelContextSeam(fs: Fsys, options: SidecarSeamOptions): SidecarModelContextSeam {
+  const now = options.now ?? (() => new Date().toISOString());
+
+  return {
+    async read() {
+      const probe = options.selection === 'mock' ? mockProbeResult(options.lmEnv.baseUrl, now()) : await probeCapabilities(options.lmEnv);
+      const adapters = resolveAdapters(options.lmEnv, probe, { selection: options.selection, mock: options.mockAdapter });
+      const lmStatus = probe.ops.restReachable ? 'ready' : probe.ops.lmsAvailable ? 'partial' : 'offline';
+      let models: ModelDiscoveryRecord[];
+      let discoveryStatus: ReadinessSnapshot['discovery']['status'];
+      try {
+        models = (await adapters.discovery.listModels()).map((model) => ({
+          modelKey: model.modelKey,
+          family: model.family,
+          quantization: model.quantization,
+          parametersB: model.parametersB,
+        }));
+        discoveryStatus = 'ready';
+      } catch {
+        models = [];
+        discoveryStatus = 'offline';
+      }
+
+      let active: Awaited<ReturnType<AdapterBundle['runtime']['getActiveState']>> | null;
+      let runtimeStatus: ReadinessSnapshot['runtime']['status'];
+      try {
+        active = await adapters.runtime.getActiveState();
+        runtimeStatus = active.modelKey === null ? 'idle' : 'running';
+      } catch {
+        active = null;
+        runtimeStatus = 'unknown';
+      }
+
+      let hardwareStatus: ReadinessSnapshot['hardware'] = { status: 'unavailable', fingerprint: null };
+      try {
+        const hardware = await probeHardware(createDefaultProbeEnv());
+        hardwareStatus = { status: 'ready', fingerprint: hardware.hardwareFingerprint ?? null };
+      } catch {
+        // The model list remains useful when a hardware probe is unavailable.
+      }
+      const benchmarkPath = options.rootDir + '/logs/benchmarks.ndjson';
+      const benchmarks = fs.exists(benchmarkPath) ? parseBenchmarkLogLines(fs.readFileUtf8(benchmarkPath)) : [];
+      const defaults = createProfileDefaultStore({
+        fs,
+        path: options.rootDir + '/profile-defaults.json',
+        now,
+      }).list().map(({ modelKey, taskType, profileId }) => ({ modelKey, taskType, profileId }));
+      return {
+        models,
+        benchmarks,
+        defaults,
+        readiness: {
+          hardware: hardwareStatus,
+          lmStudio: { status: lmStatus, version: probe.ops.lmStudioVersion },
+          discovery: { status: discoveryStatus, observedAt: probe.ops.probedAt },
+          runtime: { status: runtimeStatus, active },
+        },
+      };
+    },
   };
 }
 
@@ -281,7 +375,7 @@ export function createSidecarActivationSeam(
     // ignores the probe under `selection: 'mock'`; a probe would otherwise hit
     // REST/`lms` on the host for zero benefit). Mirrors createSidecarBenchmarkSeam.
     const probe = options.selection === 'mock' ? mockProbeResult(options.lmEnv.baseUrl, now()) : await probeCapabilities(options.lmEnv);
-    cached = resolveAdapters(options.lmEnv, probe, { selection: options.selection });
+    cached = resolveAdapters(options.lmEnv, probe, { selection: options.selection, mock: options.mockAdapter });
     return cached;
   }
 
@@ -352,7 +446,7 @@ export function createSidecarBenchmarkSeam(fs: Fsys, options: SidecarSeamOptions
 
   async function runtime(): Promise<BenchmarkRuntime> {
     return options.selection === 'mock'
-      ? createMockBenchmarkRuntime()
+      ? createMockBenchmarkRuntime(options.mockBenchmark)
       : createRestBenchmarkRuntime(options.lmEnv);
   }
 
@@ -590,7 +684,57 @@ export function createOpenAiProxySeam(
 
 /** All seams wired from one env; null means the method is unsupported. */
 export interface SidecarSeams {
+  modelContext: SidecarModelContextSeam | null;
   recommendation: SidecarRecommendationSeam | null;
   benchmark: SidecarBenchmarkSeam | null;
+  optimization: SidecarOptimizationSeam | null;
   activation: SidecarActivationSeam | null;
+}
+/**
+ * The model-first optimization workspace seam (M7-005). It composes the
+ * already-wired recommendation, benchmark, activation-estimate and profile
+ * stores into Core's ordering service; no UI or Rust business rules are added.
+ */
+export function createSidecarOptimizationSeam(
+  fs: Fsys,
+  options: SidecarSeamOptions,
+  dependencies: {
+    recommendation: SidecarRecommendationSeam;
+    benchmark: SidecarBenchmarkSeam;
+    activation: SidecarActivationSeam;
+    profiles: ProfileStore;
+  },
+): SidecarOptimizationSeam {
+  const now = options.now ?? (() => new Date().toISOString());
+  const defaults: ProfileDefaultStore = createProfileDefaultStore({
+    fs,
+    path: `${options.rootDir}/profile-defaults.json`,
+    now,
+    profileExists: (profileId, modelKey, taskType) => {
+      try {
+        const profile = dependencies.profiles.get(profileId);
+        return profile.model.modelKey === modelKey && profile.task.type === taskType;
+      } catch {
+        return false;
+      }
+    },
+  });
+  const preflight: OptimizationPreflightPort = {
+    async check(profile) {
+      // Reachability and estimate are safety checks only; BenchmarkService owns
+      // the later load/measure/restore transaction.
+      await dependencies.activation.runtime.getActiveState();
+      await dependencies.activation.estimate.estimate(profile);
+    },
+  };
+  return {
+    service: createOptimizationLoopService({
+      recommendation: dependencies.recommendation.service,
+      benchmark: dependencies.benchmark.service,
+      preflight,
+      profiles: dependencies.profiles,
+      defaults,
+      now,
+    }),
+  };
 }

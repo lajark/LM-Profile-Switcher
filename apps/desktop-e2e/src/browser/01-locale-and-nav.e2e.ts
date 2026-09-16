@@ -15,7 +15,9 @@ describe('browser-mode: bilingual shell and locale persistence', () => {
 
   it('boots into zh-CN with Chinese nav, status badge and fixture names', async () => {
     const zh = LABELS['zh-CN'];
+    await clickNav('profiles', 'zh-CN');
     await expect(browser.$('.header .badge')).toHaveText(zh.connected);
+    await expect(browser.$('.header .badge')).toHaveAttribute('title', zh.statusHelp);
     for (const label of Object.values(zh.nav)) {
       await expect(buttonByText(label)).toBeDisplayed();
     }
@@ -29,11 +31,14 @@ describe('browser-mode: bilingual shell and locale persistence', () => {
     for (const label of Object.values(en.nav)) {
       await expect(buttonByText(label)).toBeDisplayed();
     }
+    await clickNav('profiles', 'en');
     await expect(profileCard('chat-9b').$('.//h3')).toHaveText(containing(PROFILE_NAMES.chat.en));
     await expect(browser.$('.header .badge')).toHaveText(en.connected);
+    await expect(browser.$('.header .badge')).toHaveAttribute('title', en.statusHelp);
 
     await openApp();
     await expect(buttonByText(en.nav.profiles)).toBeDisplayed();
+    await clickNav('profiles', 'en');
     await expect(profileCard('code-27b').$('.//h3')).toHaveText(containing(PROFILE_NAMES.code.en));
 
     await switchLocale('zh-CN');

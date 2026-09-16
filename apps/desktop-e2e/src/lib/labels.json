@@ -1,8 +1,30 @@
 {
   "labels": {
     "zh-CN": {
-      "nav": { "profiles": "配置档案", "optimize": "优化向导", "benchmark": "基准测试", "hardware": "硬件", "help": "帮助" },
-      "connected": "已连接",
+      "nav": {
+        "models": "模型",
+        "settings": "设置",
+        "profiles": "配置档案",
+        "optimize": "优化向导",
+        "benchmark": "基准测试",
+        "hardware": "硬件",
+        "help": "帮助"
+      },
+      "connected": "桌面服务已连接",
+      "statusHelp": "此徽标表示 LM Profile Switcher 桌面服务状态；LM Studio 状态请查看模型页的状态卡片。",
+      "models": {
+        "title": "模型",
+        "viewDetails": "查看模型",
+        "back": "返回模型列表",
+        "defaultBadge": "默认",
+        "default": { "choose": "存在多个档案，请明确选择后再启动。" },
+        "setDefault": "设为默认",
+        "start": "启动",
+        "safeStart": "使用安全默认配置启动",
+        "started": "已启动",
+        "scenario": "场景",
+        "optimize": "优化此场景"
+      },
       "profiles": {
         "title": "配置档案",
         "new": "新建档案",
@@ -53,13 +75,56 @@
         "decodeMetric": "解码速率（tok/s）",
         "errorCodePart": "失败码 E2E_FIXTURE_FAILURE"
       },
-      "hardware": { "title": "硬件", "os": "操作系统", "gpus": "GPU" },
-      "help": { "title": "帮助与使用指南", "install": "安装", "usage": "使用流程", "fontLarger": "增大字号" },
-      "error": { "lmUnreachable": "无法连接 LM Studio——请先启动它再重试。" }
+      "hardware": {
+        "title": "硬件",
+        "os": "操作系统",
+        "gpus": "GPU"
+      },
+      "help": {
+        "title": "帮助与使用指南",
+        "install": "安装",
+        "usage": "使用流程",
+        "fontLarger": "增大字号"
+      },
+      "error": {
+        "lmUnreachable": "无法连接 LM Studio——请先启动它再重试。",
+        "optimizeRefused": "优化器拒绝保存。"
+      },
+      "optimizeFlow": {
+        "prepare": "准备优化",
+        "evidenceMeasured": "已实测",
+        "retestSelected": "复测选定候选",
+        "evidenceCanceled": "已取消",
+        "save": "保存场景档案",
+        "saved": "已保存",
+        "done": "返回模型"
+      }
     },
     "en": {
-      "nav": { "profiles": "Profiles", "optimize": "Optimize", "benchmark": "Benchmark", "hardware": "Hardware", "help": "Help" },
-      "connected": "Connected",
+      "nav": {
+        "models": "Models",
+        "settings": "Settings",
+        "profiles": "Profiles",
+        "optimize": "Optimize",
+        "benchmark": "Benchmark",
+        "hardware": "Hardware",
+        "help": "Help"
+      },
+      "connected": "Desktop service connected",
+      "statusHelp": "This badge shows the LM Profile Switcher desktop service; check the model page status cards for LM Studio.",
+      "models": {
+        "title": "Models",
+        "viewDetails": "View model",
+        "back": "Back to models",
+        "defaultBadge": "Default",
+        "default": { "choose": "Several profiles exist. Choose one explicitly before launching." },
+        "setDefault": "Set as default",
+        "start": "Start",
+        "safeStart": "Start with safe defaults",
+        "started": "Started",
+        "scenario": "Scenario",
+        "optimize": "Optimize this scenario"
+      },
       "profiles": {
         "title": "Profiles",
         "new": "New profile",
@@ -110,16 +175,46 @@
         "decodeMetric": "Decode rate (tok/s)",
         "errorCodePart": "E2E_FIXTURE_FAILURE"
       },
-      "hardware": { "title": "Hardware", "os": "Operating system", "gpus": "GPUs" },
-      "help": { "title": "Help and user guide", "install": "Installation", "usage": "How to use it", "fontLarger": "Increase font size" },
-      "error": { "lmUnreachable": "Cannot reach LM Studio — start it and retry." }
+      "hardware": {
+        "title": "Hardware",
+        "os": "Operating system",
+        "gpus": "GPUs"
+      },
+      "help": {
+        "title": "Help and user guide",
+        "install": "Installation",
+        "usage": "How to use it",
+        "fontLarger": "Increase font size"
+      },
+      "error": {
+        "lmUnreachable": "Cannot reach LM Studio — start it and retry.",
+        "optimizeRefused": "The optimizer refused to save."
+      },
+      "optimizeFlow": {
+        "prepare": "Prepare optimization",
+        "evidenceMeasured": "Measured",
+        "retestSelected": "Re-test selected candidate",
+        "evidenceCanceled": "Test canceled",
+        "save": "Save scenario profile",
+        "saved": "Saved",
+        "done": "Return to model"
+      }
     }
   },
   "profileNames": {
-    "chat": { "zh-CN": "聊天 9B（测试夹具）", "en": "Chat 9B (fixture)" },
-    "code": { "zh-CN": "代码 27B（测试夹具）", "en": "Code 27B (fixture)" }
+    "chat": {
+      "zh-CN": "聊天 9B（测试夹具）",
+      "en": "Chat 9B (fixture)"
+    },
+    "code": {
+      "zh-CN": "代码 27B（测试夹具）",
+      "en": "Code 27B (fixture)"
+    }
   },
-  "localeButton": { "zh-CN": "简体中文", "en": "English" },
+  "localeButton": {
+    "zh-CN": "简体中文",
+    "en": "English"
+  },
   "fixtureGpuName": "Fixture RTX 5060 Ti",
   "fixtureOs": "Windows 11 (fixture)"
 }

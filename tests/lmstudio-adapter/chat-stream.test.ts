@@ -477,6 +477,12 @@ describe('createMockBenchmarkRuntime', () => {
       kind: 'crash',
     });
   });
+
+  it('fails measurement for a selected model only', async () => {
+    const runtime = createMockBenchmarkRuntime({ measureFaultModel: 'bad-model' });
+    await expect(runtime.measure(testProfile(), { prompt: 'p', maxTokens: 8 })).resolves.toBeDefined();
+    await expect(runtime.measure({ ...testProfile(), model: { modelKey: 'bad-model' } }, { prompt: 'p', maxTokens: 8 })).rejects.toThrow('mock benchmark fault');
+  });
 });
 
 function testProfile(): {

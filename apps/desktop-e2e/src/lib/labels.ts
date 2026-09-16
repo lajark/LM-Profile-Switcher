@@ -8,8 +8,10 @@ import labelsJson from './labels.json' with { type: 'json' };
 export type Locale = 'zh-CN' | 'en';
 
 export interface LabelSet {
-  nav: { profiles: string; optimize: string; benchmark: string; hardware: string; help: string };
+  nav: { models: string; settings: string; profiles: string; optimize: string; benchmark: string; hardware: string; help: string };
   connected: string;
+  statusHelp: string;
+  models: { title: string; viewDetails: string; back: string; defaultBadge: string; default: { choose: string }; setDefault: string; start: string; safeStart: string; started: string; scenario: string; optimize: string };
   profiles: {
     title: string;
     new: string;
@@ -51,6 +53,7 @@ export interface LabelSet {
     none: string;
     refusedNoSafe: string;
   };
+  optimizeFlow: { prepare: string; evidenceMeasured: string; evidenceCanceled: string; retestSelected: string; save: string; saved: string; done: string };
   benchmark: {
     select: string;
     run: string;
@@ -62,7 +65,7 @@ export interface LabelSet {
   };
   hardware: { title: string; os: string; gpus: string };
   help: { title: string; install: string; usage: string; fontLarger: string };
-  error: { lmUnreachable: string };
+  error: { lmUnreachable: string; optimizeRefused: string };
 }
 
 interface LabelFile {

@@ -12,6 +12,7 @@ import {
   openApp,
   profileCard,
   switchLocale,
+  clickNav,
 } from '../lib/page.js';
 
 describe('browser-mode: profile editor create and delete', () => {
@@ -19,6 +20,7 @@ describe('browser-mode: profile editor create and delete', () => {
     await openApp();
     await browser.execute(() => window.localStorage.clear());
     await openApp();
+    await clickNav('profiles', 'zh-CN');
   });
 
   it('validates, creates, then two-step deletes a profile (zh-CN)', async () => {

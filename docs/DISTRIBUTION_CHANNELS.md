@@ -1,6 +1,6 @@
 # Distribution Channels — Drafts & Go/No-Go (M5-008) / 分发渠道草案与放行清单
 
-> 只提供**草稿**与**检查流程/放行清单**。**不发起任何提交**：在获得授权并完成**签名 + 公证/稳定**发布之前，不得向 Winget / Homebrew / 任何远端渠道 submit。远端不会创建 Issue/PR/Tag/包/Release，除非用户显式授权。
+> 当前授权（2026-09-16）：执行 Windows x86_64 v0.2.3-beta.1 的 GitHub/Gitee 代码与 Tag 发布，以及 GitHub Release 元数据；macOS 从本轮范围移除。\n\n> 只提供**草稿**与**检查流程/放行清单**。**不发起任何提交**：在获得授权并完成**签名 + 公证/稳定**发布之前，不得向 Winget / Homebrew / 任何远端渠道 submit。远端不会创建 Issue/PR/Tag/包/Release，除非用户显式授权。
 
 ## 1. Submit Go/No-Go checklist（渠道提交放行清单）
 - [ ] 版本源：`tauri.conf.json` 单一版本源，`release-manifest.json` 的 `sourceCommit` 可溯源到提交。

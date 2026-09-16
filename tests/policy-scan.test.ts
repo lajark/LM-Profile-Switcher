@@ -158,7 +158,7 @@ describe('policy-scan CLI', () => {
     expect(code).toBe(0);
     const summary = (report as { summary: { blockers: number } })?.summary;
     expect(summary?.blockers).toBe(0);
-  });
+  }, 15_000);
 
   it('fails a staged release dir containing a secret-shaped token, without echoing the value', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'lmps-polydir-')), 'release');

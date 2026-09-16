@@ -296,6 +296,10 @@ async fn try_startup(app: &AppHandle) -> Result<Running, StartupError> {
         "LMPS_LMS_BIN",
         "LMPS_LM_BIN",
         "LMPS_HOME",
+        // Mock-only deterministic failure controls used by shell acceptance.
+        "LMPS_E2E_MOCK_HEALTHCHECK_FAIL_MODEL",
+        "LMPS_E2E_MOCK_BENCHMARK_FAIL_MODEL",
+        "LMPS_E2E_MOCK_BENCHMARK_GAP_MS",
     ] {
         if let Ok(value) = std::env::var(key) {
             command = command.env(key, value);

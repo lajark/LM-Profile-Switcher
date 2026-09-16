@@ -59,6 +59,22 @@ Infrastructure
 
 No reverse dependency is allowed.
 
+## 3.1 Model-first desktop information flow
+
+The desktop information architecture is model-first: hardware discovery → LM Studio readiness → discovered model list → selected model → scenario (TaskProfile) → configuration profiles and benchmark history. The home screen target presents models, search, preparation state, and current runtime state; profiles are shown inside the selected model context. M7-003 exposes this read projection through Core buildModelContext and the Sidecar models.context RPC. ProfileStore listEntries keeps valid records and reports unclassifiable legacy files as needs-organization without guessing. UI and Rust remain presentation/integration layers and must reuse the existing Core, Adapter Router, Optimizer, Benchmark, and activation transaction. M7-005 now wires the model-first home/context, default-profile actions, the no-profile safe-default start/preparation path, and the model-context OptimizationLoopService prepare/save/set-default workspace; offline browser fixtures cover explicit no-default selection, safe start plus first-profile save, candidate cancellation, and optimization refusal; the Windows-shell production-bundle Mock seam covers explicit optimization cancellation, failed benchmark evidence with saving disabled, and activation health-check failure with previous-model recovery. The real LM Studio desktop safe-start/load/switch flow now passes in the 2026-09-16 release-candidate review; GUI failure injection/rollback and the independent native OS DPI matrix remain pending.
+
+### 3.2 Model context capability boundary
+
+Core owns the adapter-neutral model/scenario projection and evidence labels. The Sidecar wiring reads only documented Adapter discovery, hardware probe, runtime state, and the existing benchmark ndjson log, then supplies those snapshots to Core. The RPC is additive; existing profile CRUD, import/export, CLI, Hook, Proxy, and activation contracts are unchanged. The projection reports hardware, LM Studio, discovery, and runtime states separately so an internal adapter connection cannot be mistaken for LM Studio readiness.
+
+### 3.3 Optimization and default-selection boundary
+M7-004 adds `packages/core/src/optimization-loop.ts` as the single orchestration seam for one model and one Scenario. It runs an injected safety preflight before the existing BenchmarkService baseline phase, delegates bounded candidate generation to RecommendationService, records explicit `run`/`skip`/`not-run` phases, and refuses to save failed or canceled candidate evidence. Save, set-default, Benchmark, and activation remain separate actions.
+The default choice is persisted by `packages/profile-store/src/defaults.ts` in a versioned JSON index keyed by model and task type. It is written atomically and rejects malformed, duplicate, missing, or mismatched entries; it never infers a default from profile names or timestamps. M7-005 exposes the model-context, default-selection, no-profile safe-default/preparation, and OptimizationLoopService prepare/save seams through the GUI/Sidecar without duplicating their rules. The workspace keeps save, set-default, Benchmark, and activation as separate actions; the ephemeral safe baseline is never persisted until an explicit candidate save; offline browser and Mock Windows-shell coverage now exercises safe start, first-profile save, canceled candidates, optimizer refusal, failed optimization evidence and activation recovery; the offline regression gate and real safe-start/load/switch flow are complete; GUI failure injection/rollback and the independent native OS DPI matrix remain follow-ups.
+
+## 3.4 Application icon resources
+
+The desktop icon family has one editable SVG under apps/desktop/src-tauri/icons. The existing Tauri CLI renders the accent and two monochrome palettes at eight sizes; scripts/generate-icons.mjs assembles and verifies the ICO without adding dependencies. The 256px frame is first because Tauri decodes the first ICO entry for the default window image. NSIS installer/uninstaller use the same ICO, generated shortcuts inherit the executable icon, and the tray embeds a dedicated 32px PNG at compile time. Icon presentation carries no model/runtime business state. Native installation and OS theme/DPI acceptance remain separate from offline resource verification.
+
 ## 4. Core Service Sidecar
 
 Responsibilities:

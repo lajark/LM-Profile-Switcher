@@ -52,6 +52,11 @@ export interface ImportOptions {
   allowRename?: boolean;
 }
 
+export type ProfileStoreEntry =
+  | { kind: 'profile'; profile: CompositeProfile }
+  | { kind: 'needs-organization'; id: string; reason: 'unclassifiable-model-or-scenario' }
+  | { kind: 'corrupted'; id: string; reason: 'unsupported-or-invalid' };
+
 export interface ProfileStore {
   /** Validates through the domain contract; duplicate id → STORE_ALREADY_EXISTS unless overwrite. */
   create(profile: CompositeProfile, options?: { overwrite?: boolean }): CompositeProfile;
@@ -59,6 +64,8 @@ export interface ProfileStore {
   get(id: string): CompositeProfile;
   /** All valid profiles, migrated, sorted by id; corrupt entries are skipped. */
   list(): CompositeProfile[];
+  /** Context listing that keeps invalid files visible without guessing a group. */
+  listEntries(): ProfileStoreEntry[];
   /** Deep-merged patch; id is immutable; updatedAt is stamped; write-ahead backup. */
   update(id: string, patch: Partial<CompositeProfile> & { id?: never }): CompositeProfile;
   /** Removes the main file; backups stay (M1-004 `backup list|restore`). */
@@ -169,6 +176,20 @@ export function createProfileStore(ctx: StoreContext): ProfileStore {
     return parseStored(fs.readFileUtf8(filePath(id)));
   };
 
+  function isUnclassifiableLegacy(value: unknown): boolean {
+    if (!isPlainObject(value) || typeof value.schemaVersion !== 'number' || value.schemaVersion > 2) return false;
+    const model = isPlainObject(value.model) ? value.model : null;
+    const task = isPlainObject(value.task) ? value.task : null;
+    const modelKey = model?.modelKey;
+    const taskType = task?.type;
+    return (
+      typeof modelKey !== 'string' ||
+      modelKey.trim() === '' ||
+      typeof taskType !== 'string' ||
+      taskType.trim() === ''
+    );
+  }
+
   const parseImport = (text: string, deserialize: (t: string) => unknown, options: ImportOptions): CompositeProfile => {
     if (text.length > maxImportBytes) {
       throw new ProfileStoreError('STORE_LIMIT_EXCEEDED', 'import document exceeds the size limit');
@@ -202,19 +223,42 @@ export function createProfileStore(ctx: StoreContext): ProfileStore {
       return clone(loadOrThrow(id));
     },
 
-    list() {
-      const profiles: CompositeProfile[] = [];
+    listEntries() {
+      const entries: ProfileStoreEntry[] = [];
       for (const name of fs.readdirNames(profileDir)) {
         if (!name.endsWith('.json') || name.includes('.tmp-')) continue;
         const id = name.slice(0, -'.json'.length);
         try {
-          profiles.push(loadOrThrow(id));
+          entries.push({ kind: 'profile', profile: loadOrThrow(id) });
         } catch {
-          // corrupt entry: excluded from listing, kept on disk for recovery
+          let raw: unknown = null;
+          try {
+            raw = JSON.parse(fs.readFileUtf8(filePath(id))) as unknown;
+          } catch {
+            // Keep only the status; raw content never leaves the store.
+          }
+          entries.push(
+            isUnclassifiableLegacy(raw)
+              ? { kind: 'needs-organization', id, reason: 'unclassifiable-model-or-scenario' }
+              : { kind: 'corrupted', id, reason: 'unsupported-or-invalid' },
+          );
         }
       }
-      profiles.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-      return profiles;
+      entries.sort((a, b) => {
+        const aId = a.kind === 'profile' ? a.profile.id : a.id;
+        const bId = b.kind === 'profile' ? b.profile.id : b.id;
+        return aId < bId ? -1 : aId > bId ? 1 : 0;
+      });
+      return entries.map((entry) =>
+        entry.kind === 'profile' ? { kind: 'profile', profile: clone(entry.profile) } : { ...entry },
+      );
+    },
+
+    list() {
+      return store
+        .listEntries()
+        .filter((entry): entry is { kind: 'profile'; profile: CompositeProfile } => entry.kind === 'profile')
+        .map((entry) => entry.profile);
     },
 
     update(id, patch) {

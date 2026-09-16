@@ -29,6 +29,10 @@ export interface MockAdapterOptions {
   instances?: MockModelInstance[];
   faults?: MockAdapterFaults;
   now?: () => string;
+  /** Optional model-specific health failure for deterministic integration tests. */
+  healthCheckFaultModel?: string;
+  /** Keep enough state for the activation runner to restore a prior model. */
+  restorePrevious?: boolean;
 }
 
 export interface MockStateView {
@@ -45,6 +49,7 @@ export function createMockAdapter(options: MockAdapterOptions = {}): ActivationR
   const faults = options.faults ?? {};
   const now = options.now ?? (() => new Date().toISOString());
   let loadCount = 0;
+  const rollbackStack: MockModelInstance[] = [];
 
   function rejectIfFaulted(fault: Error | undefined): Error | null {
     return fault ?? null;
@@ -67,11 +72,20 @@ export function createMockAdapter(options: MockAdapterOptions = {}): ActivationR
     async unload(): Promise<void> {
       const fault = rejectIfFaulted(faults.unload);
       if (fault !== null) throw fault;
-      instances.pop();
+      const current = instances.pop();
+      if (options.restorePrevious === true && current !== undefined) rollbackStack.push(current);
     },
 
     async restore(): Promise<void> {
-      await runtime.unload();
+      if (options.restorePrevious !== true) {
+        await runtime.unload();
+        return;
+      }
+      // The activation runner first unloads the failed target, then asks the
+      // runtime to restore. Discard the failed target and re-add the prior one.
+      rollbackStack.pop();
+      const previous = rollbackStack.pop();
+      if (previous !== undefined) instances.push(previous);
     },
 
     async load(profile: CompositeProfile): Promise<Record<string, unknown>> {
@@ -88,9 +102,13 @@ export function createMockAdapter(options: MockAdapterOptions = {}): ActivationR
     async healthCheck(profile: CompositeProfile): Promise<void> {
       const fault = rejectIfFaulted(faults.healthCheck);
       if (fault !== null) throw fault;
+      if (options.healthCheckFaultModel === profile.model.modelKey) {
+        throw new Error(`mock health fault: ${profile.model.modelKey}`);
+      }
       if (!instances.some((instance) => instance.key === profile.model.modelKey)) {
         throw new Error(`mock health: ${profile.model.modelKey} not loaded`);
       }
+      if (options.restorePrevious === true) rollbackStack.length = 0;
     },
 
     async readEffectiveConfig(profile: CompositeProfile): Promise<Record<string, unknown>> {
@@ -138,6 +156,8 @@ export interface MockBenchmarkOptions {
   loadMs?: number;
   nowMs?: () => number;
   faults?: MockBenchmarkFaults;
+  /** Optional model key whose measure phase fails deterministically. */
+  measureFaultModel?: string;
 }
 
 export type MockBenchmarkRuntime = BenchmarkRuntime;
@@ -160,9 +180,12 @@ export function createMockBenchmarkRuntime(options: MockBenchmarkOptions = {}): 
   const loadMs = options.loadMs ?? 0;
   let measureCount = 0;
 
-  async function measure(): Promise<BenchmarkSample> {
+  async function measure(profile: CompositeProfile): Promise<BenchmarkSample> {
     const fault = faults.measure;
     if (fault !== undefined) throw fault;
+    if (options.measureFaultModel === profile.model.modelKey) {
+      throw new Error(`mock benchmark fault: ${profile.model.modelKey}`);
+    }
     const script = scripts[measureCount % scripts.length] ?? { deltas: [] };
     const started = nowMs();
     let ttftMs: number | null = null;

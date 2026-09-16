@@ -35,6 +35,8 @@ import {
   createOpenAiProxySeam,
   createSidecarActivationSeam,
   createSidecarBenchmarkSeam,
+  createSidecarModelContextSeam,
+  createSidecarOptimizationSeam,
   createSidecarRecommendationSeam,
 } from './wiring.js';
 
@@ -68,11 +70,38 @@ async function main(): Promise<void> {
     lmsBin: settings.lmsBin,
   });
 
+  // The profile store is shared by model context, optimization and proxy.
+  const store = createDefaultProfileStore(settings.rootDir);
+
   // Every sidecar process owns the lock with its REAL pid (process.pid exists
   // in the Node SEA too) and probes owner liveness on acquire, so a crashed
   // peer's lease is reclaimed on restart. The tray/CLI and benchmark all
   // contend on this one activation.lock.
   const owner = String(process.pid);
+  // These controls are intentionally available only for the explicit Mock
+  // Adapter used by deterministic desktop acceptance tests. Production
+  // adapters never read the E2E fault environment variables.
+  const mockAdapter =
+    settings.selection === 'mock'
+      ? {
+          restorePrevious: true,
+          ...(settings.mockHealthCheckFailModel === undefined
+            ? {}
+            : { healthCheckFaultModel: settings.mockHealthCheckFailModel }),
+        }
+      : undefined;
+  const mockBenchmark =
+    settings.selection === 'mock'
+      ? {
+          ...(settings.mockBenchmarkFailModel === undefined
+            ? {}
+            : { measureFaultModel: settings.mockBenchmarkFailModel }),
+          ...(settings.mockBenchmarkGapMs === undefined
+            ? {}
+            : { scripts: { deltas: ['hello', ' '], gapMs: settings.mockBenchmarkGapMs } }),
+        }
+      : undefined;
+
   const seams = {
     recommendation: createSidecarRecommendationSeam(fs, {
       lmEnv,
@@ -80,10 +109,18 @@ async function main(): Promise<void> {
       rootDir: settings.rootDir,
       owner,
     }),
+    modelContext: createSidecarModelContextSeam(fs, {
+      lmEnv,
+      selection: settings.selection,
+      rootDir: settings.rootDir,
+      mockAdapter,
+      owner,
+    }),
     benchmark: createSidecarBenchmarkSeam(fs, {
       lmEnv,
       selection: settings.selection,
       rootDir: settings.rootDir,
+      mockBenchmark,
       owner,
       isOwnerAlive,
     }),
@@ -91,6 +128,7 @@ async function main(): Promise<void> {
       lmEnv,
       selection: settings.selection,
       rootDir: settings.rootDir,
+      mockAdapter,
       owner,
       isOwnerAlive,
     }),
@@ -98,9 +136,23 @@ async function main(): Promise<void> {
     alias: createAliasSeam(fs, { rootDir: settings.rootDir }),
   } as const;
 
+  const optimization = createSidecarOptimizationSeam(fs, {
+    lmEnv,
+    selection: settings.selection,
+    rootDir: settings.rootDir,
+    mockAdapter,
+    mockBenchmark,
+    owner,
+    isOwnerAlive,
+  }, {
+    recommendation: seams.recommendation,
+    benchmark: seams.benchmark,
+    activation: seams.activation,
+    profiles: store,
+  });
+
   // The proxy (M4-002) resolves the SAME store the RPC data plane drives, so
   // profiles edited over RPC are immediately addressable as virtual models.
-  const store = createDefaultProfileStore(settings.rootDir);
   const openAiProxy = createOpenAiProxySeam(fs, {
     alias: seams.alias,
     store,
@@ -116,7 +168,9 @@ async function main(): Promise<void> {
     rootDir: settings.rootDir,
     store,
     recommendation: seams.recommendation,
+    modelContext: seams.modelContext,
     benchmark: seams.benchmark,
+    optimization,
     activation: seams.activation,
     hook: seams.hook,
     alias: seams.alias,

@@ -13,14 +13,18 @@ import { OptimizeView } from './views/OptimizeView';
 import { BenchmarkView } from './views/BenchmarkView';
 import { HardwareView } from './views/HardwareView';
 import { HelpView } from './views/HelpView';
+import { ModelsView } from './views/ModelsView';
+import { SettingsView } from './views/SettingsView';
 
-export type Tab = 'profiles' | 'optimize' | 'benchmark' | 'hardware' | 'help';
+export type Tab = 'models' | 'profiles' | 'optimize' | 'benchmark' | 'hardware' | 'settings' | 'help';
 
 const NAV_LABELS: Record<Tab, ResourceKey> = {
+  models: 'desktop.nav.models',
   profiles: 'desktop.nav.profiles',
   optimize: 'desktop.nav.optimize',
   benchmark: 'desktop.nav.benchmark',
   hardware: 'desktop.nav.hardware',
+  settings: 'desktop.nav.settings',
   help: 'desktop.nav.help',
 };
 
@@ -54,7 +58,7 @@ interface AppProps {
 export function App({ i18n }: AppProps) {
   useLocale(i18n);
   const status = useSidecarStatus();
-  const [tab, setTab] = useState<Tab>('profiles');
+  const [tab, setTab] = useState<Tab>('models');
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [handoff, setHandoff] = useState<ProfileHandoff | null>(null);
   // Bumped after profile mutations so open lists refetch.
@@ -91,12 +95,17 @@ export function App({ i18n }: AppProps) {
           <p className="descriptor">{i18n.t('app.descriptor')}</p>
         </div>
         <div className="header-right">
-          <span className={`badge badge-${status}`}>{i18n.t(STATUS_LABELS[status])}</span>
+          <span
+            className={`badge badge-${status}`}
+            title={i18n.t('desktop.status.help')}
+          >
+            {i18n.t(STATUS_LABELS[status])}
+          </span>
         </div>
       </header>
 
       <nav className="tabs" aria-label={i18n.t('app.name')}>
-        {(['profiles', 'optimize', 'benchmark', 'hardware', 'help'] as const).map((item) => (
+        {(['models', 'hardware', 'settings', 'help', 'profiles', 'optimize', 'benchmark'] as const).map((item) => (
           <button
             key={item}
             type="button"
@@ -128,6 +137,17 @@ export function App({ i18n }: AppProps) {
       </nav>
 
       <main className="view">
+        {tab === 'models' && (
+          <ModelsView
+            i18n={i18n}
+            refreshKey={profilesVersion}
+            onBenchmark={openBenchmark}
+            onOpenEditor={setEditor}
+            onProfilesChanged={onProfilesChanged}
+          />
+        )}
+
+
         {tab === 'profiles' &&
           (editor === null ? (
             <ProfilesView
@@ -160,6 +180,8 @@ export function App({ i18n }: AppProps) {
         )}
 
         {tab === 'hardware' && <HardwareView i18n={i18n} />}
+
+        {tab === 'settings' && <SettingsView i18n={i18n} />}
 
         {tab === 'help' && <HelpView i18n={i18n} />}
       </main>

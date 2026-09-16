@@ -4,13 +4,14 @@
  */
 import { browser, expect } from '@wdio/globals';
 import { LABELS } from '../lib/labels.js';
-import { openApp, switchLocale } from '../lib/page.js';
+import { clickNav, openApp, switchLocale } from '../lib/page.js';
 
 describe('browser-mode: RPC error mapping', () => {
   beforeEach(async () => {
     await openApp('list-error');
     await browser.execute(() => window.localStorage.clear());
     await openApp('list-error');
+    await clickNav('profiles', 'zh-CN');
   });
 
   it('shows the localized LM-unreachable message in zh-CN and English', async () => {

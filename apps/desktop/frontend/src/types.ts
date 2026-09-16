@@ -28,6 +28,63 @@ export interface ProfilesMeta {
   taskKinds: string[];
 }
 
+export type ReadinessStatus = 'ready' | 'offline' | 'unavailable' | 'partial' | 'unknown';
+
+export interface ModelReadiness {
+  hardware: { status: ReadinessStatus; fingerprint: string | null };
+  lmStudio: { status: ReadinessStatus; version: string | null };
+  discovery: { status: ReadinessStatus; observedAt: string | null };
+  runtime: { status: 'idle' | 'running' | 'unknown'; active: ActivationStatus['active'] | null };
+}
+
+export type EvidenceStatus = 'unmeasured' | 'current' | 'stale' | 'partial' | 'changed-environment';
+
+export interface ModelProfileContext {
+  id: string;
+  displayName: LocalizedText;
+  updatedAt: string;
+  evidence: EvidenceStatus;
+  isDefault?: boolean;
+}
+
+export interface ModelBenchmarkContext {
+  id: string;
+  status: 'completed' | 'failed' | 'canceled';
+  startedAt: string;
+  finishedAt: string | null;
+  evidence: EvidenceStatus;
+}
+
+export interface ScenarioContext {
+  type: string;
+  profileState: 'none' | 'available';
+  defaultProfileId: string | null;
+  defaultState: 'none' | 'available' | 'stale';
+  hasProfiles: boolean;
+  benchmarkCount: number;
+  evidence: EvidenceStatus;
+  profiles: ModelProfileContext[];
+  benchmarks: ModelBenchmarkContext[];
+}
+
+export interface ModelContextItem {
+  model: {
+    modelKey: string;
+    family: string | null;
+    quantization: string | null;
+    parametersB: number | null;
+    loaded: boolean | null;
+  };
+  availability: 'available' | 'missing' | 'unknown';
+  profileState: 'none' | 'available';
+  scenarios: ScenarioContext[];
+}
+
+export interface ModelContextProjection {
+  readiness: ModelReadiness;
+  models: ModelContextItem[];
+  needsOrganization: Array<{ id: string; reason: 'unclassifiable-model-or-scenario' }>;
+}
 /** `activation.status` — the active profile as the transaction layer sees it. */
 export interface ActivationStatus {
   active: {
@@ -176,6 +233,41 @@ export interface RecommendationView {
 }
 
 /** `optimize.preview` / `optimize.save` payload with calibration projection. */
+export type OptimizationDecision = 'run' | 'skip';
+export type OptimizationCandidateEvidence = 'measured' | 'unmeasured' | 'failed' | 'canceled' | 'not-run';
+export type OptimizationLoopStatus =
+  | 'ready-to-save'
+  | 'baseline-skipped'
+  | 'baseline-failed'
+  | 'candidate-skipped'
+  | 'candidate-failed'
+  | 'canceled'
+  | 'no-candidate';
+
+export interface OptimizationBenchmarkPhaseView {
+  decision: OptimizationDecision | 'not-run';
+  result: BenchmarkResultView | null;
+}
+
+export interface OptimizationPreparationView {
+  preparationId: string;
+  /** Whether the baseline was loaded from a saved profile or built transiently. */
+  baselinePersistence?: 'saved' | 'unsaved';
+  preparation: {
+    baselineProfile: ProfileDocument;
+    baselineBenchmark: OptimizationBenchmarkPhaseView;
+    recommendation: RecommendationView | null;
+    selectedCandidate: CandidateView | null;
+    candidateBenchmark: OptimizationBenchmarkPhaseView;
+    candidateEvidence: OptimizationCandidateEvidence;
+    status: OptimizationLoopStatus;
+  };
+}
+
+export interface OptimizationSaveView {
+  profileId: string;
+  isDefault: boolean;
+}
 export interface OptimizePreviewView {
   recommendation: RecommendationView;
   calibration: CalibrationProjectionView;

@@ -318,12 +318,8 @@ impl TrayController {
 /// tray usable until the sidecar is up; the supervisor's connected event then
 /// asks for the first real spec.
 pub fn attach(app: &AppHandle) -> tauri::Result<()> {
-    // A 1x1 transparent pixel keeps `cargo run` (which has no packaged icon)
-    // from failing tray construction; packaged builds carry a real icon.
-    let icon = app
-        .default_window_icon()
-        .cloned()
-        .unwrap_or_else(|| tauri::image::Image::new_owned(vec![0, 0, 0, 0], 1, 1));
+    // Embed the small-size raster in dev and packaged builds; missing assets fail compilation.
+    let icon = tauri::include_image!("icons/app-32.png");
 
     let template = tauri::menu::Menu::new(app)?;
     template.append(

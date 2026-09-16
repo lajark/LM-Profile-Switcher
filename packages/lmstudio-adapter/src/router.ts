@@ -11,13 +11,15 @@ import { createCliAdapter, type CliLms } from './cli/cli-adapter.js';
 import type { LmStudioEnv } from './env.js';
 import { LmStudioError } from './errors.js';
 import type { ModelIdentity } from './model-names.js';
-import { createMockAdapter } from './mock/mock-adapter.js';
+import { createMockAdapter, type MockAdapterOptions } from './mock/mock-adapter.js';
 import { createRestV1Adapter, type RestV1Discovery } from './rest/rest-v1-adapter.js';
 
 export type AdapterSelection = 'auto' | 'mock';
 
 export interface RouterOptions {
   selection?: AdapterSelection;
+  /** Optional controls for the explicit Mock Adapter only. */
+  mock?: MockAdapterOptions;
 }
 
 export interface ReadModels {
@@ -51,7 +53,7 @@ export function resolveAdapters(
   options: RouterOptions = {},
 ): AdapterBundle {
   if (options.selection === 'mock') {
-    const mock = createMockAdapter();
+    const mock = createMockAdapter(options.mock);
     return { runtime: mock, discovery: mock, writeSource: 'mock', readSource: 'mock' };
   }
 

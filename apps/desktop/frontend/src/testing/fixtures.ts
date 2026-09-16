@@ -12,7 +12,7 @@ import type {
   ProfileDocument,
 } from '../types';
 
-export type E2eScenario = 'happy' | 'list-error' | 'no-safe' | 'benchmark-failed' | 'apply-recovered';
+export type E2eScenario = 'happy' | 'list-error' | 'no-safe' | 'no-default' | 'no-profiles' | 'no-profiles-replace' | 'benchmark-failed' | 'apply-recovered' | 'optimization-failed' | 'optimization-canceled';
 
 export const FIXTURE_NOW = '2026-09-01T08:00:00.000Z';
 
@@ -31,6 +31,19 @@ export function chatProfile(): ProfileDocument {
     generation: { temperature: 0.7 },
     behavior: { mode: 'exclusive' },
     metadata: { createdAt: FIXTURE_NOW, updatedAt: FIXTURE_NOW },
+  };
+}
+
+export function chatAlternativeProfile(): ProfileDocument {
+  const profile = chatProfile();
+  return {
+    ...profile,
+    id: 'chat-9b-alt',
+    displayName: {
+      'zh-CN': '聊天 9B（备用夹具）', // i18n-ignore
+      en: 'Chat 9B (alternate fixture)',
+    },
+    runtime: { ...profile.runtime, contextLength: 8192 },
   };
 }
 
@@ -207,6 +220,20 @@ export function completedBenchmark(profileId: string): BenchmarkBody {
       lmStudioVersion: '0.0.0-e2e',
       startedAt: FIXTURE_NOW,
       finishedAt: '2026-09-01T08:01:00.000Z',
+    },
+  };
+}
+
+export function canceledBenchmark(profileId: string): BenchmarkBody {
+  const body = completedBenchmark(profileId);
+  return {
+    validated: false,
+    result: {
+      ...body.result,
+      id: 'bench-e2e-canceled',
+      status: 'canceled',
+      metrics: {},
+      errorCode: 'BENCHMARK_CANCELED',
     },
   };
 }

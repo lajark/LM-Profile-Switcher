@@ -20,6 +20,9 @@ export interface SidecarEnv {
   LMPS_LM_URL?: string;
   LMPS_LM_TOKEN?: string;
   LMPS_ADAPTER?: string;
+  LMPS_E2E_MOCK_HEALTHCHECK_FAIL_MODEL?: string;
+  LMPS_E2E_MOCK_BENCHMARK_FAIL_MODEL?: string;
+  LMPS_E2E_MOCK_BENCHMARK_GAP_MS?: string;
   USERPROFILE?: string;
   HOME?: string;
 }
@@ -43,6 +46,12 @@ export interface SidecarSettings {
   lmToken: string | null;
   /** Adapter selection; 'mock' only when LMPS_ADAPTER === 'mock'. */
   selection: 'mock' | 'auto';
+  /** Mock-only deterministic health-check failure target. */
+  mockHealthCheckFailModel: string | undefined;
+  /** Mock-only deterministic benchmark measurement failure target. */
+  mockBenchmarkFailModel: string | undefined;
+  /** Mock-only benchmark inter-delta delay. */
+  mockBenchmarkGapMs: number | undefined;
 }
 
 /** Invalid transports silently fall back to stdio (same behavior as before). */
@@ -56,14 +65,25 @@ function parseHookPort(raw: string | undefined): number | undefined {
   if (raw === undefined) return undefined;
   const port = Number(raw);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error(`invalid LMPS_HOOK_PORT: ${raw}`);
+    throw new Error('invalid LMPS_HOOK_PORT: ' + raw);
   }
   return port;
+}
+
+/** Optional non-negative integer used only by deterministic Mock E2E seams. */
+function parseOptionalNonNegativeInt(raw: string | undefined): number | undefined {
+  if (raw === undefined || raw.trim() === '') return undefined;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0 || value > 60000) {
+    throw new Error('invalid LMPS_E2E_MOCK_BENCHMARK_GAP_MS: ' + raw);
+  }
+  return value;
 }
 
 export function resolveSidecarSettings(argv: readonly string[], env: SidecarEnv): SidecarSettings {
   const kind = readTransport(argv[2] ?? env.LMPS_SIDECAR_TRANSPORT);
   const home = env.USERPROFILE ?? env.HOME ?? '';
+  const selection = env.LMPS_ADAPTER === 'mock' ? 'mock' : 'auto';
   return {
     kind,
     token: argv[3] ?? env.LMPS_SIDECAR_TOKEN,
@@ -77,6 +97,9 @@ export function resolveSidecarSettings(argv: readonly string[], env: SidecarEnv)
     lmsBin: env.LMPS_LMS_BIN ?? env.LMPS_LM_BIN,
     lmBaseUrl: env.LMPS_LM_URL,
     lmToken: env.LMPS_LM_TOKEN ?? null,
-    selection: env.LMPS_ADAPTER === 'mock' ? 'mock' : 'auto',
+    selection,
+    mockHealthCheckFailModel: selection === 'mock' ? env.LMPS_E2E_MOCK_HEALTHCHECK_FAIL_MODEL : undefined,
+    mockBenchmarkFailModel: selection === 'mock' ? env.LMPS_E2E_MOCK_BENCHMARK_FAIL_MODEL : undefined,
+    mockBenchmarkGapMs: selection === 'mock' ? parseOptionalNonNegativeInt(env.LMPS_E2E_MOCK_BENCHMARK_GAP_MS) : undefined,
   };
 }

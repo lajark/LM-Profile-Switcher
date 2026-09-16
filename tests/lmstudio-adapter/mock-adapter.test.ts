@@ -74,4 +74,20 @@ describe('createMockAdapter', () => {
     expect(adapter.state().loadCount).toBe(2);
     expect(adapter.state().instances).toHaveLength(2);
   });
+  it('fails health for one model and restores the previous instance when enabled', async () => {
+    const adapter = createMockAdapter({
+      restorePrevious: true,
+      healthCheckFaultModel: 'bad-model',
+    });
+    const good = makeProfile('good-model');
+    const bad = makeProfile('bad-model');
+    await adapter.load(good);
+    await adapter.healthCheck(good);
+    await adapter.unload();
+    await adapter.load(bad);
+    await expect(adapter.healthCheck(bad)).rejects.toThrow('mock health fault');
+    await adapter.unload();
+    await adapter.restore();
+    await expect(adapter.getActiveState()).resolves.toMatchObject({ modelKey: 'good-model' });
+  });
 });

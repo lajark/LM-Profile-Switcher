@@ -6,7 +6,7 @@
  */
 import { browser, expect } from '@wdio/globals';
 import { LABELS, PROFILE_NAMES, type Locale } from '../lib/labels.js';
-import { containing, openApp, profileCard, switchLocale } from '../lib/page.js';
+import { clickNav, containing, openApp, profileCard, switchLocale } from '../lib/page.js';
 
 async function applyCard(locale: Locale, id: string): Promise<void> {
   const card = profileCard(id);
@@ -29,6 +29,7 @@ describe('browser-mode: apply, replacement and rollback banner', () => {
     await openApp();
     await browser.execute(() => window.localStorage.clear());
     await openApp();
+    await clickNav('profiles', 'zh-CN');
   });
 
   it('applies, reports idempotency, replaces with confirmation (zh-CN)', async () => {
@@ -68,6 +69,7 @@ describe('browser-mode: apply, replacement and rollback banner', () => {
   it('surfaces the recovered (rolled-back) outcome without an active badge', async () => {
     const zh = LABELS['zh-CN'];
     await openApp('apply-recovered');
+    await clickNav('profiles', 'zh-CN');
 
     await applyCard('zh-CN', 'chat-9b');
     await expect(browser.$('.profiles-view p.error')).toHaveText(

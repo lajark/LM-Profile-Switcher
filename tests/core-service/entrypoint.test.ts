@@ -78,6 +78,34 @@ describe('resolveSidecarSettings (M6-003 entrypoint)', () => {
     expect(resolveSidecarSettings([], env({})).lmToken).toBeNull();
   });
 
+  it('parses Mock-only failure controls without exposing tokens', () => {
+    const settings = resolveSidecarSettings([], env({
+      LMPS_ADAPTER: 'mock',
+      LMPS_E2E_MOCK_HEALTHCHECK_FAIL_MODEL: 'vendor/fail',
+      LMPS_E2E_MOCK_BENCHMARK_FAIL_MODEL: 'vendor/fail',
+      LMPS_E2E_MOCK_BENCHMARK_GAP_MS: '25',
+    }));
+    expect(settings.mockHealthCheckFailModel).toBe('vendor/fail');
+    expect(settings.mockBenchmarkFailModel).toBe('vendor/fail');
+    expect(settings.mockBenchmarkGapMs).toBe(25);
+  });
+
+  it('rejects an invalid Mock benchmark gap', () => {
+    expect(() => resolveSidecarSettings([], env({ LMPS_ADAPTER: 'mock', LMPS_E2E_MOCK_BENCHMARK_GAP_MS: '-1' }))).toThrow(
+      /invalid LMPS_E2E_MOCK_BENCHMARK_GAP_MS/,
+    );
+  });
+  it('ignores Mock-only controls in automatic adapter mode', () => {
+    const settings = resolveSidecarSettings([], env({
+      LMPS_E2E_MOCK_HEALTHCHECK_FAIL_MODEL: 'vendor/fail',
+      LMPS_E2E_MOCK_BENCHMARK_FAIL_MODEL: 'vendor/fail',
+      LMPS_E2E_MOCK_BENCHMARK_GAP_MS: 'not-read',
+    }));
+    expect(settings.selection).toBe('auto');
+    expect(settings.mockHealthCheckFailModel).toBeUndefined();
+    expect(settings.mockBenchmarkFailModel).toBeUndefined();
+    expect(settings.mockBenchmarkGapMs).toBeUndefined();
+  });
   it('selects mock only for the exact LMPS_ADAPTER=mock switch', () => {
     expect(resolveSidecarSettings([], env({ LMPS_ADAPTER: 'mock' })).selection).toBe('mock');
     expect(resolveSidecarSettings([], env({ LMPS_ADAPTER: 'MOCK' })).selection).toBe('auto');

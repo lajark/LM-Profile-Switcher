@@ -11,20 +11,20 @@ LM Profile Switcher 自动识别你的硬件，推荐可复现的配置，在本
 
 > 独立、非官方的社区项目——与 LM Studio 官方不存在隶属、合作或背书关系。
 
-![LM Profile Switcher 配置档案总览](docs/screenshots/screenshot-profiles.png)
+![LM Profile Switcher 模型优先模型列表](docs/screenshots/m7-007-models-zh.png)
 
 ## 下载 Windows 版
 
 **Windows x86_64**：从 [GitHub Releases](https://github.com/lajark/LM-Profile-Switcher/releases) 下载最新安装包。
 
-当前公开 Beta：`v0.2.0-beta.1`
+当前 Windows Beta：**v0.2.3-beta.1**，从 [GitHub Releases](https://github.com/lajark/LM-Profile-Switcher/releases) 下载安装包。
 
 - 100% 本地运行——无遥测、无云账号、无需登录
 - 按当前用户安装（NSIS，Windows 10/11）
 - 随包提供 `checksums.sha256`、`release-manifest.json`、SBOM、依赖许可证、第三方声明与发布说明
 
 > 当前 Beta 安装包**未签名**，Windows SmartScreen 可能显示警告。
-> macOS 分发仍阻塞（无构建硬件 / Apple 凭据）。
+> macOS 已从本轮优化范围移除；历史 macOS 构建、签名与公证阻塞记录保留，后续轮次再单独恢复。
 
 ## 为什么需要 LM Profile Switcher？
 
@@ -47,6 +47,16 @@ LM Profile Switcher 自动识别你的硬件，推荐可复现的配置，在本
 5. 带健康检查与回滚地应用所选配置。
 
 ![优化向导](docs/screenshots/screenshot-optimize-9b.png)
+
+![Benchmark 工作区](docs/screenshots/m7-007-benchmark-zh.png)
+
+模型优先截图来自本机 LM Studio 的只读会话。Benchmark 截图使用隔离的 Mock Adapter 确定性预览；其中数值是夹具输出，不代表性能承诺。
+
+### 工作流预览
+
+下面 GIF 是离线 Mock Adapter 的模型优先界面预览，用于展示导航、优化、Benchmark 与应用状态；不代表 LM Studio 性能。
+
+![工作流预览（Mock Adapter）](docs/screenshots/m7-007-workflow.gif)
 
 ## 核心能力
 

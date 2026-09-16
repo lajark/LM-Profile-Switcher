@@ -13,6 +13,9 @@ import type {
   HardwareView,
   ProfilesMeta,
   OptimizePreviewView,
+  OptimizationPreparationView,
+  OptimizationSaveView,
+  ModelContextProjection,
   ProfileDocument,
   ProfilesList,
   RpcFailure,
@@ -63,6 +66,8 @@ export interface BenchmarkRunOptions {
 }
 
 export const rpc = {
+  modelsContext: () => invokeRpc<ModelContextProjection>('models.context', {}),
+  defaultsSet: (profileId: string) => invokeRpc<{ default: { modelKey: string; taskType: string; profileId: string; updatedAt: string } }>('defaults.set', { profileId }),
   profilesMeta: () => invokeRpc<ProfilesMeta>('profiles.meta', {}),
   profilesList: () => invokeRpc<ProfilesList>('profiles.list', {}),
   profilesShow: (id: string) => invokeRpc<{ profile: ProfileDocument }>('profiles.show', { id }),
@@ -74,7 +79,20 @@ export const rpc = {
   activationStatus: () => invokeRpc<ActivationStatus>('activation.status', {}),
   activationApply: (id: string) =>
     invokeRpc<ActivationApplyResult>('activation.apply', { id }, ACTIVATION_APPLY_TIMEOUT_MS),
-  optimizePreview: (profileId: string) =>
+  activationStartSafe: (modelKey: string, taskType: string) =>
+    invokeRpc<ActivationApplyResult>('activation.startSafe', { modelKey, taskType }, ACTIVATION_APPLY_TIMEOUT_MS),
+  optimizationPrepare: (
+    profileId: string,
+    options: { baselineBenchmark?: 'run' | 'skip'; candidateBenchmark?: 'run' | 'skip'; candidateId?: string; samples?: number; maxTokens?: number; allowBattery?: boolean },
+  ) => invokeRpc<OptimizationPreparationView>('optimization.prepare', { profileId, ...options }, BENCHMARK_RUN_TIMEOUT_MS * 2),
+  optimizationPrepareModel: (
+    modelKey: string,
+    taskType: string,
+    options: { baselineBenchmark?: 'run' | 'skip'; candidateBenchmark?: 'run' | 'skip'; candidateId?: string; samples?: number; maxTokens?: number; allowBattery?: boolean },
+  ) => invokeRpc<OptimizationPreparationView>('optimization.prepareModel', { modelKey, taskType, ...options }, BENCHMARK_RUN_TIMEOUT_MS * 2),
+  optimizationSave: (preparationId: string, id: string, setDefault: boolean) =>
+    invokeRpc<OptimizationSaveView>('optimization.save', { preparationId, id, setDefault }),
+  optimizationSetDefault: (profileId: string) => invokeRpc<{ profileId: string }>('optimization.setDefault', { profileId }),  optimizePreview: (profileId: string) =>
     invokeRpc<OptimizePreviewView>('optimize.preview', { profileId }),
   optimizeSave: (profileId: string) =>
     invokeRpc<{ appliedProfileId: string; recommendation: OptimizePreviewView['recommendation'] }>(

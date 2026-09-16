@@ -178,6 +178,9 @@ export const config: WdioConfig = {
     lmpsHome = mkdtempSync(join(tmpdir(), 'lmps-shell-e2e-'));
     process.env.LMPS_HOME = lmpsHome;
     process.env.LMPS_ADAPTER = 'mock';
+    process.env.LMPS_E2E_MOCK_HEALTHCHECK_FAIL_MODEL = 'vendor/e2e-shell-fail';
+    process.env.LMPS_E2E_MOCK_BENCHMARK_FAIL_MODEL = 'vendor/e2e-shell-fail';
+    process.env.LMPS_E2E_MOCK_BENCHMARK_GAP_MS = '25';
     process.env.LMPS_NATIVE_DRIVER = nativeDriver;
   },
 

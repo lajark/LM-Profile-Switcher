@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="256" height="256" viewBox="0 0 16 16">
+  <title>LM Profile Switcher — Sliding Models</title>
+  <!-- Original geometry. All raster variants derive from this source. -->
+  <defs>
+    <rect id="front" x="5" y="4" width="10" height="11" rx="2"/>
+    <path id="arrow" d="M7 8.5H10V6.5L13 9.5L10 12.5V10.5H7Z"/>
+    <mask id="separate" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16">
+      <rect width="16" height="16" fill="white"/>
+      <use xlink:href="#front" fill="black" stroke="black" stroke-width="1"/>
+    </mask>
+    <mask id="cut-arrow" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16">
+      <rect width="16" height="16" fill="white"/>
+      <use xlink:href="#arrow" fill="black"/>
+    </mask>
+  </defs>
+  <rect x="1" y="1" width="10" height="11" rx="2" fill="#B5BFCC" mask="url(#separate)"/>
+  <use xlink:href="#front" fill="#315EFB" mask="url(#cut-arrow)"/>
+  <use xlink:href="#arrow" fill="#F3F5F8" data-role="accent-arrow"/>
+</svg>

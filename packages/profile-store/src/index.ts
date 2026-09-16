@@ -25,11 +25,13 @@ export * from './fsys.js';
 export * from './atomic.js';
 export * from './backup.js';
 export * from './sanitize.js';
+export * from './defaults.js';
 export * from './index-types.js';
 export type {
   ProfileStore,
   StoreContext,
   ImportOptions,
+  ProfileStoreEntry,
 } from './store.js';
 export { createProfileStore } from './store.js';
 

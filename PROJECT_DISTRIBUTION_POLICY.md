@@ -39,6 +39,12 @@ existing_compliance_command: "corepack pnpm run compliance"
 - `policy_scan_command` 与 `ci_policy_job` 已实现；`--strict` 的远端 CI 首次实测随首次远端 Push 完成，结果记录在各任务完成记录（LOCAL-ONLY）。
 - 将仓库或 Release 改为其它可见性仍属政策变更，必须由用户明确授权并同步本文件、`.gitignore`、CI 和发布清单。创建新 Tag、Release、渠道提交或远端元数据也不属于默认流程。
 
+本轮优化范围（2026-09-16，用户已授权远端发布）：
+
+- 当前轮仅发布 Windows x86_64 未签名 NSIS 预发布，目标版本为 0.2.3-beta.1。
+- macOS arm64/x86_64 已从本轮优化、构建、签名、公证和真机验收范围移除；历史阻塞记录保留，后续恢复时需重新建立独立证据。
+- Gitee 继续镜像源码与 tag；Release 制品仅按政策在 GitHub 发布。
+
 本文件是本项目文件分类、仓库可见性和 Release 内容边界的单一事实来源。`AGENTS.md` 仍是项目总规则的权威来源；发生冲突时依次遵循安全与许可证、`AGENTS.md`，并立即修订本文件消除冲突。
 
 ## 1. 核心原则

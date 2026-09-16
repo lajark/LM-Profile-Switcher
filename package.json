@@ -1,6 +1,6 @@
 {
   "name": "lm-profile-switcher",
-  "version": "0.2.2-beta.1",
+  "version": "0.2.3-beta.1",
   "private": true,
   "description": "Independent local profile management for LM Studio.",
   "license": "MIT",

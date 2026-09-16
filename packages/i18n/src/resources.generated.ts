@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit manually.
 // Source of truth: locales/zh-CN/common.json, locales/en/common.json.
 // Regenerate with `corepack pnpm run i18n:generate`.
-// __CHECKSUM__: 57543dc157a9f06979aa32b465ad25ddbe3521a469822d2f017fd6c0fe6437b5
+// __CHECKSUM__: e094dcbd81fb753596f364da595441efaeab51a6252100dad11441fa793c94a9
 
 export const DEFAULT_NAMESPACE = 'common';
 
@@ -189,6 +189,7 @@ export const resourceKeys = [
   'doctor.check.hardware',
   'desktop.status.connecting',
   'desktop.status.connected',
+  'desktop.status.help',
   'desktop.status.disconnected',
   'desktop.status.authFailed',
   'desktop.status.startFailed',
@@ -225,6 +226,86 @@ export const resourceKeys = [
   'desktop.profiles.applying',
   'desktop.profiles.applyConfirm',
   'desktop.profiles.activeBadge',
+  'desktop.nav.models',
+  'desktop.nav.settings',
+  'desktop.models.title',
+  'desktop.models.subtitle',
+  'desktop.models.refresh',
+  'desktop.models.filter',
+  'desktop.models.refreshing',
+  'desktop.models.retry',
+  'desktop.models.preparation',
+  'desktop.models.readiness.hardware',
+  'desktop.models.readiness.lmStudio',
+  'desktop.models.readiness.discovery',
+  'desktop.models.readiness.hardwareReady',
+  'desktop.models.readiness.hardwareHelp',
+  'desktop.models.readiness.version',
+  'desktop.models.readiness.lmStudioHelp',
+  'desktop.models.readiness.modelCount',
+  'desktop.models.readiness.discoveryHelp',
+  'desktop.models.status.ready',
+  'desktop.models.status.partial',
+  'desktop.models.status.offline',
+  'desktop.models.status.unavailable',
+  'desktop.models.status.unknown',
+  'desktop.models.status.running',
+  'desktop.models.status.idle',
+  'desktop.models.runtime.title',
+  'desktop.models.runtime.none',
+  'desktop.models.needsOrganization',
+  'desktop.models.empty.title',
+  'desktop.models.empty.body',
+  'desktop.models.empty.filtered',
+  'desktop.models.empty.noProfiles',
+  'desktop.models.listTitle',
+  'desktop.models.listCount',
+  'desktop.models.modelDetailsUnknown',
+  'desktop.models.parametersUnknown',
+  'desktop.models.parameters',
+  'desktop.models.viewDetails',
+  'desktop.models.optimize',
+  'desktop.models.availability.available',
+  'desktop.models.availability.missing',
+  'desktop.models.availability.unknown',
+  'desktop.models.scenarioCount',
+  'desktop.models.back',
+  'desktop.models.modelFamilyUnknown',
+  'desktop.models.warning.missing',
+  'desktop.models.warning.unknown',
+  'desktop.models.scenario.none',
+  'desktop.models.scenario.select',
+  'desktop.models.benchmarkCount',
+  'desktop.models.profiles.title',
+  'desktop.models.profiles.description',
+  'desktop.models.default.stale',
+  'desktop.models.default.badge',
+  'desktop.models.default.set',
+  'desktop.models.default.saved',
+  'desktop.models.default.choose',
+  'desktop.models.launch.title',
+  'desktop.models.launch.none',
+  'desktop.models.launch.defaultHint',
+  'desktop.models.launch.staleHint',
+  'desktop.models.launch.unmeasured',
+  'desktop.models.launch.safeDefault',
+  'desktop.models.launch.safeHint',
+  'desktop.models.benchmarks.title',
+  'desktop.models.benchmark',
+  'desktop.models.start',
+  'desktop.models.starting',
+  'desktop.models.started',
+  'desktop.models.startFailed',
+  'desktop.models.warning.replace',
+  'desktop.models.legacyEdit',
+  'desktop.models.evidence.current',
+  'desktop.models.evidence.stale',
+  'desktop.models.evidence.changed',
+  'desktop.models.evidence.partial',
+  'desktop.models.evidence.unmeasured',
+  'desktop.settings.title',
+  'desktop.settings.language',
+  'desktop.settings.languageHint',
   'desktop.footer.disclaimer',
   'desktop.help.title',
   'desktop.help.font.smaller',
@@ -268,6 +349,34 @@ export const resourceKeys = [
   'desktop.editor.behavior.mode',
   'desktop.editor.json',
   'desktop.editor.saved',
+  'desktop.models.optimizeFlow.title',
+  'desktop.models.optimizeFlow.intro',
+  'desktop.models.optimizeFlow.unsavedBaseline',
+  'desktop.models.optimizeFlow.unsavedHint',
+  'desktop.models.optimizeFlow.baseline',
+  'desktop.models.optimizeFlow.baselineHint',
+  'desktop.models.optimizeFlow.candidate',
+  'desktop.models.optimizeFlow.candidateHint',
+  'desktop.models.optimizeFlow.run',
+  'desktop.models.optimizeFlow.skip',
+  'desktop.models.optimizeFlow.prepare',
+  'desktop.models.optimizeFlow.retestSelected',
+  'desktop.models.optimizeFlow.preparing',
+  'desktop.models.optimizeFlow.status',
+  'desktop.models.optimizeFlow.noRecommendation',
+  'desktop.models.optimizeFlow.selected',
+  'desktop.models.optimizeFlow.evidence.label',
+  'desktop.models.optimizeFlow.evidence.measured',
+  'desktop.models.optimizeFlow.evidence.unmeasured',
+  'desktop.models.optimizeFlow.evidence.failed',
+  'desktop.models.optimizeFlow.evidence.canceled',
+  'desktop.models.optimizeFlow.evidence.notRun',
+  'desktop.models.optimizeFlow.saveId',
+  'desktop.models.optimizeFlow.setDefault',
+  'desktop.models.optimizeFlow.save',
+  'desktop.models.optimizeFlow.saved',
+  'desktop.models.optimizeFlow.notReady',
+  'desktop.models.optimizeFlow.done',
   'desktop.optimize.title',
   'desktop.optimize.select',
   'desktop.optimize.preview',
@@ -554,6 +663,7 @@ export interface CommonResources {
   'doctor.check.hardware': string;
   'desktop.status.connecting': string;
   'desktop.status.connected': string;
+  'desktop.status.help': string;
   'desktop.status.disconnected': string;
   'desktop.status.authFailed': string;
   'desktop.status.startFailed': string;
@@ -590,6 +700,86 @@ export interface CommonResources {
   'desktop.profiles.applying': string;
   'desktop.profiles.applyConfirm': string;
   'desktop.profiles.activeBadge': string;
+  'desktop.nav.models': string;
+  'desktop.nav.settings': string;
+  'desktop.models.title': string;
+  'desktop.models.subtitle': string;
+  'desktop.models.refresh': string;
+  'desktop.models.filter': string;
+  'desktop.models.refreshing': string;
+  'desktop.models.retry': string;
+  'desktop.models.preparation': string;
+  'desktop.models.readiness.hardware': string;
+  'desktop.models.readiness.lmStudio': string;
+  'desktop.models.readiness.discovery': string;
+  'desktop.models.readiness.hardwareReady': string;
+  'desktop.models.readiness.hardwareHelp': string;
+  'desktop.models.readiness.version': string;
+  'desktop.models.readiness.lmStudioHelp': string;
+  'desktop.models.readiness.modelCount': string;
+  'desktop.models.readiness.discoveryHelp': string;
+  'desktop.models.status.ready': string;
+  'desktop.models.status.partial': string;
+  'desktop.models.status.offline': string;
+  'desktop.models.status.unavailable': string;
+  'desktop.models.status.unknown': string;
+  'desktop.models.status.running': string;
+  'desktop.models.status.idle': string;
+  'desktop.models.runtime.title': string;
+  'desktop.models.runtime.none': string;
+  'desktop.models.needsOrganization': string;
+  'desktop.models.empty.title': string;
+  'desktop.models.empty.body': string;
+  'desktop.models.empty.filtered': string;
+  'desktop.models.empty.noProfiles': string;
+  'desktop.models.listTitle': string;
+  'desktop.models.listCount': string;
+  'desktop.models.modelDetailsUnknown': string;
+  'desktop.models.parametersUnknown': string;
+  'desktop.models.parameters': string;
+  'desktop.models.viewDetails': string;
+  'desktop.models.optimize': string;
+  'desktop.models.availability.available': string;
+  'desktop.models.availability.missing': string;
+  'desktop.models.availability.unknown': string;
+  'desktop.models.scenarioCount': string;
+  'desktop.models.back': string;
+  'desktop.models.modelFamilyUnknown': string;
+  'desktop.models.warning.missing': string;
+  'desktop.models.warning.unknown': string;
+  'desktop.models.scenario.none': string;
+  'desktop.models.scenario.select': string;
+  'desktop.models.benchmarkCount': string;
+  'desktop.models.profiles.title': string;
+  'desktop.models.profiles.description': string;
+  'desktop.models.default.stale': string;
+  'desktop.models.default.badge': string;
+  'desktop.models.default.set': string;
+  'desktop.models.default.saved': string;
+  'desktop.models.default.choose': string;
+  'desktop.models.launch.title': string;
+  'desktop.models.launch.none': string;
+  'desktop.models.launch.defaultHint': string;
+  'desktop.models.launch.staleHint': string;
+  'desktop.models.launch.unmeasured': string;
+  'desktop.models.launch.safeDefault': string;
+  'desktop.models.launch.safeHint': string;
+  'desktop.models.benchmarks.title': string;
+  'desktop.models.benchmark': string;
+  'desktop.models.start': string;
+  'desktop.models.starting': string;
+  'desktop.models.started': string;
+  'desktop.models.startFailed': string;
+  'desktop.models.warning.replace': string;
+  'desktop.models.legacyEdit': string;
+  'desktop.models.evidence.current': string;
+  'desktop.models.evidence.stale': string;
+  'desktop.models.evidence.changed': string;
+  'desktop.models.evidence.partial': string;
+  'desktop.models.evidence.unmeasured': string;
+  'desktop.settings.title': string;
+  'desktop.settings.language': string;
+  'desktop.settings.languageHint': string;
   'desktop.footer.disclaimer': string;
   'desktop.help.title': string;
   'desktop.help.font.smaller': string;
@@ -633,6 +823,34 @@ export interface CommonResources {
   'desktop.editor.behavior.mode': string;
   'desktop.editor.json': string;
   'desktop.editor.saved': string;
+  'desktop.models.optimizeFlow.title': string;
+  'desktop.models.optimizeFlow.intro': string;
+  'desktop.models.optimizeFlow.unsavedBaseline': string;
+  'desktop.models.optimizeFlow.unsavedHint': string;
+  'desktop.models.optimizeFlow.baseline': string;
+  'desktop.models.optimizeFlow.baselineHint': string;
+  'desktop.models.optimizeFlow.candidate': string;
+  'desktop.models.optimizeFlow.candidateHint': string;
+  'desktop.models.optimizeFlow.run': string;
+  'desktop.models.optimizeFlow.skip': string;
+  'desktop.models.optimizeFlow.prepare': string;
+  'desktop.models.optimizeFlow.retestSelected': string;
+  'desktop.models.optimizeFlow.preparing': string;
+  'desktop.models.optimizeFlow.status': string;
+  'desktop.models.optimizeFlow.noRecommendation': string;
+  'desktop.models.optimizeFlow.selected': string;
+  'desktop.models.optimizeFlow.evidence.label': string;
+  'desktop.models.optimizeFlow.evidence.measured': string;
+  'desktop.models.optimizeFlow.evidence.unmeasured': string;
+  'desktop.models.optimizeFlow.evidence.failed': string;
+  'desktop.models.optimizeFlow.evidence.canceled': string;
+  'desktop.models.optimizeFlow.evidence.notRun': string;
+  'desktop.models.optimizeFlow.saveId': string;
+  'desktop.models.optimizeFlow.setDefault': string;
+  'desktop.models.optimizeFlow.save': string;
+  'desktop.models.optimizeFlow.saved': string;
+  'desktop.models.optimizeFlow.notReady': string;
+  'desktop.models.optimizeFlow.done': string;
   'desktop.optimize.title': string;
   'desktop.optimize.select': string;
   'desktop.optimize.preview': string;

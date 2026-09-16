@@ -14,9 +14,13 @@
  * INTERNAL so the existing handler behavior (settings.setLocale) is unchanged.
  */
 import {
+  buildModelContext,
   calibrateEstimate,
+  createSafeBaselineProfile,
   isActivationError,
   isBenchmarkError,
+  isOptimizationLoopError,
+  type OptimizationPreparation,
   type ActivationRunResult,
   type CalibrationVerdict,
 } from '@lmps/core';
@@ -47,6 +51,7 @@ import {
 } from '@lmps/lmstudio-adapter';
 import {
   createDefaultFsys,
+  createProfileDefaultStore,
   createDefaultProfileStore,
   isProfileStoreError,
   writeFileAtomic,
@@ -62,7 +67,9 @@ import type {
   SidecarAliasSeam,
   SidecarBenchmarkSeam,
   SidecarHookSeam,
+  SidecarModelContextSeam,
   SidecarRecommendationSeam,
+  SidecarOptimizationSeam,
 } from './wiring.js';
 
 export interface SidecarHandlerOptions {
@@ -80,8 +87,12 @@ export interface SidecarHandlerOptions {
   store?: ProfileStore;
   /** Recommendation seam; null (default) makes optimize.* report METHOD_UNSUPPORTED. */
   recommendation?: SidecarRecommendationSeam | null;
+  /** Model-first context seam; null (default) makes models.context unsupported. */
+  modelContext?: SidecarModelContextSeam | null;
   /** Benchmark seam; null (default) makes benchmark.run report METHOD_UNSUPPORTED. */
   benchmark?: SidecarBenchmarkSeam | null;
+  /** M7-005 model-first optimization loop seam. */
+  optimization?: SidecarOptimizationSeam | null;
   /**
    * Activation seam (M3-003); null (default) makes activation.* and tray.menu
    * report METHOD_UNSUPPORTED / render the menu without a current state.
@@ -114,6 +125,7 @@ function toRpcMethodError(error: unknown): RpcMethodError {
   if (isProfileStoreError(error)) return new RpcMethodError(error.code, error.message);
   if (isActivationError(error)) return new RpcMethodError(error.code, error.message);
   if (isBenchmarkError(error)) return new RpcMethodError(error.code, error.message);
+  if (isOptimizationLoopError(error)) return new RpcMethodError(error.code, error.message);
   if (isDomainError(error)) return new RpcMethodError('PROFILE_INVALID', error.message);
   if (isLmStudioError(error) && LM_REACHABILITY_KINDS.has(error.kind)) {
     return new RpcMethodError('LM_UNREACHABLE', `LM Studio unreachable (${error.kind})`);
@@ -140,6 +152,42 @@ function paramProfileId(params: Record<string, unknown>): string {
     throw new RpcMethodError('STORE_INVALID_ID', 'missing or non-string profileId');
   }
   return value;
+}
+
+function paramNonEmptyString(params: Record<string, unknown>, key: string): string {
+  const value = params[key];
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new RpcMethodError('PROFILE_INVALID', `${key} must be a non-empty string`);
+  }
+  return value.trim();
+}
+
+async function safeBaselineForModel(
+  seam: SidecarModelContextSeam,
+  params: Record<string, unknown>,
+  now: string,
+): Promise<CompositeProfile> {
+  const modelKey = paramNonEmptyString(params, 'modelKey');
+  const taskType = paramNonEmptyString(params, 'taskType');
+  const source = await seam.read();
+  const model = source.models.find((entry) => entry.modelKey === modelKey);
+  if (model === undefined) {
+    throw new RpcMethodError('STORE_NOT_FOUND', 'model is not in the discovered model list');
+  }
+  return createSafeBaselineProfile({
+    modelKey: model.modelKey,
+    family: model.family,
+    quantization: model.quantization,
+    taskType,
+    now,
+  });
+}
+
+function optimizationDecision(params: Record<string, unknown>, key: string): 'run' | 'skip' {
+  const value = params[key];
+  if (value === undefined || value === 'run') return 'run';
+  if (value === 'skip') return 'skip';
+  throw new RpcMethodError('PROFILE_INVALID', `${key} must be run or skip`);
 }
 
 function clampInt(value: unknown, fallback: number, min: number, max: number): number {
@@ -429,8 +477,38 @@ export function createHandlers(options: SidecarHandlerOptions): Handlers {
 
   // The desktop data plane (M3-002): a real store on rootDir unless injected.
   const store = (options.store ?? (options.rootDir !== undefined ? createDefaultProfileStore(options.rootDir) : null));
+  const defaultStore = options.rootDir !== undefined
+    ? createProfileDefaultStore({
+        fs,
+        path: options.rootDir + '/profile-defaults.json',
+        now: options.now ?? (() => new Date().toISOString()),
+        profileExists: (profileId, modelKey, taskType) => {
+          if (store === null) return false;
+          try {
+            const profile = store.get(profileId);
+            return profile.model.modelKey === modelKey && profile.task.type === taskType;
+          } catch {
+            return false;
+          }
+        },
+      })
+    : null;
   const recommendation = options.recommendation ?? null;
+  const modelContext = options.modelContext ?? null;
   const benchmark = options.benchmark ?? null;
+  const optimization = options.optimization ?? null;
+  const preparations = new Map<string, OptimizationPreparation>();
+  let preparationSequence = 0;
+  function rememberPreparation(preparation: OptimizationPreparation): string {
+    preparationSequence += 1;
+    const preparationId = 'optimization-' + Date.now().toString(36) + '-' + preparationSequence.toString(36);
+    if (preparations.size >= 8) {
+      const oldest = preparations.keys().next().value;
+      if (typeof oldest === 'string') preparations.delete(oldest);
+    }
+    preparations.set(preparationId, preparation);
+    return preparationId;
+  }
   const activation = options.activation ?? null;
   const hook = options.hook ?? null;
   const alias = options.alias ?? null;
@@ -448,6 +526,13 @@ export function createHandlers(options: SidecarHandlerOptions): Handlers {
     return store;
   }
 
+  function requireModelContext(): SidecarModelContextSeam {
+    if (modelContext === null) {
+      throw new RpcMethodError('METHOD_UNSUPPORTED', 'model context is not wired');
+    }
+    return modelContext;
+  }
+
   function requireRecommendation(): SidecarRecommendationSeam {
     if (recommendation === null) {
       throw new RpcMethodError('METHOD_UNSUPPORTED', 'optimize is not wired');
@@ -460,6 +545,13 @@ export function createHandlers(options: SidecarHandlerOptions): Handlers {
       throw new RpcMethodError('METHOD_UNSUPPORTED', 'benchmark is not wired');
     }
     return benchmark;
+  }
+
+  function requireOptimization(): SidecarOptimizationSeam {
+    if (optimization === null) {
+      throw new RpcMethodError('METHOD_UNSUPPORTED', 'optimization loop is not wired');
+    }
+    return optimization;
   }
 
   function requireActivation(): SidecarActivationSeam {
@@ -563,6 +655,117 @@ export function createHandlers(options: SidecarHandlerOptions): Handlers {
     // Desktop data plane (M3-002): profiles / optimize / benchmark
     // ------------------------------------------------------------------
 
+    'models.context': async () =>
+      guard(async () => {
+        const source = await requireModelContext().read();
+        const entries = requireStore().listEntries();
+        const profiles = entries
+          .filter((entry): entry is { kind: 'profile'; profile: CompositeProfile } => entry.kind === 'profile')
+          .map((entry) => entry.profile);
+        const legacy = entries
+          .filter((entry): entry is { kind: 'needs-organization'; id: string; reason: 'unclassifiable-model-or-scenario' } =>
+            entry.kind === 'needs-organization',
+          )
+          .map((entry) => ({ id: entry.id, reason: entry.reason }));
+        return buildModelContext({
+          ...source,
+          profiles,
+          legacy,
+          now: now(),
+        });
+      }),
+
+    'defaults.set': async (params) =>
+      guard(async () => {
+        if (defaultStore === null) throw new RpcMethodError('METHOD_UNSUPPORTED', 'default profile store is not wired');
+        const id = paramProfileId(params);
+        const profile = requireStore().get(id);
+        return { default: defaultStore.set(profile.model.modelKey, profile.task.type, profile.id) };
+      }),
+
+    /**
+     * M7-005 optimization workspace: Core owns the ordered baseline/candidate
+     * loop. Preparations stay in this sidecar session until an explicit save;
+     * the wire returns the prepared recommendation and evidence, never starts
+     * a model implicitly.
+     */
+    'optimization.prepare': async (params, signal) =>
+      guard(async () => {
+        const seam = requireOptimization();
+        const baseline = requireStore().get(paramProfileId(params));
+        const candidateId = typeof params['candidateId'] === 'string' ? params['candidateId'] : undefined;
+        const preparation = await seam.service.prepare(baseline, {
+          baselineBenchmark: optimizationDecision(params, 'baselineBenchmark'),
+          candidateBenchmark: optimizationDecision(params, 'candidateBenchmark'),
+          ...(candidateId === undefined ? {} : { candidateId }),
+          benchmark: {
+            samples: clampInt(params['samples'], 3, 1, 10),
+            maxTokens: clampInt(params['maxTokens'], 64, 1, 512),
+            allowBattery: params['allowBattery'] === true,
+          },
+          signal,
+        });
+        const preparationId = rememberPreparation(preparation);
+        return { preparationId, baselinePersistence: 'saved' as const, preparation };
+      }),
+
+    /**
+     * M7-005 no-profile entry: build an ephemeral safe baseline from a model
+     * that discovery already returned. It is retained only in this sidecar
+     * session until optimization.save explicitly creates a profile.
+     */
+    'optimization.prepareModel': async (params, signal) =>
+      guard(async () => {
+        const seam = requireOptimization();
+        const context = requireModelContext();
+        const baseline = await safeBaselineForModel(context, params, now());
+        const candidateId = typeof params['candidateId'] === 'string' ? params['candidateId'] : undefined;
+        const preparation = await seam.service.prepare(baseline, {
+          baselineBenchmark: optimizationDecision(params, 'baselineBenchmark'),
+          candidateBenchmark: optimizationDecision(params, 'candidateBenchmark'),
+          ...(candidateId === undefined ? {} : { candidateId }),
+          benchmark: {
+            samples: clampInt(params['samples'], 3, 1, 10),
+            maxTokens: clampInt(params['maxTokens'], 64, 1, 512),
+            allowBattery: params['allowBattery'] === true,
+          },
+          signal,
+        });
+        const preparationId = rememberPreparation(preparation);
+        return { preparationId, baselinePersistence: 'unsaved' as const, preparation };
+      }),
+
+    'optimization.save': async (params) =>
+      guard(async () => {
+        const seam = requireOptimization();
+        const preparationId = params['preparationId'];
+        if (typeof preparationId !== 'string' || preparationId.length === 0) {
+          throw new RpcMethodError('STORE_INVALID_ID', 'missing or non-string preparationId');
+        }
+        const preparation = preparations.get(preparationId);
+        if (preparation === undefined) {
+          throw new RpcMethodError('OPTIMIZATION_NO_CANDIDATE', 'optimization preparation is missing or expired');
+        }
+        const id = params['id'];
+        if (typeof id !== 'string' || id.length === 0) {
+          throw new RpcMethodError('STORE_INVALID_ID', 'missing or non-string profile id');
+        }
+        const displayName = isRecord(params['displayName']) ? params['displayName'] as CompositeProfile['displayName'] : undefined;
+        const saved = seam.service.save(preparation, {
+          id,
+          ...(displayName === undefined ? {} : { displayName }),
+          setDefault: params['setDefault'] === true,
+        });
+        preparations.delete(preparationId);
+        return { profileId: saved.profile.id, isDefault: saved.isDefault };
+      }),
+
+    'optimization.setDefault': async (params) =>
+      guard(async () => {
+        const seam = requireOptimization();
+        const profile = seam.service.setDefault(paramProfileId(params));
+        return { profileId: profile.id };
+      }),
     'profiles.meta': async () => ({ taskKinds: [...TASK_KINDS] }),
 
     'profiles.list': async () =>
@@ -744,6 +947,31 @@ export function createHandlers(options: SidecarHandlerOptions): Handlers {
       }
     },
 
+    /**
+     * M7-005 no-profile launch: use the same activation transaction with an
+     * ephemeral safe baseline. Nothing is written to the profile store and
+     * replacement/failure semantics remain those of activation.apply.
+     */
+    'activation.startSafe': async (params, signal) => {
+      try {
+        return await guard(async () => {
+          const context = requireModelContext();
+          const seam = requireActivation();
+          const target = await safeBaselineForModel(context, params, now());
+          await seam.runtime.getActiveState();
+          const result = await seam.runner.run(target, { signal });
+          recordOutcome(result);
+          return {
+            outcome: result.outcome.status,
+            alreadyActive: result.outcome.alreadyActive,
+            transaction: result.transaction,
+          };
+        });
+      } catch (error) {
+        recordOnlyFailure(error);
+        throw error;
+      }
+    },
     /**
      * Unload the current configuration. Idempotent: nothing active resolves as
      * { outcome: 'ok' } with null ids. The host is served under the shared

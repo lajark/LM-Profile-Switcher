@@ -1,6 +1,7 @@
 # Dependency Governance / 依赖治理（M6-005）
 
 > 本文档是依赖与供应链治理的单一事实来源：直接依赖锁定策略、本次锁定记录、已安装树重复版本理由，以及 Dependabot/CI 门禁。基线数据由 `corepack pnpm run audit:deps` 生成。
+> M7-001 为文档-only 修订，没有新增或升级依赖，也没有改变 CI/Dependabot 门禁；本 M6-005 基线继续有效，直到后续任务明确变更。
 
 ## 1. 直接依赖锁定策略
 
