@@ -46,8 +46,6 @@ LM Profile Switcher 自动识别你的硬件，推荐可复现的配置，在本
 4. 让实测性能优化后续推荐。
 5. 带健康检查与回滚地应用所选配置。
 
-![优化向导](docs/screenshots/screenshot-optimize-9b.png)
-
 ![Benchmark 工作区](docs/screenshots/m7-007-benchmark-zh.png)
 
 模型优先截图来自本机 LM Studio 的只读会话。Benchmark 截图使用隔离的 Mock Adapter 确定性预览；其中数值是夹具输出，不代表性能承诺。
@@ -77,8 +75,6 @@ LM Profile Switcher 自动识别你的硬件，推荐可复现的配置，在本
 | 35B MoE，超出显存 | 生成、实测并排序 Hybrid 配置 |
 
 [完整方法学、数据表与已知限制 →](docs/BENCHMARKS.md)
-
-![硬件面板](docs/screenshots/screenshot-hardware.png)
 
 ## 隐私与安全
 

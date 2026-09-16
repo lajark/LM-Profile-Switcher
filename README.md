@@ -48,8 +48,6 @@ Current Windows beta: **v0.2.3-beta.1** — download the installer from [GitHub 
 4. Let measured performance refine future recommendations.
 5. Apply the selected profile with health checks and rollback.
 
-![Optimization wizard](docs/screenshots/screenshot-optimize-9b.png)
-
 ![Benchmark workspace](docs/screenshots/m7-007-benchmark-en.png)
 
 The model-first screenshot is a read-only local LM Studio session. The Benchmark screenshot is a deterministic isolated Mock Adapter preview; its values are fixture output, not a performance claim.
@@ -79,8 +77,6 @@ Measured in real LM Studio sessions on **RTX 5060 Ti 16 GB · Core Ultra 5 225H 
 | 35B MoE, beyond VRAM | Hybrid configurations generated, benchmarked and ranked |
 
 [Full methodology, tables and known limitations →](docs/BENCHMARKS.md)
-
-![Hardware panel](docs/screenshots/screenshot-hardware.png)
 
 ## Privacy & safety
 
