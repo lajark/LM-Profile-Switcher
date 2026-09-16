@@ -30,4 +30,20 @@ describe('safe baseline factory', () => {
     });
     expect(profile.task).toEqual({ type: 'my-workflow', kind: 'custom' });
   });
+  it('rejects an empty model key or task type before creating a profile', () => {
+    expect(() => createSafeBaselineProfile({
+      modelKey: ' ',
+      family: null,
+      quantization: null,
+      taskType: 'quick-chat',
+      now: '2026-09-15T00:00:00.000Z',
+    })).toThrow('modelKey and taskType are required');
+    expect(() => createSafeBaselineProfile({
+      modelKey: 'vendor/model',
+      family: null,
+      quantization: null,
+      taskType: '',
+      now: '2026-09-15T00:00:00.000Z',
+    })).toThrow('modelKey and taskType are required');
+  });
 });

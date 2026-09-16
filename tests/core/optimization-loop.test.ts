@@ -231,4 +231,22 @@ describe('OptimizationLoopService', () => {
       expect.objectContaining({ code: 'OPTIMIZATION_PROFILE_MISMATCH' }),
     );
   });
+  it('records candidate cancellation and refuses to save it', async () => {
+    const harness = makeHarness([benchmarkResult('baseline-run'), benchmarkResult('candidate-canceled', 'canceled')]);
+    const service = createOptimizationLoopService(harness.ports);
+    const preparation = await service.prepare(makeProfile('baseline'));
+    expect(preparation.status).toBe('canceled');
+    expect(preparation.candidateEvidence).toBe('canceled');
+    expect(() => service.save(preparation, { id: 'canceled-profile' })).toThrowError(
+      expect.objectContaining({ code: 'OPTIMIZATION_CANDIDATE_NOT_MEASURED' }),
+    );
+  });
+
+  it('rejects an explicit candidate id that is not in the recommendation', async () => {
+    const harness = makeHarness([]);
+    const service = createOptimizationLoopService(harness.ports);
+    await expect(service.prepare(makeProfile('baseline'), { baselineBenchmark: 'skip', candidateId: 'missing' })).rejects.toThrowError(
+      expect.objectContaining({ code: 'OPTIMIZATION_CANDIDATE_NOT_FOUND' }),
+    );
+  });
 });

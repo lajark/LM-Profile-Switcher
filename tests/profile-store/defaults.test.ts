@@ -55,4 +55,14 @@ describe('profile default store', () => {
       expect((error as { code?: string }).code).toBe('STORE_CORRUPTED');
     }
   });
+  it('rejects empty default keys and profile ids', () => {
+    const fs = new FakeFs();
+    const store = createProfileDefaultStore({ fs, path: DEFAULTS_PATH, now: () => FAKE_NOW });
+    expect(() => store.set('', 'quick-chat', 'profile-a')).toThrowError(
+      expect.objectContaining({ code: 'STORE_INVALID_ID' }),
+    );
+    expect(() => store.set('model/a', 'quick-chat', '')).toThrowError(
+      expect.objectContaining({ code: 'STORE_INVALID_ID' }),
+    );
+  });
 });

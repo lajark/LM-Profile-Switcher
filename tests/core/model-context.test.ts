@@ -173,4 +173,36 @@ describe('buildModelContext', () => {
     });
     expect(result.models[0]?.scenarios[0]?.profiles[0]).toMatchObject({ isDefault: true });
   });
+  it('marks evidence changed when the LM Studio version differs', () => {
+    const result = buildModelContext(
+      input({
+        profiles: [profile('version-mismatch', 'alpha', 'chat', {
+          source: 'benchmarked',
+          testedAt: NOW,
+          hardwareFingerprint: 'hw-1',
+          lmStudioVersion: '0.2.9',
+        })],
+      }),
+    );
+    expect(result.models[0]?.scenarios[0]?.evidence).toBe('changed-environment');
+  });
+
+  it('marks fully matching benchmark evidence current and sorts legacy entries', () => {
+    const result = buildModelContext(
+      input({
+        profiles: [profile('current', 'alpha', 'chat', {
+          source: 'benchmarked',
+          testedAt: NOW,
+          hardwareFingerprint: 'hw-1',
+          lmStudioVersion: '0.3.0',
+        })],
+        legacy: [
+          { id: 'legacy-z', reason: 'unclassifiable-model-or-scenario' },
+          { id: 'legacy-a', reason: 'unclassifiable-model-or-scenario' },
+        ],
+      }),
+    );
+    expect(result.models[0]?.scenarios[0]?.evidence).toBe('current');
+    expect(result.needsOrganization.map((entry) => entry.id)).toEqual(['legacy-a', 'legacy-z']);
+  });
 });
