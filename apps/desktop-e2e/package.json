@@ -11,14 +11,14 @@
   },
   "devDependencies": {
     "@types/mocha": "10.0.10",
-    "@types/node": "26.2.0",
+    "@types/node": "26.6.4",
     "@wdio/cli": "9.31.7",
     "@wdio/globals": "9.31.3",
     "@wdio/local-runner": "9.31.7",
     "@wdio/mocha-framework": "9.31.7",
     "@wdio/spec-reporter": "9.31.2",
     "@wdio/types": "9.31.2",
-    "tsx": "4.23.13",
+    "tsx": "4.23.15",
     "typescript": "5.7.3",
     "vite": "6.4.3",
     "webdriverio": "9.31.7"
